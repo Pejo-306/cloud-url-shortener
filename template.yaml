@@ -1,0 +1,91 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  URL Shortener Service
+  AWS SAM Template defining two Lambda functions (shorten and redirect) behind an API Gateway, using Python 3.13 runtime.
+
+Globals:
+  Function:
+    Timeout: 3
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+    Runtime: python3.13
+    Architectures:
+      - x86_64
+  Api:
+    TracingEnabled: true
+
+Resources:
+
+  ##################################################
+  # Lambda: Shorten URL
+  ##################################################
+  ShortenUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: shorten-url-function
+      CodeUri: src/lambdas/shorten_url/
+      Handler: app.lambda_handler
+      Events:
+        ShortenUrlApi:
+          Type: Api
+          Properties:
+            Path: /shorten
+            Method: post
+
+  ##################################################
+  # Lambda: Redirect URL
+  ##################################################
+  RedirectUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: redirect-url-function
+      CodeUri: src/lambdas/redirect_url/
+      Handler: app.lambda_handler
+      Events:
+        RedirectUrlApi:
+          Type: Api
+          Properties:
+            Path: /{shortcode}
+            Method: get
+
+  ##################################################
+  # Application Insights & Monitoring
+  ##################################################
+  ApplicationResourceGroup:
+    Type: AWS::ResourceGroups::Group
+    Properties:
+      Name: !Sub ApplicationInsights-SAM-${AWS::StackName}
+      ResourceQuery:
+        Type: CLOUDFORMATION_STACK_1_0
+
+  ApplicationInsightsMonitoring:
+    Type: AWS::ApplicationInsights::Application
+    Properties:
+      ResourceGroupName: !Ref ApplicationResourceGroup
+      AutoConfigurationEnabled: true
+
+Outputs:
+  ##################################################
+  # Outputs for convenience
+  ##################################################
+  ApiUrl:
+    Description: Base URL for the API Gateway (Prod stage)
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/
+
+  ShortenUrlFunctionArn:
+    Description: ARN of the Shorten URL Lambda Function
+    Value: !GetAtt ShortenUrlFunction.Arn
+
+  RedirectUrlFunctionArn:
+    Description: ARN of the Redirect URL Lambda Function
+    Value: !GetAtt RedirectUrlFunction.Arn
+
+  ShortenUrlFunctionRole:
+    Description: IAM Role created for Shorten URL function
+    Value: !GetAtt ShortenUrlFunctionRole.Arn
+
+  RedirectUrlFunctionRole:
+    Description: IAM Role created for Redirect URL function
+    Value: !GetAtt RedirectUrlFunctionRole.Arn
