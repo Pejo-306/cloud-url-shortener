@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from src.lambdas.redirect_url import app
+from cloudshortener.lambdas.redirect_url import app
 
 
 @pytest.fixture()

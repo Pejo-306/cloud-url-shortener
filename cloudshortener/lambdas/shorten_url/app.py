@@ -1,9 +1,10 @@
 import json
+from typing import Any, Dict
 
-# import requests
+from cloudshortener.lambdas.shorten_url.shortener import shorten_url
 
 
-def lambda_handler(event, context):
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Sample pure Lambda function
 
     Parameters
@@ -32,6 +33,12 @@ def lambda_handler(event, context):
     #     print(e)
 
     #     raise e
+
+    # Lambda handler algorithm:
+    # 1- Get and increment counter from database (via DAO)
+    # 2- Generate short_url from counter
+    # 3- Store short_url and original_url mapping in database (via DAO)
+    # 4- TODO BONUS: track & adjust user quota in database
 
     return {
         "statusCode": 200,

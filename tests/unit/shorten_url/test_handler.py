@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from src.lambdas.shorten_url import app
+from cloudshortener.lambdas.shorten_url import app
 
 
 @pytest.fixture()

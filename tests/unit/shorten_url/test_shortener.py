@@ -39,11 +39,12 @@ Test coverage includes:
     - The function executes efficiently for a large number of iterations.
 """
 
-import pytest
 import string
 import time
 
-from src.lambdas.shorten_url.shortener import shorten_url
+import pytest
+
+from cloudshortener.lambdas.shorten_url.shortener import shorten_url
 
 
 # -------------------------------
