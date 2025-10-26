@@ -1,0 +1,14 @@
+{
+  "resource": "/shorten",
+  "path": "/shorten",
+  "httpMethod": "POST",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "body": "{\"original_url\": \"https://example.com/blog/chuck-norris-is-awesome\"}",
+  "isBase64Encoded": false,
+  "requestContext": {
+    "domainName": "localhost:3000",
+    "stage": "local"
+  }
+}
