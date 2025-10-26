@@ -4,6 +4,21 @@ Description: |
   URL Shortener Service
   AWS SAM Template defining two Lambda functions (shorten and redirect) behind an API Gateway, using Python 3.13 runtime.
 
+Parameters:
+  AppEnv:
+    type: string
+    allowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    default: local
+    description: Application environment
+  AppName:
+    type: string
+    default: cloudshortener
+    description: Application name
+
 Globals:
   Function:
     Timeout: 3
@@ -13,6 +28,11 @@ Globals:
     Runtime: python3.13
     Architectures:
       - x86_64
+    Environment:
+      Variables:
+        APP_ENV: !Ref AppEnv
+        APP_NAME: !Ref AppName
+        PROJECT_ROOT: !Sub "${CodeUri}"
   Api:
     TracingEnabled: true
 
@@ -23,6 +43,12 @@ Resources:
   ##################################################
   ShortenUrlFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        Include:
+          - cloudshortener/**
+          - config/shorten_url/**
     Properties:
       FunctionName: shorten-url-function
       CodeUri: .
@@ -39,6 +65,12 @@ Resources:
   ##################################################
   RedirectUrlFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        Include:
+          - cloudshortener/**
+          - config/redirect_url/**
     Properties:
       FunctionName: redirect-url-function
       CodeUri: .

@@ -36,9 +36,11 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         # TODO: remove hardcoded values and add them via constructur (with defaults)
         # TODO: add Redis pipelining for performance boost
         # TODO: Add error handling
+        # TODO: change short_code to shortcode everywhere
         link_url_key = self.keys.link_url_key(short_url.short_code)
         link_hits_key = self.keys.link_hits_key(short_url.short_code)
 
+        # TODO: pipeline two set commands
         self.redis.set(link_url_key, short_url.original_url, ex=ONE_YEAR_SECONDS)
         self.redis.set(link_hits_key, 10000, ex=ONE_YEAR_SECONDS)
         return self
@@ -47,9 +49,11 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         # TODO: add error handling
         # TODO: add auto decoding from Redis
         # TODO: add hits to ShortURLModel
+        # TODO: change short_code to shortcode everywhere
         link_url_key = self.keys.link_url_key(short_code)
         link_hits_key = self.keys.link_hits_key(short_code)
 
+        # TODO: pipeline 3 commands
         original_url = self.redis.get(link_url_key)
         hits = self.redis.get(link_hits_key)
         ttl = self.redis.ttl(link_url_key)

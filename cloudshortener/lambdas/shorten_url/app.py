@@ -6,6 +6,7 @@ import redis
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO
 from cloudshortener.lambdas.shorten_url.shortener import shorten_url
+from cloudshortener.utils import load_config, app_env
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -42,13 +43,19 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     original_url = 'https://lambda.hello.com/'
 
     # 1- Create DAO class to access short URL records
-    # redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+    """
+    {"APP_ENV":"local","APP_NAME":"cloudshortener","PROJECT_ROOT":"/var/task/"}
+    """
+    """
     redis_config = {
         'redis_host': 'redis',
         'redis_port': 6379,
         'redis_db': 0,
-        'redis_decode_responses': True,
+        'redis_decode_responses': True
     }
+    """
+    app_config = load_config('redirect_url')
+    redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix='cloudshortener:local')
 
     # 2- Get counter from database (via DAO)
