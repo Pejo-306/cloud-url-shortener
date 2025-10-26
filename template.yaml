@@ -2,7 +2,9 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: |
   URL Shortener Service
-  AWS SAM Template defining two Lambda functions (shorten and redirect) behind an API Gateway, using Python 3.13 runtime.
+  Simplified AWS SAM template for local and regional use.
+  Two Lambda functions (shorten & redirect) behind an API Gateway,
+  plus a lightweight S3-hosted frontend (no CloudFront).
 
 Parameters:
   AppEnv:
@@ -20,6 +22,10 @@ Parameters:
     Default: cloudshortener
     Description: Application name
 
+  FrontendBucketName:
+    Type: String
+    Default: "cloudshortener-frontend"
+    Description: S3 bucket for hosting the frontend
 
 Globals:
   Function:
@@ -37,6 +43,10 @@ Globals:
         PROJECT_ROOT: "/var/task"
   Api:
     TracingEnabled: true
+    Cors:
+      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowHeaders: "'Content-Type'"
+      AllowOrigin: "'*'"
 
 Resources:
 
@@ -100,13 +110,48 @@ Resources:
       ResourceGroupName: !Ref ApplicationResourceGroup
       AutoConfigurationEnabled: true
 
+  ##################################################
+  # FrontEnd (S3 Static Website Hosting)
+  ##################################################
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${FrontendBucketName}-${AWS::AccountId}-${AWS::Region}"
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: index.html
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: false   # allow policy-based public read
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: false
+      VersioningConfiguration:
+        Status: Enabled
+
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowPublicRead
+            Effect: Allow
+            Principal: "*"
+            Action: "s3:GetObject"
+            Resource: !Sub "${FrontendBucket.Arn}/*"
+
 Outputs:
   ##################################################
   # Outputs for convenience
   ##################################################
   ApiUrl:
-    Description: Base URL for the API Gateway (Prod stage)
+    Description: Base URL for the API Gateway
     Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${AppEnv}/
+
+  FrontendUrl:
+    Description: Public S3 website URL for the frontend
+    Value: !GetAtt FrontendBucket.WebsiteURL
 
   ShortenUrlFunctionArn:
     Description: ARN of the Shorten URL Lambda Function
@@ -115,11 +160,3 @@ Outputs:
   RedirectUrlFunctionArn:
     Description: ARN of the Redirect URL Lambda Function
     Value: !GetAtt RedirectUrlFunction.Arn
-
-  ShortenUrlFunctionRole:
-    Description: IAM Role created for Shorten URL function
-    Value: !GetAtt ShortenUrlFunctionRole.Arn
-
-  RedirectUrlFunctionRole:
-    Description: IAM Role created for Redirect URL function
-    Value: !GetAtt RedirectUrlFunctionRole.Arn
