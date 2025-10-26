@@ -74,6 +74,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         'statusCode': 302,
         'headers': {
             'Location': original_url,
+            # TODO: remove later (Needed only for temporary frontend)
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
         },
         'body': ''  # no body needed for redirects
     }

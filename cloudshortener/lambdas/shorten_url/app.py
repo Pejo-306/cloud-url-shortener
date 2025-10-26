@@ -89,6 +89,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # 6- Return successful response to user
     return {
         'statusCode': 200,
+        'headers': {  # TODO: remove later (Needed only for temporary frontend)
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+        },
         'body': json.dumps({
             'message': f"Successfully shortened {original_url} to {short_url_string}",
             'original_url': original_url,
