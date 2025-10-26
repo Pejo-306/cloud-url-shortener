@@ -19,6 +19,8 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
                  redis_port: Optional[int] = 6379,
                  redis_db: Optional[int] = 0,
                  redis_decode_responses: Optional[bool] = True,
+                 redis_username: Optional[str] = None,
+                 redis_password: Optional[str] = None,
                  redis_client: Optional[redis.Redis] = None,
                  prefix: Optional[str] = None):
         if redis_client is None:
@@ -27,6 +29,8 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
                 port=redis_port,
                 db=redis_db,
                 decode_responses=redis_decode_responses,
+                username=redis_username,
+                password=redis_password
             )
         self.redis = redis_client
         self.keys = RedisKeySchema(prefix=prefix)

@@ -1,4 +1,6 @@
 redis:
-  host: redis
-  port: 6379
+  host: redis-15602.crce198.eu-central-1-3.ec2.redns.redis-cloud.com
+  port: 15602
   db: 0
+  username: default
+  password: LnKdNQtFOGIBmqdXAsuxifUlknqQ0APY
