@@ -28,6 +28,7 @@ def key_schema():
     mock = MagicMock(spec=RedisKeySchema)
     mock.link_url_key.return_value = 'testapp:test:links:abc123:url'
     mock.link_hits_key.return_value = 'testapp:test:links:abc123:hits'
+    mock.counter_key.return_value = 'testapp:test:links:counter'
     return mock
 
 
@@ -81,3 +82,20 @@ def test_get_short_url(dao, redis_client):
     assert short_url.original_url == 'https://example.com/test'
     assert short_url.expires_at is not None
 
+
+def test_count_with_increment(dao, redis_client):
+    redis_client.incr.return_value = b'43'
+
+    assert dao.count(increment=True) == 43
+
+    redis_client.incr.assert_called_once_with('testapp:test:links:counter')
+    redis_client.get.assert_not_called()
+
+
+def test_count_without_increment(dao, redis_client):
+    redis_client.get.return_value = b'42'
+
+    assert dao.count(increment=False) == 42
+
+    redis_client.get.assert_called_once_with('testapp:test:links:counter')
+    redis_client.incr.assert_not_called()

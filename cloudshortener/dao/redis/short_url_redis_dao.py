@@ -15,6 +15,7 @@ ONE_YEAR_SECONDS = 31_536_000
 class ShortURLRedisDAO(ShortURLBaseDAO):
 
     def __init__(self, redis_client: redis.Redis, prefix: Optional[str] = None):
+        # TODO: create and manage redis clietn inside this dao
         self.redis = redis_client
         self.keys = RedisKeySchema(prefix=prefix)
     
@@ -49,3 +50,11 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
             original_url=original_url.decode('utf-8'),
             expires_at=datetime.utcnow() + timedelta(seconds=int(ttl.decode('utf-8'))),
         )
+
+    def count(self, increment = False, **kwargs) -> int:
+        # TODO: add error handling
+        if increment:
+            return int(self.redis.incr(self.keys.counter_key()).decode('utf-8'))
+        else:
+            return int(self.redis.get(self.keys.counter_key()).decode('utf-8'))
+

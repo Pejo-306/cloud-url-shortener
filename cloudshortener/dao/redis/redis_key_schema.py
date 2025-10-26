@@ -88,6 +88,9 @@ class RedisKeySchema:
         link_hits_key(short_code: str) -> str:
             Generate a Redis key for number of hits via a given short code.
 
+        counter_key() -> str:
+            Generate a Redis key for the global links counter.
+
     Example:
         >>> schema = RedisKeySchema(prefix="shortener")
         >>> schema.link_url_key("abc123")
@@ -148,3 +151,16 @@ class RedisKeySchema:
             'links:abc123:hits'
         """
         return f"links:{short_code}:hits"
+
+    @prefix_key
+    def counter_key(self) -> str:
+        """Generate a Redis key for the global counter.
+
+        Returns:
+            str: A Redis key string for the global counter.
+
+        Example:
+            >>> RedisKeySchema().counter_key()
+            'links:counter'
+        """
+        return 'links:counter'

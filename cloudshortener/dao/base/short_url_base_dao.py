@@ -57,6 +57,11 @@ class ShortURLBaseDAO(ABC):
             Raises ShortURLNotFoundError if the entry does not exist.
             Raises DataStoreError on connection or read failure.
 
+        count(increment: bool, **kwargs) -> int:
+            Return counter from data store.
+            Optionally increment counter before retrieving.
+            Raises DataStoreError on connection or read failure.
+
     Subclassing:
         Datastore-specific implementations (e.g., ShortURLRedisDAO or
         ShortURLDynamoDBDAO) must extend this class and implement all
@@ -113,6 +118,26 @@ class ShortURLBaseDAO(ABC):
                 If no ShortURLModel with the given short code exists.
 
             DataStoreError: 
+                If there is an error in the data store.
+        """
+        pass
+    
+    @abstractmethod
+    def count(self, increment: bool = False, **kwargs) -> int:
+        """Retrieve the current counter value from the data store.
+
+        Args:
+            increment (bool):
+                If True, increment the counter by 1 before returning the value.
+
+            **kwargs:
+                Additional keyword arguments, used by data store.
+
+        Returns:
+            int: The current counter value.
+
+        Raises:
+            DataStoreError:
                 If there is an error in the data store.
         """
         pass

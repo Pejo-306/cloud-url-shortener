@@ -5,19 +5,16 @@ Redis key generation supplied by RedisKeySchema.
 
 Test coverage includes:
 
-1. Link URL key generation
-   - Ensures link_url_key() generates correct Redis keys for a given shortcode.
+1. Redis keys generation
+   - Ensures the various _key() methods generate correct Redis keys.
 
-2. Link hits key generation
-   - Ensures link_hits_key() generates correct Redis keys for a given shortcode.
-
-3. Default prefix behavior
+2. Default prefix behavior
    - Confirms keys are not prefixed when no prefix is provided.
 
-4. Custom prefix behavior
+3. Custom prefix behavior
    - Confirms keys are correctly prefixed when a valid prefix is provided.
 
-5. Invalid prefix types
+4. Invalid prefix types
    - Ensures improper prefix types raise TypeError.
 """
 
@@ -44,10 +41,6 @@ def test_link_url_key(shortcode, expected):
     assert result == expected
 
 
-# -------------------------------
-# 2. Link hits key generation
-# -------------------------------
-
 @pytest.mark.parametrize(
     "shortcode, expected",
     [
@@ -62,8 +55,15 @@ def test_link_hits_key(shortcode, expected):
     assert result == expected
 
 
+def test_counter_key():
+    """Ensure counter_key() generates valid Redis key for link counter."""
+    keys = RedisKeySchema()
+    result = keys.counter_key()
+    assert result == 'links:counter'
+
+
 # -------------------------------
-# 3. Default prefix behavior
+# 2. Default prefix behavior
 # -------------------------------
 
 def test_no_key_prefix_by_default():
@@ -76,7 +76,7 @@ def test_no_key_prefix_by_default():
 
 
 # -------------------------------
-# 4. Custom prefix behavior
+# 3. Custom prefix behavior
 # -------------------------------
 
 @pytest.mark.parametrize(
@@ -97,7 +97,7 @@ def test_key_prefixing(prefix, shortcode, expected_url_key, expected_hits_key):
 
 
 # -------------------------------
-# 5. Invalid prefix types
+# 4. Invalid prefix types
 # -------------------------------
 
 @pytest.mark.parametrize("prefix", [123, -1, 45.6, [], {}])
