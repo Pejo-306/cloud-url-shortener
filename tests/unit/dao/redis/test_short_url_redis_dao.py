@@ -58,10 +58,10 @@ def test_insert_short_url(dao, redis_client):
 
 def test_get_short_url(dao, redis_client):
     redis_client.get.side_effect = [
-        b'https://example.com/test',
-        b'10000'
+        'https://example.com/test',
+        10000
     ]
-    redis_client.ttl.return_value = str(ONE_YEAR_SECONDS).encode('utf-8')
+    redis_client.ttl.return_value = ONE_YEAR_SECONDS
     expected_calls = [
         call('testapp:test:links:abc123:url'),      # GET <app>:links:<short code>:url
         call('testapp:test:links:abc123:hits'),     # GET <app>:links:<short code>:hits
@@ -84,7 +84,7 @@ def test_get_short_url(dao, redis_client):
 
 
 def test_count_with_increment(dao, redis_client):
-    redis_client.incr.return_value = b'43'
+    redis_client.incr.return_value = 43
 
     assert dao.count(increment=True) == 43
 
@@ -93,7 +93,7 @@ def test_count_with_increment(dao, redis_client):
 
 
 def test_count_without_increment(dao, redis_client):
-    redis_client.get.return_value = b'42'
+    redis_client.get.return_value = 42
 
     assert dao.count(increment=False) == 42
 

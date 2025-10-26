@@ -47,14 +47,14 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
 
         return ShortURLModel(
             short_code=short_code,
-            original_url=original_url.decode('utf-8'),
-            expires_at=datetime.utcnow() + timedelta(seconds=int(ttl.decode('utf-8'))),
+            original_url=original_url,
+            expires_at=datetime.utcnow() + timedelta(seconds=ttl),
         )
 
     def count(self, increment = False, **kwargs) -> int:
         # TODO: add error handling
         if increment:
-            return int(self.redis.incr(self.keys.counter_key()).decode('utf-8'))
+            return self.redis.incr(self.keys.counter_key())
         else:
-            return int(self.redis.get(self.keys.counter_key()).decode('utf-8'))
+            return self.redis.get(self.keys.counter_key())
 
