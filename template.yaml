@@ -104,7 +104,7 @@ Outputs:
   ##################################################
   ApiUrl:
     Description: Base URL for the API Gateway (Prod stage)
-    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${AppEnv}/
 
   ShortenUrlFunctionArn:
     Description: ARN of the Shorten URL Lambda Function
