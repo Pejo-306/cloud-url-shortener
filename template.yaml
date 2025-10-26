@@ -6,18 +6,20 @@ Description: |
 
 Parameters:
   AppEnv:
-    type: string
-    allowedValues:
+    Type: String
+    AllowedValues:
       - local
       - dev
       - staging
       - prod
-    default: local
-    description: Application environment
+    Default: local
+    Description: Application environment
+
   AppName:
-    type: string
-    default: cloudshortener
-    description: Application name
+    Type: String
+    Default: cloudshortener
+    Description: Application name
+
 
 Globals:
   Function:
@@ -32,7 +34,7 @@ Globals:
       Variables:
         APP_ENV: !Ref AppEnv
         APP_NAME: !Ref AppName
-        PROJECT_ROOT: !Sub "${CodeUri}"
+        PROJECT_ROOT: "/var/task"
   Api:
     TracingEnabled: true
 
