@@ -42,8 +42,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     original_url = 'https://lambda.hello.com/'
 
     # 1- Create DAO class to access short URL records
-    redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
-    short_url_dao = ShortURLRedisDAO(redis_client=redis_client, prefix='cloudshortener:local')
+    # redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+    redis_config = {
+        'redis_host': 'redis',
+        'redis_port': 6379,
+        'redis_db': 0,
+        'redis_decode_responses': True,
+    }
+    short_url_dao = ShortURLRedisDAO(**redis_config, prefix='cloudshortener:local')
 
     # 2- Get counter from database (via DAO)
     counter = short_url_dao.count(increment=True)

@@ -14,8 +14,20 @@ ONE_YEAR_SECONDS = 31_536_000
 
 class ShortURLRedisDAO(ShortURLBaseDAO):
 
-    def __init__(self, redis_client: redis.Redis, prefix: Optional[str] = None):
-        # TODO: create and manage redis clietn inside this dao
+    def __init__(self, 
+                 redis_host: Optional[str] = 'localhost',
+                 redis_port: Optional[int] = 6379,
+                 redis_db: Optional[int] = 0,
+                 redis_decode_responses: Optional[bool] = True,
+                 redis_client: Optional[redis.Redis] = None,
+                 prefix: Optional[str] = None):
+        if redis_client is None:
+            redis_client = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                db=redis_db,
+                decode_responses=redis_decode_responses,
+            )
         self.redis = redis_client
         self.keys = RedisKeySchema(prefix=prefix)
     

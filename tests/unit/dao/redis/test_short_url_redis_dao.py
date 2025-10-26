@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, call, patch
 
 import redis
 import pytest
@@ -9,9 +9,6 @@ from cloudshortener.dao.redis import RedisKeySchema, ShortURLRedisDAO
 
 ONE_YEAR_SECONDS = 31_536_000
 
-# How does ShortURLRedisDAO interact with Redis?
-# 1- insert(ShortURLModel) -> SET 2 keys
-# 2- get(short_code) -> GET 2 keys
 
 @pytest.fixture
 def app_prefix():
@@ -37,6 +34,42 @@ def dao(redis_client, key_schema, app_prefix):
     _dao = ShortURLRedisDAO(redis_client=redis_client, prefix=app_prefix)
     _dao.keys = key_schema
     return _dao
+
+
+def test_initialize_without_redis_client():
+    redis_config = {
+        'redis_host': 'redis',
+        'redis_port': 6379,
+        'redis_db': 0,
+        'redis_decode_responses': True,
+    }
+
+    with patch('cloudshortener.dao.redis.short_url_redis_dao.redis.Redis') as redis_mock:
+        redis_mock_instance = MagicMock(spec=redis.Redis)
+        redis_mock.return_value = redis_mock_instance
+
+        dao = ShortURLRedisDAO(**redis_config, prefix='testapp:test')
+
+        redis_mock.assert_called_once_with(
+            host='redis',
+            port=6379,
+            db=0,
+            decode_responses=True,
+        )
+        assert dao.redis is redis_mock_instance
+
+
+def test_initialize_with_redis_client():
+    redis_mock = MagicMock(
+        spec=redis.Redis,
+        host='redis',
+        port=6379,
+        db=0,
+        decode_responses=True,
+    )
+    dao = ShortURLRedisDAO(redis_client=redis_mock, prefix='testapp:test')
+
+    assert dao.redis is redis_mock
 
 
 def test_insert_short_url(dao, redis_client):

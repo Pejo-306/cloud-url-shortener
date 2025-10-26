@@ -27,37 +27,14 @@ def lambda_handler(event, context):
 
         Return doc: https://docs.aws.amazon.com/apigateway/latest/developerguide/set-up-lambda-proxy-integrations.html
     """
-    # try:
-    #     ip = requests.get("http://checkip.amazonaws.com/")
-    # except requests.RequestException as e:
-    #     # Send some context about this error to Lambda Logs
-    #     print(e)
-
-    #     raise e
 
     """
     {
-        "resource": "/{shortcode}",
-        "path": "/abc1234",
-        "httpMethod": "GET",
-        "headers": {
-            "Host": "localhost:3000",
-            "User-Agent": "curl/8.5.0"
-        },
-        "queryStringParameters": null,
         "pathParameters": {
-            "shortcode": "abc1234"
-        },
-        "requestContext": {
-            "resourcePath": "/{shortcode}",
-            "httpMethod": "GET",
-            "path": "/{shortcode}",
-            "domainName": "localhost",
-            "stage": "Prod"
-        },
-        "body": null,
-        "isBase64Encoded": false
+            "shortcode": "Gh71TCN"
+        }
     }
+
 
     """
 
@@ -65,8 +42,13 @@ def lambda_handler(event, context):
     # TODO: if shortcode is none => return 400 error
 
     # 1- Create DAO class to access short URL records
-    redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
-    short_url_dao = ShortURLRedisDAO(redis_client=redis_client, prefix='cloudshortener:local')
+    redis_config = {
+        'redis_host': 'redis',
+        'redis_port': 6379,
+        'redis_db': 0,
+        'redis_decode_responses': True
+    }
+    short_url_dao = ShortURLRedisDAO(**redis_config, prefix='cloudshortener:local')
 
     # 2- Get short_url record from database
     short_url = short_url_dao.get(short_code=shortcode)
@@ -80,7 +62,6 @@ def lambda_handler(event, context):
             'expires_at': short_url.expires_at.isoformat(),
             'ttl': short_url.expires_at.timestamp(),
             'short_url': str(short_url_dao),
-            # "location": ip.text.replace("\n", "")
         }),
     }
 
