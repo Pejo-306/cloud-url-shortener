@@ -25,6 +25,10 @@ Functions:
     app_env() -> str
         Return the current application environment (`APP_ENV`) value, defaulting to `'local'`.
 
+    app_name() -> str | None
+        Return the current application environment (`APP_NAME`) value.
+        None if variable is not set.
+
     project_root() -> Path
         Return the absolute path to the project root directory, using the
         `PROJECT_ROOT` environment variable when available.
@@ -70,6 +74,22 @@ def app_env() -> str:
         'dev'
     """
     return os.environ.get("APP_ENV", "local").lower()
+
+
+def app_name() -> str | None:
+    """Return the current application name by reading 'APP_NAME'
+
+    Returns:
+        str:
+            Value of `APP_NAME` environment variable.
+            None if variable is not set.
+
+    Example:
+        >>> os.environ['APP_NAME'] = 'cloudshortener'
+        >>> app_name()
+        'cloudshortener'
+    """
+    return os.environ.get('APP_NAME')
 
 
 def project_root() -> Path:
