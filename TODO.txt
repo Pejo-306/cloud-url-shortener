@@ -1,0 +1,4 @@
+TODO:
+- Compile cloudshortener and upload to private S3 / PyPi bucket, so I can avoid
+building the whole app for each lambda => keep lambdas minimal and dependencies
+seperated

@@ -25,8 +25,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: shorten-url-function
-      CodeUri: src/lambdas/shorten_url/
-      Handler: app.lambda_handler
+      CodeUri: .
+      Handler: cloudshortener.lambdas.shorten_url.app.lambda_handler
       Events:
         ShortenUrlApi:
           Type: Api
@@ -41,8 +41,8 @@ Resources:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: redirect-url-function
-      CodeUri: src/lambdas/redirect_url/
-      Handler: app.lambda_handler
+      CodeUri: .
+      Handler: cloudshortener.lambdas.redirect_url.app.lambda_handler
       Events:
         RedirectUrlApi:
           Type: Api
