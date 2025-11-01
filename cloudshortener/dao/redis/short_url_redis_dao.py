@@ -32,8 +32,11 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
                 username=redis_username,
                 password=redis_password
             )
+
         self.redis = redis_client
         self.keys = RedisKeySchema(prefix=prefix)
+
+        self._heatlhcheck()
     
     def insert(self, short_url: ShortURLModel, **kwargs) -> 'ShortURLRedisDAO':
         # TODO: validate short url has valid data before insertion
@@ -78,3 +81,16 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         else:
             return self.redis.get(self.keys.counter_key())
 
+    def _heatlhcheck(self, raise_error: bool = True) -> bool:
+        try:
+            self.redis.ping()
+        except redis.exceptions.ConnectionError as e:
+            if raise_error:
+                info = self.redis.connection_pool.connection_kwargs
+                redis_host = info.get('host')
+                redis_port = info.get('port')
+                redis_db = info.get('db')
+                raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}. Check the provided configuration paramters.") from e
+            return False
+        else:
+            return True
