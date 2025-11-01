@@ -225,7 +225,6 @@ def test_get_short_url_which_does_not_exist(dao, redis_client):
         dao.get('abc123')
 
 
-
 def test_count_with_increment(dao, redis_client):
     redis_client.incr.return_value = 43
 
@@ -242,3 +241,18 @@ def test_count_without_increment(dao, redis_client):
 
     redis_client.get.assert_called_once_with('testapp:test:links:counter')
     redis_client.incr.assert_not_called()
+
+
+def test_count_with_redis_connection_error(dao, redis_client):
+    # Simulate Redis connection failure
+    redis_client.get.side_effect = redis.exceptions.ConnectionError("Connection Error")
+    redis_client.connection_pool = MagicMock()
+    redis_client.connection_pool.connection_kwargs = {
+        'host': '203.0.113.1',
+        'port': 18000,
+        'db': 5
+    }
+
+    # Expect DataStoreError with descriptive connection info
+    with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
+        dao.count(increment=False)

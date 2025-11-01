@@ -74,8 +74,8 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
             expires_at=datetime.utcnow() + timedelta(seconds=ttl),
         )
 
+    @handle_redis_connection_error
     def count(self, increment: bool = False, **kwargs) -> int:
-        # TODO: add error handling
         if increment:
             return self.redis.incr(self.keys.counter_key())
         else:
