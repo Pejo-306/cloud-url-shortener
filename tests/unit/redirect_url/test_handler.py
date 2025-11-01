@@ -42,7 +42,6 @@ from cloudshortener.dao.base import ShortURLBaseDAO
 
 @pytest.fixture()
 def apigw_event():
-    """Provide a base API Gateway event template."""
     return {
         "resource": "/{shortcode}",
         "requestContext": {"resourcePath": "/{shortcode}", "httpMethod": "GET"},
@@ -54,7 +53,6 @@ def apigw_event():
 
 @pytest.fixture()
 def successful_event_302():
-    """Provide a valid event containing a valid shortcode parameter."""
     return {
         "resource": "/{shortcode}",
         "requestContext": {"resourcePath": "/{shortcode}", "httpMethod": "GET"},
@@ -66,7 +64,6 @@ def successful_event_302():
 
 @pytest.fixture()
 def bad_request_400():
-    """Provide an event missing the required `shortcode` path parameter."""
     return {
         "resource": "/{shortcode}",
         "requestContext": {"resourcePath": "/{shortcode}", "httpMethod": "GET"},
@@ -78,13 +75,11 @@ def bad_request_400():
 
 @pytest.fixture()
 def target_url():
-    """Provide a mock target URL to simulate a resolved redirect target."""
     return 'https://example.com/blog/chuck-norris-is-awesome'
 
 
 @pytest.fixture()
 def context():
-    """Provide a minimal AWS Lambda context object."""
     class _Context:
         function_name = 'redirect_url'
     return _Context()
@@ -92,13 +87,17 @@ def context():
 
 @pytest.fixture()
 def config():
-    """Provide mock Redis configuration for the Lambda handler."""
-    return {'redis': {'host': 'redis.test', 'port': 6379, 'db': 0}}
+    return {
+        'redis': {
+            'host': 'redis.test', 
+            'port': 6379, 
+            'db': 0
+        }
+    }
 
 
 @pytest.fixture()
 def dao(target_url):
-    """Provide a mock DAO with a preconfigured `get` method returning a ShortURLModel."""
     _dao = MagicMock(spec=ShortURLBaseDAO)
     _dao.get.return_value = ShortURLModel(
         target=target_url,
