@@ -42,6 +42,8 @@ def test_initialize_without_redis_client():
         'redis_port': 6379,
         'redis_db': 0,
         'redis_decode_responses': True,
+        'redis_username': 'default',
+        'redis_password': 'password'
     }
 
     with patch('cloudshortener.dao.redis.short_url_redis_dao.redis.Redis') as redis_mock:
@@ -55,9 +57,18 @@ def test_initialize_without_redis_client():
             port=6379,
             db=0,
             decode_responses=True,
+            username='default',
+            password='password'
         )
         assert dao.redis is redis_mock_instance
 
+
+"""
+[RFCT] Rename ShortURLModel fields
+
+- ShortURLModel.short_code -> ShortURLModel.shortcode
+- ShortURLModel.original_url -> ShortURLModel.target
+"""
 
 def test_initialize_with_redis_client():
     redis_mock = MagicMock(
@@ -79,8 +90,8 @@ def test_insert_short_url(dao, redis_client):
     ]
 
     short_url = ShortURLModel(
-        short_code='abc123',
-        original_url='https://example.com/test',
+        target='https://example.com/test',
+        shortcode='abc123',
         expires_at=None
     )
     dao.insert(short_url)
@@ -111,8 +122,8 @@ def test_get_short_url(dao, redis_client):
 
     # Assert DAO creates a valid ShortURLModel instance
     assert isinstance(short_url, ShortURLModel)
-    assert short_url.short_code == 'abc123'
-    assert short_url.original_url == 'https://example.com/test'
+    assert short_url.target == 'https://example.com/test'
+    assert short_url.shortcode == 'abc123'
     assert short_url.expires_at is not None
 
 

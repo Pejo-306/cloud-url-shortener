@@ -8,9 +8,9 @@ class ShortURLModel:
     """Represent a shortend URL mapping.
     
     Attributes:
-        original_url (str):
+        target (str):
             The original long URL that the short code redirects to.
-        short_code (str):
+        shortcode (str):
             The unique short identifier representing the shortened URL.
         expires_at (Optional[datetime]):
             Time-To-Live(TTL) as Python datetime, after which the short URL
@@ -19,17 +19,17 @@ class ShortURLModel:
     Example:
         >>> from datetime import datetime, timedelta
         >>> url = ShortURLModel(
-        ...     original_url="https://example.com/article/123",
-        ...     short_code="abc123",
+        ...     target="https://example.com/article/123",
+        ...     shortcode="abc123",
         ...     expires_at=datetime.utcnow() + timedelta(days=365)
         ... )
-        >>> url.original_url
+        >>> url.target
         'https://example.com/article/123'
-        >>> url.short_code
+        >>> url.shortcode
         'abc123'
         >>> isinstance(url.expires_at, datetime)
         True
     """
-    original_url: str
-    short_code: str
+    target: str
+    shortcode: str
     expires_at: Optional[datetime] = None

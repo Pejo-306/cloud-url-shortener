@@ -17,16 +17,16 @@ Example:
         >>> dao = ShortURLRedisDAO(...)
 
         >>> short_url = ShortURLModel(
-        ...     original_url="https://example.com/blog/article-123",
-        ...     short_code="a1b2c3",
+        ...     target="https://example.com/blog/article-123",
+        ...     shortcode="a1b2c3",
         ... )
         >>> dao.insert(short_url)
 
         >>> retrieved = dao.get("a1b2c3")
-        >>> print(retrieved.original_url)
+        >>> print(retrieved.target)
         https://example.com/blog/article-123
 
-        >>> print(retrieved.short_code)
+        >>> print(retrieved.shortcode)
         a1b2c3
 
         >>> print(retrieved.expires_at)
@@ -100,7 +100,7 @@ class ShortURLBaseDAO(ABC):
         pass
 
     @abstractmethod
-    def get(self, short_code: str, **kwargs) -> ShortURLModel | None:
+    def get(self, shortcode: str, **kwargs) -> ShortURLModel | None:
         """Retrieve a ShortURLModel from the data store by its short code.
 
         Args:

@@ -41,21 +41,21 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         # TODO: add Redis pipelining for performance boost
         # TODO: Add error handling
         # TODO: change short_code to shortcode everywhere
-        link_url_key = self.keys.link_url_key(short_url.short_code)
-        link_hits_key = self.keys.link_hits_key(short_url.short_code)
+        link_url_key = self.keys.link_url_key(short_url.shortcode)
+        link_hits_key = self.keys.link_hits_key(short_url.shortcode)
 
         # TODO: pipeline two set commands
-        self.redis.set(link_url_key, short_url.original_url, ex=ONE_YEAR_SECONDS)
+        self.redis.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
         self.redis.set(link_hits_key, 10000, ex=ONE_YEAR_SECONDS)
         return self
 
-    def get(self, short_code: str, **kwargs) -> ShortURLModel | None:
+    def get(self, shortcode: str, **kwargs) -> ShortURLModel | None:
         # TODO: add error handling
         # TODO: add auto decoding from Redis
         # TODO: add hits to ShortURLModel
         # TODO: change short_code to shortcode everywhere
-        link_url_key = self.keys.link_url_key(short_code)
-        link_hits_key = self.keys.link_hits_key(short_code)
+        link_url_key = self.keys.link_url_key(shortcode)
+        link_hits_key = self.keys.link_hits_key(shortcode)
 
         # TODO: pipeline 3 commands
         original_url = self.redis.get(link_url_key)
@@ -63,15 +63,15 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         ttl = self.redis.ttl(link_url_key)
 
         if original_url is None or hits is None:
-            raise ShortURLNotFoundError(f"Short URL with code '{short_code}' not found.")
+            raise ShortURLNotFoundError(f"Short URL with code '{shortcode}' not found.")
 
         return ShortURLModel(
-            short_code=short_code,
-            original_url=original_url,
+            target=original_url,
+            shortcode=shortcode,
             expires_at=datetime.utcnow() + timedelta(seconds=ttl),
         )
 
-    def count(self, increment = False, **kwargs) -> int:
+    def count(self, increment: bool = False, **kwargs) -> int:
         # TODO: add error handling
         if increment:
             return self.redis.incr(self.keys.counter_key())

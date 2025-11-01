@@ -67,8 +67,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     # 3- Get short_url record from database
     # TODO: add error handling for invalid short codes
-    short_url = short_url_dao.get(short_code=shortcode)
-    original_url = short_url.original_url
+    short_url = short_url_dao.get(shortcode=shortcode)
+    original_url = short_url.target
 
     return {
         'statusCode': 302,

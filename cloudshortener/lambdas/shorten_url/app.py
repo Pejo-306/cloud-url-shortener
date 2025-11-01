@@ -78,13 +78,13 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     counter = short_url_dao.count(increment=True)
 
     # 4- Generate short_url from counter
-    short_code = shorten_url(counter, salt='my_secret', length=7)
+    shortcode = shorten_url(counter, salt='my_secret', length=7)
 
     # 5- Store short_url and original_url mapping in database (via DAO)
-    short_url = ShortURLModel(short_code=short_code, original_url=original_url)
+    short_url = ShortURLModel(shortcode=shortcode, target=original_url)
     short_url_dao.insert(short_url=short_url)
     # TODO: move short_url_string generation to the DAO or Model or helper function
-    short_url_string = f'{base_url(event).rstrip("/")}/{short_code}'
+    short_url_string = f'{base_url(event).rstrip("/")}/{shortcode}'
 
     # 6- Return successful response to user
     return {
@@ -98,6 +98,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'message': f"Successfully shortened {original_url} to {short_url_string}",
             'original_url': original_url,
             'short_url': short_url_string,
-            'short_code': short_code,
+            'shortcode': shortcode,
         }),
     }
