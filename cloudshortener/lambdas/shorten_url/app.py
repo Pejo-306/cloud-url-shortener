@@ -32,15 +32,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     {"APP_ENV":"local","APP_NAME":"cloudshortener","PROJECT_ROOT":"/var/task/"}
     """
     # TODO: document the function properly
-    # TODO: write unit tests for lambda handlers
-    # TODO: move configuration for DAO's outside the lambda and load them via lambda
     # TODO BONUS: track & adjust user quota in database
-    # TODO: pipeline all redis operations for performance
-    # TODO: alter shorten_url() function name and scramble counter to avoid sequential short_url values
+    # TODO: scramble counter to avoid sequential short_url values
 
     # 0- Get application's config
     try:
-        app_config = load_config('redirect_url')
+        app_config = load_config('shorten_url')
     except FileNotFoundError:
         return {
             'statusCode': 500,
@@ -59,12 +56,12 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'message': "Bad Request (invalid JSON body)",
             }),
         }
-    original_url = request_body.get('original_url')
-    if not original_url:
+    target_url = request_body.get('target_url')
+    if not target_url :
         return {
             'statusCode': 400,
             'body': json.dumps({
-                'message': "Bad Request (missing 'original_url' in JSON body)",
+                'message': "Bad Request (missing 'target_url' in JSON body)",
             }),
         }
 
@@ -80,7 +77,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     shortcode = generate_shortcode(counter, salt='my_secret', length=7)
 
     # 5- Store short_url and original_url mapping in database (via DAO)
-    short_url = ShortURLModel(shortcode=shortcode, target=original_url)
+    short_url = ShortURLModel(shortcode=shortcode, target=target_url)
     short_url_dao.insert(short_url=short_url)
     # TODO: move short_url_string generation to the DAO or Model or helper function
     short_url_string = f'{base_url(event).rstrip("/")}/{shortcode}'
@@ -94,8 +91,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
         },
         'body': json.dumps({
-            'message': f"Successfully shortened {original_url} to {short_url_string}",
-            'original_url': original_url,
+            'message': f"Successfully shortened {target_url} to {short_url_string}",
+            'target_url': target_url,
             'short_url': short_url_string,
             'shortcode': shortcode,
         }),
