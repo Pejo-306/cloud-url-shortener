@@ -1,3 +1,4 @@
+import functools
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -7,6 +8,7 @@ from beartype import beartype
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
 from cloudshortener.dao.redis import RedisKeySchema
+from cloudshortener.dao.redis.helpers import handle_redis_connection_error
 from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError, ShortURLNotFoundError
 from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_QUOTA
 
@@ -37,6 +39,7 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
 
         self._heatlhcheck()
     
+    @handle_redis_connection_error
     @beartype
     def insert(self, short_url: ShortURLModel, **kwargs) -> 'ShortURLRedisDAO':
         # TODO: add Redis pipelining for performance boost
@@ -45,18 +48,12 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         if self.redis.exists(link_url_key):
             raise ShortURLAlreadyExistsError(f"Short URL with code '{short_url.shortcode}' already exists.")
 
-        try:
-            # TODO: pipeline two set commands
-            self.redis.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
-            self.redis.set(link_hits_key, DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS)
-        except redis.exceptions.ConnectionError as e:
-            info = self.redis.connection_pool.connection_kwargs
-            redis_host = info.get('host')
-            redis_port = info.get('port')
-            redis_db = info.get('db')
-            raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}.") from e
+        # TODO: pipeline two set commands
+        self.redis.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
+        self.redis.set(link_hits_key, DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS)
         return self
 
+    @handle_redis_connection_error
     @beartype
     def get(self, shortcode: str, **kwargs) -> ShortURLModel | None:
         # TODO: add hits to ShortURLModel
@@ -64,16 +61,9 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         link_hits_key = self.keys.link_hits_key(shortcode)
 
         # TODO: pipeline 3 commands
-        try:
-            original_url = self.redis.get(link_url_key)
-            hits = self.redis.get(link_hits_key)
-            ttl = self.redis.ttl(link_url_key)
-        except redis.exceptions.ConnectionError as e:
-            info = self.redis.connection_pool.connection_kwargs
-            redis_host = info.get('host')
-            redis_port = info.get('port')
-            redis_db = info.get('db')
-            raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}.") from e
+        original_url = self.redis.get(link_url_key)
+        hits = self.redis.get(link_hits_key)
+        ttl = self.redis.ttl(link_url_key)
 
         if original_url is None or hits is None:
             raise ShortURLNotFoundError(f"Short URL with code '{shortcode}' not found.")
