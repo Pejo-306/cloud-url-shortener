@@ -7,11 +7,13 @@ Test coverage includes:
    - 1.2. Ensures URLs do NOT include stage information for clean public links.
    - 1.3. Confirms a proper localhost fallback is returned when no domain is present.
    - 1.4. Ensures graceful fallback behavior when API Gateway data is partially missing.
+
+2. get_short_url() retrieves short URL string representation
 """
 
 import pytest
 
-from cloudshortener.utils.helpers import base_url
+from cloudshortener.utils.helpers import base_url, get_short_url
 
 
 # -------------------------------
@@ -83,3 +85,25 @@ def test_base_url_handles_incomplete_context(event):
     """Ensure base_url() gracefully falls back when requestContext is incomplete."""
     result = base_url(event)
     assert result == "http://localhost:3000"
+
+
+# -------------------------------
+# 2. Get short url string representation
+# -------------------------------
+@pytest.mark.parametrize(
+    'shortcode, domain, stage, expected', [
+        ('abc123', 'lambda.hello.com', 'Prod', 'https://lambda.hello.com/abc123'),
+        ('xyz789', 'lambda.hello.com', 'Prod', 'https://lambda.hello.com/xyz789'),
+        ('abc123', 'lambda.api.com', 'Prod', 'https://lambda.api.com/abc123'),
+    ]
+)
+def test_get_short_url(shortcode, domain, stage, expected):
+    """Ensure get_short_url() returns the correct short URL string."""
+    event = {
+        'requestContext': {
+            'domainName': domain,
+            'stage': stage,
+        }
+    }
+    result = get_short_url(shortcode, event)
+    assert result == expected

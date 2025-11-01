@@ -3,6 +3,8 @@
 Functions:
     base_url() -> str
         Extract correct public base URL from API Gateway event
+    get_short_url() -> str
+        Get string representation of short URL for a given shortcode
 
 Example:
     Typical usage inside a Lambda handler:
@@ -43,7 +45,7 @@ def base_url(event: Dict[str, Any]) -> str:
     If using the default AWS execute-api domain, the stage name is included.
 
     Args:
-        event (dict): API Gateway event object passedt o Lambda handler
+        event (dict): API Gateway event object passed to Lambda handler
 
     Returns:
         str: Base URL, e.g.:
@@ -63,3 +65,16 @@ def base_url(event: Dict[str, Any]) -> str:
     else:
         # Fallback: local invocation (SAM CLI, tests, etc.)
         return 'http://localhost:3000'
+
+
+def get_short_url(shortcode: str, event: Dict[str, Any]) -> str:
+    """Get string representation of shortened URL
+    
+    Args:
+        shortcode (str): shortcode 
+        event (dict): API Gateway event object passed to Lambda handler
+
+    Returns:
+        str: short url string representation
+    """
+    return f'{base_url(event).rstrip("/")}/{shortcode}'
