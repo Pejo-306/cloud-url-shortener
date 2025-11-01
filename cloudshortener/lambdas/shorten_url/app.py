@@ -3,7 +3,8 @@ from typing import Any, Dict
 
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO
-from cloudshortener.utils import generate_shortcode, load_config, app_env, app_name, base_url
+from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
+from cloudshortener.utils import generate_shortcode, load_config, get_short_url, app_env, app_name, base_url
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -91,11 +92,18 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     shortcode = generate_shortcode(counter, salt='my_secret', length=7)
 
     # 5- Store short_url and target_url mapping in database (via DAO)
-    short_url = ShortURLModel(shortcode=shortcode, target=target_url)
-    short_url_dao.insert(short_url=short_url)
-
-    # TODO: move short_url_string generation to the DAO or Model or helper function
-    short_url_string = f'{base_url(event).rstrip("/")}/{shortcode}'
+    try:
+        short_url = ShortURLModel(shortcode=shortcode, target=target_url)
+        short_url_dao.insert(short_url=short_url)
+    except ShortURLAlreadyExistsError as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps({
+                'message': f"Internal Server Error",
+            }),
+        }
+    else:
+        short_url_string = get_short_url(shortcode, event)
 
     # 6- Return successful response to user
     return {

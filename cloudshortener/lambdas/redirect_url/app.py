@@ -2,7 +2,8 @@ import json
 from typing import Dict, Any
 
 from cloudshortener.dao.redis import ShortURLRedisDAO
-from cloudshortener.utils import load_config, app_env, app_name
+from cloudshortener.dao.exceptions import ShortURLNotFoundError
+from cloudshortener.utils import load_config, get_short_url, app_env, app_name
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -72,8 +73,17 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix=prefix)
 
     # 3- Get short_url record from database
-    short_url = short_url_dao.get(shortcode=shortcode)
-    target_url = short_url.target
+    try:
+        short_url = short_url_dao.get(shortcode=shortcode)
+    except ShortURLNotFoundError as e:
+        return {
+            'statusCode': 400,
+            'body': json.dumps({
+                'message': f"Bad Request (short url {get_short_url(shortcode, event)} doesn't exist)",
+            }),
+        }
+    else:
+        target_url = short_url.target
 
     return {
         'statusCode': 302,

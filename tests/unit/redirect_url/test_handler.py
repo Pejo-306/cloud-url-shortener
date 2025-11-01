@@ -12,7 +12,10 @@ Test coverage includes:
 2. Invalid path parameters
    - Ensures requests missing the `shortcode` parameter return HTTP 400.
 
-3. Configuration errors
+3. Invalid shortcode
+    - Ensure non-existing shortcodes raise HTTP 400.
+
+4. Configuration errors
    - Ensures missing or unreadable config files result in HTTP 500 responses.
 
 Fixtures:
@@ -20,6 +23,7 @@ Fixtures:
     - `successful_event_302`: valid event containing a shortcode.
     - `bad_request_400`: event missing required `shortcode`.
     - `target_url`: mock target URL representing the redirection target.
+    - `base_url`: mocked base URL used in response construction.
     - `context`: mock AWS Lambda context object.
     - `config`: mock Redis configuration.
     - `dao`: mock DAO implementing ShortURLBaseDAO with a stubbed `get` method.
@@ -34,6 +38,7 @@ import pytest
 from cloudshortener.lambdas.redirect_url import app
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
+from cloudshortener.dao.exceptions import ShortURLNotFoundError
 
 
 # -------------------------------
@@ -48,6 +53,7 @@ def apigw_event():
         "pathParameters": {"apigw": "event"},
         "httpMethod": "GET",
         "path": "/abc123",
+        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
     }
 
 
@@ -59,6 +65,7 @@ def successful_event_302():
         "pathParameters": {"shortcode": "abc123"},
         "httpMethod": "GET",
         "path": "/abc123",
+        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
     }
 
 
@@ -70,12 +77,18 @@ def bad_request_400():
         "pathParameters": {"invalid": "path"},
         "httpMethod": "GET",
         "path": "/abc123",
+        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
     }
 
 
 @pytest.fixture()
 def target_url():
     return 'https://example.com/blog/chuck-norris-is-awesome'
+
+
+@pytest.fixture()
+def base_url():
+    return 'https://testhost:1000'
 
 
 @pytest.fixture()
@@ -145,6 +158,23 @@ def test_lambda_handler_with_invalid_path_parameters(bad_request_400, context):
 
     assert response['statusCode'] == 400
     assert body['message'] == "Bad Request (missing 'shortcode' in path)"
+
+
+# -------------------------------
+# 3. Invalid shortode
+# -------------------------------
+
+def test_lambda_handler_with_invalid_shortcode(successful_event_302, context, dao, base_url):
+    """Ensure non-existing shortcodes raise HTTP 400."""
+    # Ensure the DAO raises ShortURLNotFoundError
+    dao.get.side_effect = ShortURLNotFoundError()
+    short_url = f'{base_url}/abc123'
+
+    response = app.lambda_handler(successful_event_302, context)
+    body = json.loads(response['body'])
+
+    assert response['statusCode'] == 400
+    assert body['message'] == f"Bad Request (short url {short_url} doesn't exist)"
 
 
 # -------------------------------

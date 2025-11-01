@@ -18,6 +18,9 @@ Test coverage includes:
 4. Configuration errors
    - Ensures missing or unreadable config files raise HTTP 500 responses.
 
+5. Short URL already exists
+   - Ensure lambda wont overwrite an existing short URL and raise HTTP 500.
+
 Fixtures:
     - `apigw_event`: generic API Gateway event structure.
     - `successful_event_200`: valid request body for URL shortening.
@@ -39,6 +42,7 @@ import pytest
 from cloudshortener.lambdas.shorten_url import app
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
+from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
 
 
 # -------------------------------
@@ -54,6 +58,7 @@ def apigw_event():
         "headers": {"User-Agent": "pytest"},
         "httpMethod": "POST",
         "path": "/examplepath",
+        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
     }
 
 
@@ -66,6 +71,7 @@ def successful_event_200():
         "headers": {"Content-Type": "application/json"},
         "httpMethod": "POST",
         "path": "/v1/shorten",
+        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
     }
 
 
@@ -77,6 +83,7 @@ def bad_request_400():
         "headers": {"Content-Type": "application/json"},
         "httpMethod": "POST",
         "path": "/v1/shorten",
+        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
     }
 
 
@@ -88,6 +95,7 @@ def bad_request_400_no_target_url():
         "headers": {"Content-Type": "application/json"},
         "httpMethod": "POST",
         "path": "/v1/shorten",
+        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
     }
 
 
@@ -111,7 +119,7 @@ def config():
 
 @pytest.fixture()
 def base_url():
-    return 'http://testhost:1000'
+    return 'https://testhost:1000'
 
 
 @pytest.fixture()
@@ -140,9 +148,9 @@ def test_lambda_handler(successful_event_200, context, dao):
 
     # Assert successful response payload
     assert response['statusCode'] == 200
-    assert body['message'] == f'Successfully shortened {target_url} to http://testhost:1000/abc123'
+    assert body['message'] == f'Successfully shortened {target_url} to https://testhost:1000/abc123'
     assert body['target_url'] == target_url
-    assert body['short_url'] == 'http://testhost:1000/abc123'
+    assert body['short_url'] == 'https://testhost:1000/abc123'
     assert body['shortcode'] == 'abc123'
 
     # Assert DAO operations were called correctly
@@ -190,4 +198,19 @@ def test_lambda_handler_with_invalid_configuration_file(apigw_event, context):
 
         assert response['statusCode'] == 500
         assert body['message'] == "Internal Server Error"
+
+
+# -------------------------------
+# 5. Short URL already exists
+# -------------------------------
+
+def test_lambda_handler_with_existing_short_url(successful_event_200, context, dao):
+    """Ensure lambda wont overwrite an existing short URL and raise HTTP 500."""
+    dao.insert.side_effect = ShortURLAlreadyExistsError()
+
+    response = app.lambda_handler(successful_event_200, context)
+    body = json.loads(response['body'])
+
+    assert response['statusCode'] == 500
+    assert body['message'] == "Internal Server Error"
 
