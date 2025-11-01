@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, call, patch
 
 import redis
 import pytest
+from beartype.roar import BeartypeCallHintParamViolation
 
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError
@@ -125,11 +126,10 @@ def test_insert_short_url(dao, redis_client):
 
 
 def test_insert_short_url_with_invalid_type(dao):
-    exception_message = "Expected short_url to be a ShortURLModel instance (got 'str')"
     invalid_url = 'https://example.com/notamodel'
 
     # Passing a plain string instead of ShortURLModel should raise TypeError
-    with pytest.raises(TypeError, match=re.escape(exception_message)):
+    with pytest.raises((TypeError, BeartypeCallHintParamViolation)):
         dao.insert(invalid_url)
 
 

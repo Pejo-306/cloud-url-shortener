@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 import redis
+from beartype import beartype
 
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
@@ -38,13 +39,11 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
 
         self._heatlhcheck()
     
+    @beartype
     def insert(self, short_url: ShortURLModel, **kwargs) -> 'ShortURLRedisDAO':
         # TODO: remove hardcoded values and add them via constructur (with defaults)
         # TODO: add Redis pipelining for performance boost
         # TODO: use a python decorator / module to enforce type hints
-        if not isinstance(short_url, ShortURLModel):
-            raise TypeError(f"Expected short_url to be a ShortURLModel instance (got '{type(short_url).__name__}')")
-
         link_url_key = self.keys.link_url_key(short_url.shortcode)
         link_hits_key = self.keys.link_hits_key(short_url.shortcode)
         if self.redis.exists(link_url_key):
