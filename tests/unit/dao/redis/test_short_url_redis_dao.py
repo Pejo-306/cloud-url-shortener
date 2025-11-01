@@ -6,7 +6,7 @@ import pytest
 from beartype.roar import BeartypeCallHintParamViolation
 
 from cloudshortener.models import ShortURLModel
-from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError
+from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError, ShortURLNotFoundError
 from cloudshortener.dao.redis import RedisKeySchema, ShortURLRedisDAO
 from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_QUOTA
 
@@ -151,7 +151,7 @@ def test_insert_short_url_with_redis_connection_error(dao, redis_client):
         dao.insert(short_url)
 
 
-def test_insert_short_url_already_exists(dao, redis_client):
+def test_insert_short_url_which_already_exists(dao, redis_client):
     exception_message = "Short URL with code 'abc123' already exists."
     short_url = ShortURLModel(
         target='https://example.com/duplicate',
@@ -191,6 +191,39 @@ def test_get_short_url(dao, redis_client):
     assert short_url.target == 'https://example.com/test'
     assert short_url.shortcode == 'abc123'
     assert short_url.expires_at is not None
+
+
+def test_get_short_url_with_invalid_type(dao):
+    invalid_shortcode = 12345  # not a string
+
+    # Accept both legacy TypeError and Beartype exception for backward compatibility
+    with pytest.raises((TypeError, BeartypeCallHintParamViolation)):
+        dao.get(invalid_shortcode)
+
+
+def test_get_short_url_with_redis_connection_error(dao, redis_client):
+    # Simulate Redis connection failure
+    redis_client.get.side_effect = redis.exceptions.ConnectionError("Connection Error")
+    redis_client.connection_pool = MagicMock()
+    redis_client.connection_pool.connection_kwargs = {
+        'host': '203.0.113.1',
+        'port': 18000,
+        'db': 5
+    }
+
+    # Expect DataStoreError with descriptive connection info
+    with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
+        dao.get('abc123')
+
+
+def test_get_short_url_which_does_not_exist(dao, redis_client):
+    # Simulate missing Redis keys
+    redis_client.get.side_effect = [None, None]
+    redis_client.ttl.return_value = -2  # Redis returns -2 when key doesn't exist
+
+    with pytest.raises(ShortURLNotFoundError, match="Short URL with code 'abc123' not found"):
+        dao.get('abc123')
+
 
 
 def test_count_with_increment(dao, redis_client):

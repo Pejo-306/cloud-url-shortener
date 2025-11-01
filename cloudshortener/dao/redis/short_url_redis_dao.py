@@ -39,7 +39,6 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
     
     @beartype
     def insert(self, short_url: ShortURLModel, **kwargs) -> 'ShortURLRedisDAO':
-        # TODO: remove hardcoded values and add them via constructur (with defaults)
         # TODO: add Redis pipelining for performance boost
         link_url_key = self.keys.link_url_key(short_url.shortcode)
         link_hits_key = self.keys.link_hits_key(short_url.shortcode)
@@ -58,18 +57,23 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
             raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}.") from e
         return self
 
+    @beartype
     def get(self, shortcode: str, **kwargs) -> ShortURLModel | None:
-        # TODO: add error handling
-        # TODO: add auto decoding from Redis
         # TODO: add hits to ShortURLModel
-        # TODO: change short_code to shortcode everywhere
         link_url_key = self.keys.link_url_key(shortcode)
         link_hits_key = self.keys.link_hits_key(shortcode)
 
         # TODO: pipeline 3 commands
-        original_url = self.redis.get(link_url_key)
-        hits = self.redis.get(link_hits_key)
-        ttl = self.redis.ttl(link_url_key)
+        try:
+            original_url = self.redis.get(link_url_key)
+            hits = self.redis.get(link_hits_key)
+            ttl = self.redis.ttl(link_url_key)
+        except redis.exceptions.ConnectionError as e:
+            info = self.redis.connection_pool.connection_kwargs
+            redis_host = info.get('host')
+            redis_port = info.get('port')
+            redis_db = info.get('db')
+            raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}.") from e
 
         if original_url is None or hits is None:
             raise ShortURLNotFoundError(f"Short URL with code '{shortcode}' not found.")
