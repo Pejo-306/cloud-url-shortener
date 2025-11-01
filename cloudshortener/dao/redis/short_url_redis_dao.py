@@ -56,7 +56,6 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
     @handle_redis_connection_error
     @beartype
     def get(self, shortcode: str, **kwargs) -> ShortURLModel | None:
-        # TODO: add hits to ShortURLModel
         link_url_key = self.keys.link_url_key(shortcode)
         link_hits_key = self.keys.link_hits_key(shortcode)
 
@@ -71,6 +70,7 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         return ShortURLModel(
             target=original_url,
             shortcode=shortcode,
+            hits=hits,
             expires_at=datetime.utcnow() + timedelta(seconds=ttl),
         )
 

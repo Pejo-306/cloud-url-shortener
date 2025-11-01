@@ -107,7 +107,11 @@ def test_initialize_with_invalid_redis_config():
 
 
 def test_insert_short_url(dao, redis_client):
+    # EXISTS <app>:links:<shortcode>:url
+    # SET <app>:links:<shortcode>:url <url> EX <ttl>
+    # SET <app>:links:<shortcode>:hits <monthly hits quota> EX <ttl>
     expected_calls = [
+        call('testapp:test:links:abc123:url'),
         call('testapp:test:links:abc123:url', 'https://example.com/test', ex=ONE_YEAR_SECONDS),
         call('testapp:test:links:abc123:hits', DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS),
     ]
@@ -115,12 +119,15 @@ def test_insert_short_url(dao, redis_client):
     short_url = ShortURLModel(
         target='https://example.com/test',
         shortcode='abc123',
+        hits=None,
         expires_at=None
     )
     dao.insert(short_url)
 
+    assert redis_client.exists.call_count == 1
     assert redis_client.set.call_count == 2
-    redis_client.set.assert_has_calls(expected_calls, any_order=False)
+    redis_client.exists.assert_has_calls(expected_calls[:1], any_order=False)
+    redis_client.set.assert_has_calls(expected_calls[1:], any_order=False)
 
 
 def test_insert_short_url_with_invalid_type(dao):
@@ -190,6 +197,7 @@ def test_get_short_url(dao, redis_client):
     assert isinstance(short_url, ShortURLModel)
     assert short_url.target == 'https://example.com/test'
     assert short_url.shortcode == 'abc123'
+    assert short_url.hits == 10000
     assert short_url.expires_at is not None
 
 
