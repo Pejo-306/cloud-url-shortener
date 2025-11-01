@@ -1,10 +1,11 @@
+import re
 from unittest.mock import MagicMock, call, patch
 
 import redis
 import pytest
 
 from cloudshortener.models import ShortURLModel
-from cloudshortener.dao.exceptions import DataStoreError
+from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError
 from cloudshortener.dao.redis import RedisKeySchema, ShortURLRedisDAO
 
 
@@ -18,7 +19,9 @@ def app_prefix():
 
 @pytest.fixture
 def redis_client():
-    return MagicMock(spec=redis.Redis)
+    _redis_client = MagicMock(spec=redis.Redis)
+    _redis_client.exists.return_value = False
+    return _redis_client
 
 
 @pytest.fixture
@@ -92,7 +95,7 @@ def test_initialize_with_invalid_redis_config():
 
     with patch('cloudshortener.dao.redis.short_url_redis_dao.redis.Redis', autospec=True) as redis_mock:
         redis_mock_instance = redis_mock.return_value
-        redis_mock_instance.ping.side_effect = redis.exceptions.ConnectionError('Connection error')
+        redis_mock_instance.ping.side_effect = redis.exceptions.ConnectionError("Connection error")
         redis_mock_instance.connection_pool = MagicMock()
         redis_mock_instance.connection_pool.connection_kwargs = {
             'host': '203.0.113.1',
@@ -119,6 +122,50 @@ def test_insert_short_url(dao, redis_client):
 
     assert redis_client.set.call_count == 2
     redis_client.set.assert_has_calls(expected_calls, any_order=False)
+
+
+def test_insert_short_url_with_invalid_type(dao):
+    exception_message = "Expected short_url to be a ShortURLModel instance (got 'str')"
+    invalid_url = 'https://example.com/notamodel'
+
+    # Passing a plain string instead of ShortURLModel should raise TypeError
+    with pytest.raises(TypeError, match=re.escape(exception_message)):
+        dao.insert(invalid_url)
+
+
+def test_insert_short_url_with_redis_connection_error(dao, redis_client):
+    short_url = ShortURLModel(
+        target='https://example.com/failure',
+        shortcode='abc123',
+        expires_at=None
+    )
+
+    # Simulate Redis connection failure
+    redis_client.set.side_effect = redis.exceptions.ConnectionError("Connection error")
+    redis_client.connection_pool = MagicMock()
+    redis_client.connection_pool.connection_kwargs = {
+        'host': '203.0.113.1',
+        'port': 18000,
+        'db': 5
+    }
+
+    with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
+        dao.insert(short_url)
+
+
+def test_insert_short_url_already_exists(dao, redis_client):
+    exception_message = "Short URL with code 'abc123' already exists."
+    short_url = ShortURLModel(
+        target='https://example.com/duplicate',
+        shortcode='abc123',
+        expires_at=None
+    )
+
+    # Simulate that key already exists in Redis
+    redis_client.exists.return_value = True
+
+    with pytest.raises(ShortURLAlreadyExistsError, match=re.escape(exception_message)):
+        dao.insert(short_url)
 
 
 def test_get_short_url(dao, redis_client):

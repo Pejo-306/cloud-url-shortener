@@ -133,7 +133,7 @@ class RedisKeySchema:
             >>> RedisKeySchema().link_url_key("abc123")
             'links:abc123:url'
         """
-        return f"links:{short_code}:url"
+        return f'links:{short_code}:url'
 
     @prefix_key
     def link_hits_key(self, short_code: str) -> str:
@@ -150,7 +150,7 @@ class RedisKeySchema:
             >>> RedisKeySchema().link_hits_key("abc123")
             'links:abc123:hits'
         """
-        return f"links:{short_code}:hits"
+        return f'links:{short_code}:hits'
 
     @prefix_key
     def counter_key(self) -> str:

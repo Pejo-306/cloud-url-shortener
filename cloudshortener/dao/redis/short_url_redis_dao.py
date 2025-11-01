@@ -39,17 +39,27 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         self._heatlhcheck()
     
     def insert(self, short_url: ShortURLModel, **kwargs) -> 'ShortURLRedisDAO':
-        # TODO: validate short url has valid data before insertion
         # TODO: remove hardcoded values and add them via constructur (with defaults)
         # TODO: add Redis pipelining for performance boost
-        # TODO: Add error handling
-        # TODO: change short_code to shortcode everywhere
+        # TODO: use a python decorator / module to enforce type hints
+        if not isinstance(short_url, ShortURLModel):
+            raise TypeError(f"Expected short_url to be a ShortURLModel instance (got '{type(short_url).__name__}')")
+
         link_url_key = self.keys.link_url_key(short_url.shortcode)
         link_hits_key = self.keys.link_hits_key(short_url.shortcode)
+        if self.redis.exists(link_url_key):
+            raise ShortURLAlreadyExistsError(f"Short URL with code '{short_url.shortcode}' already exists.")
 
-        # TODO: pipeline two set commands
-        self.redis.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
-        self.redis.set(link_hits_key, 10000, ex=ONE_YEAR_SECONDS)
+        try:
+            # TODO: pipeline two set commands
+            self.redis.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
+            self.redis.set(link_hits_key, 10000, ex=ONE_YEAR_SECONDS)
+        except redis.exceptions.ConnectionError as e:
+            info = self.redis.connection_pool.connection_kwargs
+            redis_host = info.get('host')
+            redis_port = info.get('port')
+            redis_db = info.get('db')
+            raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}.") from e
         return self
 
     def get(self, shortcode: str, **kwargs) -> ShortURLModel | None:
