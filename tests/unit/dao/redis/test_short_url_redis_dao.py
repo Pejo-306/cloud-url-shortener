@@ -8,9 +8,7 @@ from beartype.roar import BeartypeCallHintParamViolation
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError
 from cloudshortener.dao.redis import RedisKeySchema, ShortURLRedisDAO
-
-
-ONE_YEAR_SECONDS = 31_536_000
+from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_QUOTA
 
 
 @pytest.fixture
@@ -111,7 +109,7 @@ def test_initialize_with_invalid_redis_config():
 def test_insert_short_url(dao, redis_client):
     expected_calls = [
         call('testapp:test:links:abc123:url', 'https://example.com/test', ex=ONE_YEAR_SECONDS),
-        call('testapp:test:links:abc123:hits', 10000, ex=ONE_YEAR_SECONDS),
+        call('testapp:test:links:abc123:hits', DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS),
     ]
 
     short_url = ShortURLModel(

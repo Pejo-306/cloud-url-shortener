@@ -8,9 +8,7 @@ from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
 from cloudshortener.dao.redis import RedisKeySchema
 from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError, ShortURLNotFoundError
-
-
-ONE_YEAR_SECONDS = 31_536_000
+from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_QUOTA
 
 
 class ShortURLRedisDAO(ShortURLBaseDAO):
@@ -43,7 +41,6 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
     def insert(self, short_url: ShortURLModel, **kwargs) -> 'ShortURLRedisDAO':
         # TODO: remove hardcoded values and add them via constructur (with defaults)
         # TODO: add Redis pipelining for performance boost
-        # TODO: use a python decorator / module to enforce type hints
         link_url_key = self.keys.link_url_key(short_url.shortcode)
         link_hits_key = self.keys.link_hits_key(short_url.shortcode)
         if self.redis.exists(link_url_key):
@@ -52,7 +49,7 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         try:
             # TODO: pipeline two set commands
             self.redis.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
-            self.redis.set(link_hits_key, 10000, ex=ONE_YEAR_SECONDS)
+            self.redis.set(link_hits_key, DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS)
         except redis.exceptions.ConnectionError as e:
             info = self.redis.connection_pool.connection_kwargs
             redis_host = info.get('host')
