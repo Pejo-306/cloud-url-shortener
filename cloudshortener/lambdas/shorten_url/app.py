@@ -3,8 +3,7 @@ from typing import Any, Dict
 
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO
-from cloudshortener.lambdas.shorten_url.shortener import shorten_url
-from cloudshortener.utils import load_config, app_env, app_name, base_url
+from cloudshortener.utils import generate_shortcode, load_config, app_env, app_name, base_url
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -78,7 +77,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     counter = short_url_dao.count(increment=True)
 
     # 4- Generate short_url from counter
-    shortcode = shorten_url(counter, salt='my_secret', length=7)
+    shortcode = generate_shortcode(counter, salt='my_secret', length=7)
 
     # 5- Store short_url and original_url mapping in database (via DAO)
     short_url = ShortURLModel(shortcode=shortcode, target=original_url)

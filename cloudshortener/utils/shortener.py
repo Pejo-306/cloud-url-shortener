@@ -1,15 +1,15 @@
-"""URL shortening utility using Hashids.
+"""Shortcode generation utility
 
 This module provides a helper function for generating short, deterministic,
 non-sequential hashes based on a numeric counter and a secret salt value.
 
 Functions:
-    shorten_url(counter, salt='default_salt', length=7): 
+    generate_shortcode(counter, salt='default_salt', length=7): 
         Generate a short hash suitable for use as a URL slug.
 
 Example:
-    >>> from shortener import shorten_url
-    >>> shorten_url(12345, salt='my_secret')
+    >>> from cloudshortener.utils import generate_shortcode
+    >>> generate_shortcode(12345, salt='my_secret')
     'Gh71WPT'
 """
 
@@ -23,7 +23,7 @@ BASE = len(ALPHABET)  # hashids produce base62-safe strings:
                       # 26 lowercase + 26 uppercase + 10 digits
 
 
-def shorten_url(counter: int, salt: str = "default_salt", length: int = 7) -> str:
+def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7) -> str:
     """Generate a short, deterministic URL hash from a counter and salt.
 
     This function encodes a numeric counter into an n-character Base62 string
@@ -47,7 +47,7 @@ def shorten_url(counter: int, salt: str = "default_salt", length: int = 7) -> st
         str: A short alphanumeric hash derived from the counter and salt.
 
     Example:
-        >>> shorten_url(12345, salt="my_secret", length=7)
+        >>> generate_shortcode(12345, salt='my_secret', length=7)
         'Gh71WPT'
 
     NOTE:
