@@ -48,9 +48,23 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         if self.redis.exists(link_url_key):
             raise ShortURLAlreadyExistsError(f"Short URL with code '{short_url.shortcode}' already exists.")
 
-        # TODO: pipeline two set commands
-        self.redis.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
-        self.redis.set(link_hits_key, DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS)
+        # NOTE: The two SET commands are executed as an atomic operation
+        #       to avoid a state where the short URL link is created but the
+        #       monthly hits quota is not set. Therefore, it's possible to get
+        #       a link without the monthly quota:
+        #
+        #       (lambda 1): ShortURLRedisDAO.insert():
+        #                   -> SET <app>:links:<shortcode>:url <original url> EX <ttl>
+        #                   ... interruption
+        #       (lambda 2): ShortURLRedisDAO.get():
+        #                   -> GET <app>:links:<shortcode>:url
+        #                   -> GET <app>:links:<shortcode>:hits  => returns 'nil'
+        #                   -> TTL <app>:links:<shortcode>:url
+        #       (lambda 1): ShortURLRedisDAO.insert() continued...:
+        #                   -> SET <app>:links:<shortcode>:hits <monthly link quota> EX <ttl>
+        with self.redis.pipeline(transaction=True) as pipe:
+            pipe.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
+            pipe.set(link_hits_key, DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS)
         return self
 
     @handle_redis_connection_error
@@ -59,10 +73,14 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         link_url_key = self.keys.link_url_key(shortcode)
         link_hits_key = self.keys.link_hits_key(shortcode)
 
-        # TODO: pipeline 3 commands
-        original_url = self.redis.get(link_url_key)
-        hits = self.redis.get(link_hits_key)
-        ttl = self.redis.ttl(link_url_key)
+        # TODO: once I add link quota management, add a comment explaining
+        #       the possible race condition where I get a link with less hits than
+        #       expected
+        with self.redis.pipeline(transaction=True) as pipe:
+            pipe.get(link_url_key)
+            pipe.get(link_hits_key)
+            pipe.ttl(link_url_key)
+            original_url, hits, ttl = pipe.execute()
 
         if original_url is None or hits is None:
             raise ShortURLNotFoundError(f"Short URL with code '{shortcode}' not found.")

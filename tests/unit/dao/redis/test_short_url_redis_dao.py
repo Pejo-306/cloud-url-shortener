@@ -1,8 +1,9 @@
 import re
 from unittest.mock import MagicMock, call, patch
 
-import redis
 import pytest
+import redis
+import redis.client
 from beartype.roar import BeartypeCallHintParamViolation
 
 from cloudshortener.models import ShortURLModel
@@ -18,8 +19,12 @@ def app_prefix():
 
 @pytest.fixture
 def redis_client():
-    _redis_client = MagicMock(spec=redis.Redis)
+    _redis_client = MagicMock(spec=redis.client.Pipeline)
     _redis_client.exists.return_value = False
+    # Transform Redis pipelines to regular Redis client for testing purposes
+    _redis_client.pipeline.return_value = _redis_client
+    _redis_client.__enter__.return_value = _redis_client
+    _redis_client.__exit__.return_value = None
     return _redis_client
 
 
@@ -174,11 +179,11 @@ def test_insert_short_url_which_already_exists(dao, redis_client):
 
 
 def test_get_short_url(dao, redis_client):
-    redis_client.get.side_effect = [
+    redis_client.execute.return_value = (
         'https://example.com/test',
-        10000
-    ]
-    redis_client.ttl.return_value = ONE_YEAR_SECONDS
+        10000,
+        ONE_YEAR_SECONDS
+    )
     expected_calls = [
         call('testapp:test:links:abc123:url'),      # GET <app>:links:<short code>:url
         call('testapp:test:links:abc123:hits'),     # GET <app>:links:<short code>:hits
@@ -226,8 +231,7 @@ def test_get_short_url_with_redis_connection_error(dao, redis_client):
 
 def test_get_short_url_which_does_not_exist(dao, redis_client):
     # Simulate missing Redis keys
-    redis_client.get.side_effect = [None, None]
-    redis_client.ttl.return_value = -2  # Redis returns -2 when key doesn't exist
+    redis_client.execute.return_value = (None, None, -2)
 
     with pytest.raises(ShortURLNotFoundError, match="Short URL with code 'abc123' not found"):
         dao.get('abc123')
