@@ -3,7 +3,7 @@
 Test coverage includes:
 
 1. Environment variable resolution
-   - Ensures app_env() and app_name() correctly read environment variables.
+   - Ensures app_env(), app_name(), app_prefix() correctly read environment variables.
 
 2. Project root resolution
    - Ensures project_root() correctly reads PROJECT_ROOT from environment variables.
@@ -44,6 +44,13 @@ def test_app_name_not_set(monkeypatch):
     """Ensure app_name() returns None when APP_NAME is not set"""
     monkeypatch.delitem(os.environ, 'APP_NAME', raising=False)
     assert config.app_name() is None
+
+
+def test_app_prefix(monkeypatch):
+    """Ensure app_prefix() returns the correct environment value from APP_PREFIX"""
+    monkeypatch.setitem(os.environ, 'APP_NAME', 'test-app')
+    monkeypatch.setitem(os.environ, 'APP_ENV', 'test')
+    assert config.app_prefix() == 'test-app:test'
 
 
 # -------------------------------

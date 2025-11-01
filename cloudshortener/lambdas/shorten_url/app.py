@@ -4,7 +4,7 @@ from typing import Any, Dict
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
-from cloudshortener.utils import generate_shortcode, load_config, get_short_url, app_env, app_name, base_url
+from cloudshortener.utils import generate_shortcode, load_config, get_short_url, app_prefix
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
@@ -82,8 +82,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     # 2- Initialize DAO subclass
     redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
-    prefix = None if app_name() is None else f'{app_name()}:{app_env()}'
-    short_url_dao = ShortURLRedisDAO(**redis_config, prefix=prefix)
+    short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
 
     # 3- Increment global counter from database (via DAO)
     counter = short_url_dao.count(increment=True)

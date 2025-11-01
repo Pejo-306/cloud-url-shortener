@@ -118,19 +118,13 @@ def config():
 
 
 @pytest.fixture()
-def base_url():
-    return 'https://testhost:1000'
-
-
-@pytest.fixture()
 def dao():
     return MagicMock(spec=ShortURLBaseDAO)
 
 
 @pytest.fixture(autouse=True)
-def _patch_lambda_dependencies(monkeypatch, config, base_url, dao):
+def _patch_lambda_dependencies(monkeypatch, config, dao):
     monkeypatch.setattr(app, 'load_config', lambda *a, **kw: config)
-    monkeypatch.setattr(app, 'base_url', lambda *a, **kw: base_url)
     monkeypatch.setattr(app, 'generate_shortcode', lambda *a, **kw: 'abc123')
     monkeypatch.setattr(app, 'ShortURLRedisDAO', lambda *a, **kw: dao)
 

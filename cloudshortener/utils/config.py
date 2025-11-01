@@ -29,6 +29,10 @@ Functions:
         Return the current application environment (`APP_NAME`) value.
         None if variable is not set.
 
+    app_prefix() -> str | None:
+        Return application prefix for DAOs.
+        None if environemnt variable 'APP_NAME' is not set.
+
     project_root() -> Path
         Return the absolute path to the project root directory, using the
         `PROJECT_ROOT` environment variable when available.
@@ -107,6 +111,22 @@ def project_root() -> Path:
         '/var/tasks/'
     """
     return Path(os.environ.get('PROJECT_ROOT', os.path.dirname(__file__)))
+
+
+def app_prefix() -> str | None:
+    """Return application prefix for DAOs
+    
+    Returns:
+        str: app prefix as <app name>:<app env>.
+             None if APP_NAME is not set.
+
+    Example:
+        >>> os.environ['APP_NAME'] = 'cloudshortener'
+        >>> os.environ['APP_ENV'] = 'local'
+        >>> app_prefix()
+        'cloudshortener:local'
+    """
+    return None if app_name() is None else f'{app_name()}:{app_env()}'
 
 
 def load_config(lambda_name: str) -> dict:
