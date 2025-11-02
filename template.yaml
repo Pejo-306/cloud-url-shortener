@@ -24,7 +24,7 @@ Parameters:
 
   FrontendBucketName:
     Type: String
-    Default: "cloudshortener-frontend"
+    Default: cloudshortener-frontend
     Description: S3 bucket for hosting the frontend
 
 Globals:
@@ -40,15 +40,15 @@ Globals:
       Variables:
         APP_ENV: !Ref AppEnv
         APP_NAME: !Ref AppName
-        PROJECT_ROOT: "/var/task"
+        PROJECT_ROOT: /var/task
         USER_POOL_ID: !Ref CognitoUserPool
         USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
   Api:
     TracingEnabled: true
     Cors:
-      AllowMethods: "'GET,POST,OPTIONS'"
-      AllowHeaders: "'Authorization,Content-Type'"
-      AllowOrigin: "'*'"
+      AllowMethods: '''GET,POST,OPTIONS'''
+      AllowHeaders: '''Authorization,Content-Type'''
+      AllowOrigin: '''*'''
 
 Resources:
 
@@ -58,7 +58,7 @@ Resources:
   CognitoUserPool:
     Type: AWS::Cognito::UserPool
     Properties:
-      UserPoolName: !Sub "${AppName}-${AppEnv}-users"
+      UserPoolName: !Sub ${AppName}-${AppEnv}-users
       AutoVerifiedAttributes:
         - email
       Schema:
@@ -72,17 +72,26 @@ Resources:
           RequireLowercase: false
           RequireNumbers: false
           RequireSymbols: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      Domain: !Sub "${AppName}-${AppEnv}"
 
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       UserPoolId: !Ref CognitoUserPool
-      ClientName: !Sub "${AppName}-${AppEnv}-web"
+      ClientName: !Sub ${AppName}-${AppEnv}-web
       GenerateSecret: false
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows:
         - code
-        - implicit
       AllowedOAuthScopes:
         - openid
         - email
@@ -90,9 +99,18 @@ Resources:
       SupportedIdentityProviders:
         - COGNITO
       CallbackURLs:
-        - "http://localhost:3000/"   # adjust for your frontend
+        - !Sub https://${FrontendBucket}.s3-website.${AWS::Region}.amazonaws.com
+        - http://localhost:3000/
       LogoutURLs:
-        - "http://localhost:3000/"
+        - !Sub https://${FrontendBucket}.s3-website.${AWS::Region}.amazonaws.com
+        - http://localhost:3000/
+      TokenValidityUnits:
+        IdToken: days
+        AccessToken: days
+        RefreshToken: days
+      IdTokenValidity: 1
+      AccessTokenValidity: 1
+      RefreshTokenValidity: 30
 
   ##################################################
   # Explicit API with Cognito Authorizer
@@ -103,9 +121,9 @@ Resources:
       StageName: !Ref AppEnv
       TracingEnabled: true
       Cors:
-        AllowMethods: "'GET,POST,OPTIONS'"
-        AllowHeaders: "'Authorization,Content-Type'"
-        AllowOrigin: "'*'"
+        AllowMethods: '''GET,POST,OPTIONS'''
+        AllowHeaders: '''Authorization,Content-Type'''
+        AllowOrigin: '''*'''
       Auth:
         Authorizers:
           CognitoAuthorizer:
@@ -182,13 +200,13 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub "${FrontendBucketName}-${AWS::AccountId}-${AWS::Region}"
+      BucketName: !Sub ${FrontendBucketName}-${AWS::AccountId}-${AWS::Region}
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
-        BlockPublicPolicy: false   # allow policy-based public read
+        BlockPublicPolicy: false # allow policy-based public read
         IgnorePublicAcls: true
         RestrictPublicBuckets: false
       VersioningConfiguration:
@@ -203,9 +221,9 @@ Resources:
         Statement:
           - Sid: AllowPublicRead
             Effect: Allow
-            Principal: "*"
-            Action: "s3:GetObject"
-            Resource: !Sub "${FrontendBucket.Arn}/*"
+            Principal: '*'
+            Action: s3:GetObject
+            Resource: !Sub ${FrontendBucket.Arn}/*
 
 Outputs:
   ##################################################
@@ -234,3 +252,11 @@ Outputs:
   UserPoolClientId:
     Description: Cognito App Client ID
     Value: !Ref CognitoUserPoolClient
+
+  CognitoHostedUIUrl:
+    Description: Cognito Hosted UI Login URL
+    Value: !Sub https://${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${CognitoUserPoolClient}&response_type=code&scope=openid+email+profile&redirect_uri=https://${FrontendBucket}.s3-website.${AWS::Region}.amazonaws.com
+
+  CognitoHostedUIDomain:
+    Description: Cognito Hosted UI Domain
+    Value: !Sub ${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
