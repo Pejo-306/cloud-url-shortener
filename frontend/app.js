@@ -13,7 +13,7 @@
       const r = await fetch(`${apiBase}/shorten`, {
         method: "POST",
         headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({ original_url: url })
+        body: JSON.stringify({ target_url: url })
       });
       if (!r.ok) {
         const t = await r.text().catch(()=>"");
