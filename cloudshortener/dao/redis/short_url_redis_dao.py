@@ -199,6 +199,7 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         with self.redis.pipeline(transaction=True) as pipe:
             pipe.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
             pipe.set(link_hits_key, DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS)
+            pipe.execute()
         return self
 
     @handle_redis_connection_error
