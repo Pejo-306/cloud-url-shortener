@@ -10,7 +10,7 @@
     const url = longUrl.value.trim();
     if (!url) { alert("Please enter a URL."); return; }
     try {
-      const r = await fetch(`${apiBase}/shorten`, {
+      const r = await fetch(`${apiBase}/v1/shorten`, {
         method: "POST",
         headers: {"Content-Type":"application/json"},
         body: JSON.stringify({ target_url: url })

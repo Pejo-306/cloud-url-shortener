@@ -35,23 +35,85 @@ Globals:
       LogFormat: JSON
     Runtime: python3.13
     Architectures:
-      - x86_64
+      - arm64
     Environment:
       Variables:
         APP_ENV: !Ref AppEnv
         APP_NAME: !Ref AppName
         PROJECT_ROOT: "/var/task"
+        USER_POOL_ID: !Ref CognitoUserPool
+        USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
   Api:
     TracingEnabled: true
     Cors:
       AllowMethods: "'GET,POST,OPTIONS'"
-      AllowHeaders: "'Content-Type'"
+      AllowHeaders: "'Authorization,Content-Type'"
       AllowOrigin: "'*'"
 
 Resources:
 
   ##################################################
-  # Lambda: Shorten URL
+  # Cognito User Pool + Client
+  ##################################################
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub "${AppName}-${AppEnv}-users"
+      AutoVerifiedAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: false
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+          RequireUppercase: false
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: !Sub "${AppName}-${AppEnv}-web"
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+        - implicit
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      SupportedIdentityProviders:
+        - COGNITO
+      CallbackURLs:
+        - "http://localhost:3000/"   # adjust for your frontend
+      LogoutURLs:
+        - "http://localhost:3000/"
+
+  ##################################################
+  # Explicit API with Cognito Authorizer
+  ##################################################
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref AppEnv
+      TracingEnabled: true
+      Cors:
+        AllowMethods: "'GET,POST,OPTIONS'"
+        AllowHeaders: "'Authorization,Content-Type'"
+        AllowOrigin: "'*'"
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt CognitoUserPool.Arn
+        DefaultAuthorizer: CognitoAuthorizer
+
+  ##################################################
+  # Lambda: Shorten URL (protected)
   ##################################################
   ShortenUrlFunction:
     Type: AWS::Serverless::Function
@@ -69,11 +131,12 @@ Resources:
         ShortenUrlApi:
           Type: Api
           Properties:
-            Path: /shorten
+            RestApiId: !Ref ApiGateway
+            Path: /v1/shorten
             Method: post
 
   ##################################################
-  # Lambda: Redirect URL
+  # Lambda: Redirect URL (public)
   ##################################################
   RedirectUrlFunction:
     Type: AWS::Serverless::Function
@@ -91,8 +154,11 @@ Resources:
         RedirectUrlApi:
           Type: Api
           Properties:
+            RestApiId: !Ref ApiGateway
             Path: /{shortcode}
             Method: get
+            Auth:
+              Authorizer: NONE
 
   ##################################################
   # Application Insights & Monitoring
@@ -147,7 +213,7 @@ Outputs:
   ##################################################
   ApiUrl:
     Description: Base URL for the API Gateway
-    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${AppEnv}/
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${AppEnv}/
 
   FrontendUrl:
     Description: Public S3 website URL for the frontend
@@ -160,3 +226,11 @@ Outputs:
   RedirectUrlFunctionArn:
     Description: ARN of the Redirect URL Lambda Function
     Value: !GetAtt RedirectUrlFunction.Arn
+
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+
+  UserPoolClientId:
+    Description: Cognito App Client ID
+    Value: !Ref CognitoUserPoolClient

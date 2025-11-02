@@ -21,7 +21,7 @@ parameters = { }
 
 [default.sync.parameters]
 watch = false
-template_file = "/home/pesho/data/Programs/cloud-url-shortener/template.yaml"
+template_file = "template.yaml"
 stack_name = "url-shortener-dev"
 dependency_layer = false
 code = true

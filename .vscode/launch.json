@@ -13,8 +13,8 @@
             "lambda": {
                 "payload": {
                     "json": {
-                        "resource": "/shorten",
-                        "path": "/shorten",
+                        "resource": "/v1/shorten",
+                        "path": "/v1/shorten",
                         "httpMethod": "POST",
                         "headers": {
                             "Content-Type": "application/json"
