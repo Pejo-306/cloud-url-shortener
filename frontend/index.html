@@ -32,8 +32,12 @@
 
   <!-- NOTE: app.js expects window.ENV.API_BASE_URL to be defined (we'll set it via stack Output for now) -->
   <script>
-    // quick-n-dirty: replace this string with your stack Output after deploy
-    window.ENV = { API_BASE_URL: "https://aaq7bx9t5i.execute-api.eu-central-1.amazonaws.com/Prod" };
+    window.ENV = {
+      API_BASE_URL: "https://3avbrccm89.execute-api.eu-central-1.amazonaws.com/dev",
+      COGNITO_DOMAIN: "cloudshortener-dev.auth.eu-central-1.amazoncognito.com",
+      COGNITO_CLIENT_ID: "3a9kod0jh3sopbb26q3sndjofh",
+      REDIRECT_URI: "https://d2o9j2abrplk6d.cloudfront.net/" // must match Callback URL
+    };
   </script>
   <script src="app.js"></script>
 </body>

@@ -81,7 +81,7 @@ Resources:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
       UserPoolId: !Ref CognitoUserPool
-      Domain: !Sub "${AppName}-${AppEnv}"
+      Domain: !Sub ${AppName}-${AppEnv}
 
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -99,11 +99,9 @@ Resources:
       SupportedIdentityProviders:
         - COGNITO
       CallbackURLs:
-        - !Sub https://${FrontendBucket}.s3-website.${AWS::Region}.amazonaws.com
-        - http://localhost:3000/
+        - !Sub "https://${CloudFrontDistribution.DomainName}/"
       LogoutURLs:
-        - !Sub https://${FrontendBucket}.s3-website.${AWS::Region}.amazonaws.com
-        - http://localhost:3000/
+        - !Sub "https://${CloudFrontDistribution.DomainName}/"
       TokenValidityUnits:
         IdToken: days
         AccessToken: days
@@ -129,6 +127,7 @@ Resources:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt CognitoUserPool.Arn
         DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false 
 
   ##################################################
   # Lambda: Shorten URL (protected)
@@ -219,11 +218,52 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: AllowPublicRead
+          - Sid: AllowCloudFrontAccess
             Effect: Allow
-            Principal: '*'
+            Principal:
+              Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub ${FrontendBucket.Arn}/*
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub arn:aws:cloudfront::${AWS::AccountId}:distribution/${CloudFrontDistribution}
+
+  ##################################################
+  # CloudFront Distribution for HTTPS
+  ##################################################
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt FrontendBucket.RegionalDomainName
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+            OriginAccessControlId: !Ref OriginAccessControl
+        Enabled: true
+        DefaultRootObject: index.html
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        PriceClass: PriceClass_100
+        Comment: Regional distribution for Bulgaria/Europe
+        HttpVersion: http2
+        IPV6Enabled: false
+
+  OriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub ${AppName}-${AppEnv}-oac
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
 
 Outputs:
   ##################################################
@@ -234,7 +274,11 @@ Outputs:
     Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${AppEnv}/
 
   FrontendUrl:
-    Description: Public S3 website URL for the frontend
+    Description: HTTPS CloudFront URL for the frontend
+    Value: !Sub https://${CloudFrontDistribution.DomainName}
+
+  FrontendS3Url:
+    Description: S3 website URL (HTTP only)
     Value: !GetAtt FrontendBucket.WebsiteURL
 
   ShortenUrlFunctionArn:
@@ -255,8 +299,12 @@ Outputs:
 
   CognitoHostedUIUrl:
     Description: Cognito Hosted UI Login URL
-    Value: !Sub https://${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${CognitoUserPoolClient}&response_type=code&scope=openid+email+profile&redirect_uri=https://${FrontendBucket}.s3-website.${AWS::Region}.amazonaws.com
+    Value: !Sub https://${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${CognitoUserPoolClient}&response_type=code&scope=openid+email+profile&redirect_uri=https://${CloudFrontDistribution.DomainName}
 
   CognitoHostedUIDomain:
     Description: Cognito Hosted UI Domain
     Value: !Sub ${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID (for cache invalidation)
+    Value: !Ref CloudFrontDistribution
