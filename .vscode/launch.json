@@ -1,0 +1,79 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "aws-sam",
+            "request": "direct-invoke",
+            "name": "cloud-url-shortener:ShortenUrlFunction",
+            "invokeTarget": {
+                "target": "template",
+                "templatePath": "${workspaceFolder}/template.yaml",
+                "logicalId": "ShortenUrlFunction"
+            },
+            "lambda": {
+                "payload": {
+                    "json": {
+                        "resource": "/shorten",
+                        "path": "/shorten",
+                        "httpMethod": "POST",
+                        "headers": {
+                            "Content-Type": "application/json"
+                        },
+                        "body": "{\"target_url\": \"https://example.com/blog/chuck-norris-is-awesome\"}",
+                        "isBase64Encoded": false,
+                        "requestContext": {
+                            "domainName": "localhost:3000",
+                            "stage": "local"
+                        }
+                    }
+                },
+                "environmentVariables": {
+                    "APP_ENV": "local",
+                    "APP_NAME": "cloudshortener",
+                    "PROJECT_ROOT": "/var/task/"
+                },
+                "runtime": "python3.13"
+            },
+            "sam": {
+                "containerBuild": true,
+                "dockerNetwork": "cloud-url-shortener_default"
+            }
+        },
+        {
+            "type": "aws-sam",
+            "request": "direct-invoke",
+            "name": "cloud-url-shortener:RedirectUrlFunction",
+            "invokeTarget": {
+                "target": "template",
+                "templatePath": "${workspaceFolder}/template.yaml",
+                "logicalId": "RedirectUrlFunction"
+            },
+            "lambda": {
+                "payload": {
+                    "json": {
+                        "resource": "/{shortcode}",
+                        "path": "/Gh71TCO",
+                        "httpMethod": "GET",
+                        "pathParameters": {
+                            "shortcode": "Gh71TCO"
+                        },
+                        "requestContext": {
+                            "domainName": "localhost:3000",
+                            "stage": "local"
+                        }
+                    }
+                },
+                "environmentVariables": {
+                    "APP_ENV": "local",
+                    "APP_NAME": "cloudshortener",
+                    "PROJECT_ROOT": "/var/task/"
+                },
+                "runtime": "python3.13"
+            },
+            "sam": {
+                "containerBuild": true,
+                "dockerNetwork": "cloud-url-shortener_default"
+            }
+        }
+    ]
+}

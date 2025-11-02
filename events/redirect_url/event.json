@@ -1,12 +1,12 @@
 {
   "resource": "/{shortcode}",
-  "path": "/Gh71TCV",
+  "path": "/Gh71TCO",
   "httpMethod": "GET",
   "pathParameters": {
-    "shortcode": "Gh71TCV"
+    "shortcode": "Gh71TCO"
   },
   "requestContext": {
-    "domainName": "localhost",
+    "domainName": "localhost:3000",
     "stage": "local"
   }
 }
