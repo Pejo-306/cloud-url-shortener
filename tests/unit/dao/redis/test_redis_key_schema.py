@@ -19,8 +19,18 @@ Test coverage includes:
 """
 
 import pytest
+from freezegun import freeze_time
 
 from cloudshortener.dao.redis.redis_key_schema import RedisKeySchema
+
+
+# -------------------------------
+# Pytest fixtures
+# -------------------------------
+
+@pytest.fixture
+def keys():
+    return RedisKeySchema()
 
 
 # -------------------------------
@@ -60,6 +70,19 @@ def test_counter_key():
     keys = RedisKeySchema()
     result = keys.counter_key()
     assert result == 'links:counter'
+
+
+@pytest.mark.parametrize(
+    'user_id, todays_date, expected',[
+        ('user123', '2025-11-10', 'users:user123:quota:2025-11'),
+        ('User710', '2025-11-23', 'users:User710:quota:2025-11'),
+        ('pesho', '2024-01-01', 'users:pesho:quota:2024-01'),
+    ]
+)
+def test_user_quota_key(user_id, todays_date, expected, keys):
+    with freeze_time(todays_date):
+        result = keys.user_quota_key(user_id)
+        assert result == expected  
 
 
 # -------------------------------

@@ -31,6 +31,7 @@ TODO:
     - Add helper method to automatically generate prefix from config/environment.
 """
 
+from datetime import date
 from typing import Optional
 
 
@@ -90,6 +91,9 @@ class RedisKeySchema:
 
         counter_key() -> str:
             Generate a Redis key for the global links counter.
+
+        user_quota_key(user_id: str) -> str:
+            Generate a Redis key for the user's monthly link generation quota.
 
     Example:
         >>> schema = RedisKeySchema(prefix="shortener")
@@ -164,3 +168,21 @@ class RedisKeySchema:
             'links:counter'
         """
         return 'links:counter'
+
+    @prefix_key
+    def user_quota_key(self, user_id: str) -> str:
+        """Generate a Redis key for the user quota via a given user_id.
+
+        Args:
+            user_id (str):
+                The unique user_id identifying a Cognito user.
+
+        Returns:
+            str: A Redis key string for the user's monthly quota.
+
+        Example:
+            >>> RedisKeySchema().user_quota_key('user123')
+            'users:user123:quota:2025-11'
+        """
+        this_month = date.today().strftime('%Y-%m')
+        return f'users:{user_id}:quota:{this_month}'
