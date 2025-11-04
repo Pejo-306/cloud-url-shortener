@@ -40,6 +40,8 @@ class UserRedisDAO(UserBaseDAO):
     def quota(self, user_id: str, **kwargs) -> int:
         user_quota_key = self.keys.user_quota_key(user_id)
         monthly_quota = self.redis.incrby(user_quota_key, 0)  # Get current user quota, auto-intialize to 0
+        if monthly_quota == 0:  # If user quota was just initialized, set expiration time
+            self.redis.expire(user_quota_key, ONE_MONTH_SECONDS)
         return monthly_quota
 
     @handle_redis_connection_error

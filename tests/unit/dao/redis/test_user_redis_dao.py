@@ -32,6 +32,7 @@ import redis.client
 
 from cloudshortener.dao.redis import RedisKeySchema, UserRedisDAO
 from cloudshortener.dao.exceptions import UserDoesNotExistError
+from cloudshortener.utils.constants import ONE_MONTH_SECONDS
 
 
 # -------------------------------
@@ -84,6 +85,7 @@ def test_quota(dao, redis_client):
 
     assert quota == 20
     redis_client.incrby.assert_called_once_with('testapp:test:users:user123:quota:4000-11', 0)
+    redis_client.expire.assert_not_called()
 
 
 # -------------------------------
@@ -122,8 +124,11 @@ def test_increment_quota_user_does_not_exist(dao, redis_client):
 def test_quota_auto_initialize(dao, redis_client):
     """Ensure `quota()` auto-initializes user quota when missing."""
     redis_client.incrby.return_value = 0
+    redis_client.expire.return_value = 1
     user_id = 'user123'
 
-    dao.quota(user_id)
+    quota = dao.quota(user_id)
 
+    assert quota == 0
     redis_client.incrby.assert_called_once_with('testapp:test:users:user123:quota:4000-11', 0)
+    redis_client.expire.assert_called_once_with('testapp:test:users:user123:quota:4000-11', ONE_MONTH_SECONDS)
