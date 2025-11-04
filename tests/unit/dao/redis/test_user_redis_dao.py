@@ -1,3 +1,28 @@
+"""
+Unit tests for the UserRedisDAO class.
+
+Verify that user quota operations correctly interact with Redis and handle
+missing user scenarios with appropriate exceptions.
+
+Test coverage includes:
+
+1. Retrieving user quotas
+   - Ensures `quota()` returns the correct stored value for an existing user.
+
+2. Incrementing user quotas
+   - Ensures `increment_quota()` increments and returns the updated value when the key exists.
+
+3. Missing user
+   - Ensures both `quota()` and `increment_quota()` raise UserDoesNotExistError when
+     the user record does not exist.
+
+Fixtures:
+    - `app_prefix`: consistent Redis key prefix for predictable test output.
+    - `redis_client`: mock Redis pipeline-compatible client.
+    - `key_schema`: mock RedisKeySchema generating static key names.
+    - `dao`: instance of UserRedisDAO with mocked Redis and key schema dependencies.
+"""
+
 import re
 from unittest.mock import MagicMock
 
@@ -8,6 +33,10 @@ import redis.client
 from cloudshortener.dao.redis import RedisKeySchema, UserRedisDAO
 from cloudshortener.dao.exceptions import UserDoesNotExistError
 
+
+# -------------------------------
+# Fixtures
+# -------------------------------
 
 @pytest.fixture
 def app_prefix():
@@ -36,13 +65,18 @@ def key_schema():
 
 @pytest.fixture
 def dao(redis_client, key_schema, app_prefix):
-    """Create a ShortURLRedisDAO instance with mocked dependencies."""
+    """Create a UserRedisDAO instance with mocked dependencies."""
     _dao = UserRedisDAO(redis_client=redis_client, prefix=app_prefix)
     _dao.keys = key_schema
     return _dao
 
 
+# -------------------------------
+# 1. Retrieving user quotas
+# -------------------------------
+
 def test_quota(dao, redis_client):
+    """Ensure `quota()` returns correct value for an existing user."""
     redis_client.get.return_value = 20
     user_id = 'user123'
 
@@ -52,14 +86,12 @@ def test_quota(dao, redis_client):
     redis_client.get.assert_called_once_with('testapp:test:users:user123:quota:4000-11')
 
 
-def test_quota_user_does_not_exist(dao, redis_client):
-    redis_client.get.return_value = None
-    user_id = 'user123'
-    with pytest.raises(UserDoesNotExistError, match=re.escape(f"User with ID 'user123' does not exist.")):
-        dao.quota(user_id)
-
+# -------------------------------
+# 2. Incrementing user quotas
+# -------------------------------
 
 def test_increment_quota(dao, redis_client):
+    """Ensure `increment_quota()` increments and returns new value when key exists."""
     redis_client.exists.return_value = 1  # key exists
     redis_client.incr.return_value = 21
     user_id = 'user123'
@@ -71,8 +103,22 @@ def test_increment_quota(dao, redis_client):
     redis_client.incr.assert_called_once_with('testapp:test:users:user123:quota:4000-11')
 
 
+# -------------------------------
+# 3. Missing user
+# -------------------------------
+
+def test_quota_user_does_not_exist(dao, redis_client):
+    """Ensure `quota()` raises UserDoesNotExistError when user is missing."""
+    redis_client.get.return_value = None
+    user_id = 'user123'
+    with pytest.raises(UserDoesNotExistError, match=re.escape(f"User with ID 'user123' does not exist.")):
+        dao.quota(user_id)
+
+
 def test_increment_quota_user_does_not_exist(dao, redis_client):
-    redis_client.exists.return_value = 0  # key does not exists
+    """Ensure `increment_quota()` raises UserDoesNotExistError when user is missing."""
+    redis_client.exists.return_value = 0  # key does not exist
     user_id = 'user123'
     with pytest.raises(UserDoesNotExistError, match=re.escape(f"User with ID 'user123' does not exist.")):
         dao.increment_quota(user_id)
+
