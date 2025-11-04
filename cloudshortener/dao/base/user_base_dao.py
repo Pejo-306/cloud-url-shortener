@@ -59,6 +59,8 @@ class UserBaseDAO(ABC):
     def quota(self, user_id: str, **kwargs) -> int:
         """Retrieve the monthly quota for a user.
 
+        NOTE: Implementations of this method must guarantee auto-initialization of the user's quota to 0.
+
         Args:
             user_id (str):
                 The user's unique identifier.

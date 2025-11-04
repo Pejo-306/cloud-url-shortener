@@ -77,13 +77,13 @@ def dao(redis_client, key_schema, app_prefix):
 
 def test_quota(dao, redis_client):
     """Ensure `quota()` returns correct value for an existing user."""
-    redis_client.get.return_value = 20
+    redis_client.incrby.return_value = 20
     user_id = 'user123'
 
     quota = dao.quota(user_id)
 
     assert quota == 20
-    redis_client.get.assert_called_once_with('testapp:test:users:user123:quota:4000-11')
+    redis_client.incrby.assert_called_once_with('testapp:test:users:user123:quota:4000-11', 0)
 
 
 # -------------------------------
@@ -107,14 +107,6 @@ def test_increment_quota(dao, redis_client):
 # 3. Missing user
 # -------------------------------
 
-def test_quota_user_does_not_exist(dao, redis_client):
-    """Ensure `quota()` raises UserDoesNotExistError when user is missing."""
-    redis_client.get.return_value = None
-    user_id = 'user123'
-    with pytest.raises(UserDoesNotExistError, match=re.escape(f"User with ID 'user123' does not exist.")):
-        dao.quota(user_id)
-
-
 def test_increment_quota_user_does_not_exist(dao, redis_client):
     """Ensure `increment_quota()` raises UserDoesNotExistError when user is missing."""
     redis_client.exists.return_value = 0  # key does not exist
@@ -122,3 +114,16 @@ def test_increment_quota_user_does_not_exist(dao, redis_client):
     with pytest.raises(UserDoesNotExistError, match=re.escape(f"User with ID 'user123' does not exist.")):
         dao.increment_quota(user_id)
 
+
+# -------------------------------
+# 4. Auto-initialize user quota
+# -------------------------------
+
+def test_quota_auto_initialize(dao, redis_client):
+    """Ensure `quota()` auto-initializes user quota when missing."""
+    redis_client.incrby.return_value = 0
+    user_id = 'user123'
+
+    dao.quota(user_id)
+
+    redis_client.incrby.assert_called_once_with('testapp:test:users:user123:quota:4000-11', 0)

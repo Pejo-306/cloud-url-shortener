@@ -39,9 +39,7 @@ class UserRedisDAO(UserBaseDAO):
     @beartype
     def quota(self, user_id: str, **kwargs) -> int:
         user_quota_key = self.keys.user_quota_key(user_id)
-        monthly_quota = self.redis.get(user_quota_key)
-        if monthly_quota is None:
-            raise UserDoesNotExistError(f"User with ID '{user_id}' does not exist.")
+        monthly_quota = self.redis.incrby(user_quota_key, 0)  # Get current user quota, auto-intialize to 0
         return monthly_quota
 
     @handle_redis_connection_error
