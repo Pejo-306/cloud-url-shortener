@@ -42,3 +42,8 @@ class DataStoreError(DAOError):
     e.g. connection issues, timeouts, OOM, etc.
     """
     pass
+
+
+class UserDoesNotExistError(DAOError):
+    """Exception raised when a user is not found in the data store."""
+    pass
