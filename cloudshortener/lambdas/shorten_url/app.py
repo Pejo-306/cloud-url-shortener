@@ -2,20 +2,22 @@ import json
 from typing import Any, Dict
 
 from cloudshortener.models import ShortURLModel
-from cloudshortener.dao.redis import ShortURLRedisDAO
-from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
+from cloudshortener.dao.redis import ShortURLRedisDAO, UserRedisDAO
+from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError, UserDoesNotExistError
 from cloudshortener.utils import generate_shortcode, load_config, get_short_url, app_prefix
+from cloudshortener.utils.constants import DEFAULT_LINK_GENERATION_QUOTA
 
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """Handle incoming API Gateway requests to shorten URLs
 
     This Lambda handler follows this procedure to shorten URLs:
-    - Step 1: Extract original URL from request body
-    - Step 2: Initialize DAO subclass
-    - Step 3: Increment global counter from database (via DAO)
+    - Step 1: Extract Amazon Cognito user id from Lambda event
+    - Step 2: Check if monthly user quota is reached
+    - Step 3: Extract original URL from request body
     - Step 4: Generate shortcode for new link
     - Step 5: Store short_url and target_url mapping in database (via DAO)
+    - Step 6: Respond to user with 200 success
 
     HTTP responses:
         200: Successful URL shortening
@@ -25,6 +27,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             shortcode: newly generated shortcode
         400: Bad client request
             message: indicate cause of bad request (invalid JSON or missing target_url)
+        401: Unathorized
+            message: indicate missing Cognito user_id
+        429: Too many link generation requests
+            message: monthly user quota hit
         500: Internal server error
             message: indicate the server experieced an internal error
 
@@ -60,8 +66,32 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'message': "Internal Server Error",
             }),
         }
-    
-    # 1- Extract original URL from request body
+    else:
+        redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
+
+    # 1- Extract user id from Cognito
+    claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
+    user_id = claims.get('sub')
+    if user_id is None:
+        return {
+            'statusCode': 401,
+            'body': json.dumps({
+                'message': "Unathorized: missing 'sub' in JWT claims",
+            }),
+        }
+
+    # 2- Check if monthly quota is already reached
+    user_dao = UserRedisDAO(**redis_config, prefix=app_prefix())
+    user_quota = user_dao.quota(user_id=user_id)
+    if user_quota >= DEFAULT_LINK_GENERATION_QUOTA:
+        return {
+            'statusCode': 429,
+            'body': json.dumps({
+                'message': "Too many link generation requests: monthly quota reached",
+            }),
+        }
+
+    # 3- Extract original URL from request body
     try:
         request_body = json.loads(event.get('body') or '{}')
     except json.JSONDecodeError:
@@ -80,14 +110,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }),
         }
 
-    # 2- Initialize DAO subclass
-    redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
-    short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
-
-    # 3- Increment global counter from database (via DAO)
-    counter = short_url_dao.count(increment=True)
-
     # 4- Generate shortcode for the new link
+    short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
+    counter = short_url_dao.count(increment=True)
     shortcode = generate_shortcode(counter, salt='my_secret', length=7)
 
     # 5- Store short_url and target_url mapping in database (via DAO)
@@ -102,6 +127,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }),
         }
     else:
+        user_dao.increment_quota(user_id=user_id)
         short_url_string = get_short_url(shortcode, event)
 
     # 6- Return successful response to user
@@ -117,5 +143,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             'target_url': target_url,
             'short_url': short_url_string,
             'shortcode': shortcode,
+            'user_quota': user_quota,
+            'new user_quota': user_quota + 1
         }),
     }

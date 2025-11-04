@@ -13,8 +13,11 @@ Test coverage includes:
    - Ensures `increment_quota()` increments and returns the updated value when the key exists.
 
 3. Missing user
-   - Ensures both `quota()` and `increment_quota()` raise UserDoesNotExistError when
+   - Ensures  `increment_quota()` raise UserDoesNotExistError when
      the user record does not exist.
+
+4. Auto-initialize user quota 
+   - Ensure `quota()` auto initializes a user's monthly quota to 0 if key does not exist in Redis.
 
 Fixtures:
     - `app_prefix`: consistent Redis key prefix for predictable test output.

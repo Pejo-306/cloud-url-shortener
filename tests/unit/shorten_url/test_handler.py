@@ -21,6 +21,12 @@ Test coverage includes:
 5. Short URL already exists
    - Ensure lambda wont overwrite an existing short URL and raise HTTP 500.
 
+6. Monthly user quota hit
+   - Ensure lambda won't create a short URL if the user has hit their quota.
+
+7. Unathorized access attemp
+   - Ensure lambda only runs if the event provides Amazon Cognito information about the user.
+
 Fixtures:
     - `apigw_event`: generic API Gateway event structure.
     - `successful_event_200`: valid request body for URL shortening.
@@ -29,7 +35,8 @@ Fixtures:
     - `context`: mock AWS Lambda context object.
     - `config`: application configuration mock.
     - `base_url`: mocked base URL used in response construction.
-    - `dao`: mock DAO implementing ShortURLBaseDAO.
+    - `short_url_dao`: mock DAO implementing ShortURLBaseDAO.
+    - `user_dao`: mock DAO implementing UserBaseDAO.
     - `_patch_lambda_dependencies`: autouse fixture that monkeypatches app dependencies
                                     (config, DAO, shortcode generator, and base URL).
 """
@@ -41,7 +48,7 @@ import pytest
 
 from cloudshortener.lambdas.shorten_url import app
 from cloudshortener.models import ShortURLModel
-from cloudshortener.dao.base import ShortURLBaseDAO
+from cloudshortener.dao.base import ShortURLBaseDAO, UserBaseDAO
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
 
 
@@ -55,10 +62,26 @@ def apigw_event():
         "body": '{ "test": "body"}',
         "resource": "/{proxy+}",
         "requestContext": {"resourcePath": "/{proxy+}", "httpMethod": "POST"},
-        "headers": {"User-Agent": "pytest"},
+        "headers": {
+            "User-Agent": "pytest",
+            "Authorization": "Bearer fake-jwt-token"
+        },
         "httpMethod": "POST",
         "path": "/examplepath",
-        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
+        "requestContext": {
+            "resourcePath": "/{proxy+}",
+            "httpMethod": "POST",
+            "domainName": "testhost:1000",
+            "stage": "test",
+            "authorizer": {
+                "claims": {
+                    "sub": "user123",
+                    "email": "pytest@example.com",
+                    "cognito:username": "pytest-user",
+                    "email_verified": "true"
+                }
+            }
+        }
     }
 
 
@@ -68,10 +91,26 @@ def successful_event_200():
         "body": json.dumps({'target_url': 'https://example.com/blog/chuck-norris-is-awesome'}),
         "resource": "/v1/shorten",
         "requestContext": {"resourcePath": "/v1/shorten", "httpMethod": "POST"},
-        "headers": {"Content-Type": "application/json"},
+        "headers": {
+            "User-Agent": "pytest",
+            "Authorization": "Bearer fake-jwt-token"
+        },
         "httpMethod": "POST",
         "path": "/v1/shorten",
-        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
+        "requestContext": {
+            "resourcePath": "/v1/shorten",
+            "httpMethod": "POST",
+            "domainName": "testhost:1000",
+            "stage": "test",
+            "authorizer": {
+                "claims": {
+                    "sub": "user123",
+                    "email": "pytest@example.com",
+                    "cognito:username": "pytest-user",
+                    "email_verified": "true"
+                }
+            }
+        }
     }
 
 
@@ -80,10 +119,26 @@ def bad_request_400():
     return {
         "body": '{"invalid_json": true',
         "resource": "/v1/shorten",
-        "headers": {"Content-Type": "application/json"},
+        "headers": {
+            "User-Agent": "pytest",
+            "Authorization": "Bearer fake-jwt-token"
+        },
         "httpMethod": "POST",
         "path": "/v1/shorten",
-        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
+        "requestContext": {
+            "resourcePath": "/v1/shorten",
+            "httpMethod": "POST",
+            "domainName": "testhost:1000",
+            "stage": "test",
+            "authorizer": {
+                "claims": {
+                    "sub": "user123",
+                    "email": "pytest@example.com",
+                    "cognito:username": "pytest-user",
+                    "email_verified": "true"
+                }
+            }
+        }
     }
 
 
@@ -92,10 +147,26 @@ def bad_request_400_no_target_url():
     return {
         "body": json.dumps({'invalid_json': True}),
         "resource": "/v1/shorten",
-        "headers": {"Content-Type": "application/json"},
+        "headers": {
+            "User-Agent": "pytest",
+            "Authorization": "Bearer fake-jwt-token"
+        },
         "httpMethod": "POST",
         "path": "/v1/shorten",
-        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
+        "requestContext": {
+            "resourcePath": "/v1/shorten",
+            "httpMethod": "POST",
+            "domainName": "testhost:1000",
+            "stage": "test",
+            "authorizer": {
+                "claims": {
+                    "sub": "user123",
+                    "email": "pytest@example.com",
+                    "cognito:username": "pytest-user",
+                    "email_verified": "true"
+                }
+            }
+        }
     }
 
 
@@ -118,22 +189,31 @@ def config():
 
 
 @pytest.fixture()
-def dao():
+def short_url_dao():
     return MagicMock(spec=ShortURLBaseDAO)
 
 
+@pytest.fixture()
+def user_dao():
+    _dao = MagicMock(spec=UserBaseDAO)
+    _dao.quota.return_value = 10
+    _dao.increment_quota.return_value = 11
+    return _dao
+
+
 @pytest.fixture(autouse=True)
-def _patch_lambda_dependencies(monkeypatch, config, dao):
+def _patch_lambda_dependencies(monkeypatch, config, short_url_dao, user_dao):
     monkeypatch.setattr(app, 'load_config', lambda *a, **kw: config)
     monkeypatch.setattr(app, 'generate_shortcode', lambda *a, **kw: 'abc123')
-    monkeypatch.setattr(app, 'ShortURLRedisDAO', lambda *a, **kw: dao)
-
+    monkeypatch.setattr(app, 'ShortURLRedisDAO', lambda *a, **kw: short_url_dao)
+    monkeypatch.setattr(app, 'UserRedisDAO', lambda *a, **kw: user_dao)
+    
 
 # -------------------------------
 # 1. Successful shortening
 # -------------------------------
 
-def test_lambda_handler(successful_event_200, context, dao):
+def test_lambda_handler(successful_event_200, context, short_url_dao, user_dao):
     """Ensure Lambda successfully shortens URLs and updates datastore."""
     target_url = 'https://example.com/blog/chuck-norris-is-awesome'
 
@@ -147,10 +227,14 @@ def test_lambda_handler(successful_event_200, context, dao):
     assert body['short_url'] == 'https://testhost:1000/abc123'
     assert body['shortcode'] == 'abc123'
 
-    # Assert DAO operations were called correctly
+    # Assert ShortURLBaseDAO operations were called correctly
     short_url = ShortURLModel(target=target_url, shortcode='abc123')
-    dao.count.assert_called_once_with(increment=True)
-    dao.insert.assert_called_once_with(short_url=short_url)
+    short_url_dao.count.assert_called_once_with(increment=True)
+    short_url_dao.insert.assert_called_once_with(short_url=short_url)
+
+    # Assert UserBaseDAO operations were called correctly
+    user_dao.quota.assert_called_once_with(user_id='user123')
+    user_dao.increment_quota.assert_called_once_with(user_id='user123')
 
 
 # -------------------------------
@@ -198,9 +282,9 @@ def test_lambda_handler_with_invalid_configuration_file(apigw_event, context):
 # 5. Short URL already exists
 # -------------------------------
 
-def test_lambda_handler_with_existing_short_url(successful_event_200, context, dao):
+def test_lambda_handler_with_existing_short_url(successful_event_200, context, short_url_dao):
     """Ensure lambda wont overwrite an existing short URL and raise HTTP 500."""
-    dao.insert.side_effect = ShortURLAlreadyExistsError()
+    short_url_dao.insert.side_effect = ShortURLAlreadyExistsError()
 
     response = app.lambda_handler(successful_event_200, context)
     body = json.loads(response['body'])
@@ -208,3 +292,31 @@ def test_lambda_handler_with_existing_short_url(successful_event_200, context, d
     assert response['statusCode'] == 500
     assert body['message'] == "Internal Server Error"
 
+
+# -------------------------------
+# 6. Monthly link generation quota reached
+# -------------------------------
+
+def test_lambda_handler_with_quota_reached(monkeypatch, successful_event_200, context, user_dao):
+    """Ensure lambda wont create a short URL if the monthly quota is reached."""
+    monkeypatch.setattr(app, 'DEFAULT_LINK_GENERATION_QUOTA', 30)
+    user_dao.quota.return_value = 30
+
+    response = app.lambda_handler(successful_event_200, context)
+    body = json.loads(response['body'])
+
+    assert response['statusCode'] == 429
+    assert body['message'] == "Too many link generation requests: monthly quota reached"
+
+
+# -------------------------------
+# 7. Unathorized access attempt (missing Cognito user id)
+# -------------------------------
+def test_lambda_handler_with_unauthorized_access_attempt(successful_event_200, context):
+    """Ensure lambda wont create a short URL if the Amazon Cognito user id is missing."""
+    del successful_event_200['requestContext']['authorizer']
+    response = app.lambda_handler(successful_event_200, context)
+    body = json.loads(response['body'])
+
+    assert response['statusCode'] == 401
+    assert body['message'] == "Unathorized: missing 'sub' in JWT claims"
