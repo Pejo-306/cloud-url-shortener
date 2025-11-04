@@ -42,25 +42,23 @@ TODO:
 """
 
 from datetime import datetime, timedelta
-from typing import Optional
 
-import redis
 from beartype import beartype
 
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
-from cloudshortener.dao.redis import RedisKeySchema
+from cloudshortener.dao.redis.mixins import RedisClientMixin
 from cloudshortener.dao.redis.helpers import handle_redis_connection_error
-from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError, ShortURLNotFoundError
+from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError, ShortURLNotFoundError
 from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_QUOTA
 
 
-class ShortURLRedisDAO(ShortURLBaseDAO):
+class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
     """Redis-based Data Access Object (DAO) for managing short URL mappings
 
     This class implements the ShortURLBaseDAO interface using Redis as a data store.
 
-    Attributes:
+    Attributes (see RedisClientMixin):
         redis (redis.Redis):
             Redis client used to communicate with the Redis datastore.
         keys (RedisKeySchema):
@@ -81,10 +79,6 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
             Retrieve (and optionally increment) the global URL counter.
             Raises DataStoreError on connectivity issues with Redis.
 
-        _healthcheck(raise_error: bool = True) -> bool:
-            Validate connection to Redis via a PING command.
-            Raises DataStoreError on connectivity issues with Redis.
-
     Example:
         >>> dao = ShortURLRedisDAO(redis_host="localhost", prefix="shortener:test")
         >>> short_url = ShortURLModel(target="https://example.com", shortcode="abc123")
@@ -93,57 +87,6 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
         >>> dao.get("abc123").target
         'https://example.com'
     """
-
-    def __init__(self, 
-                 redis_host: Optional[str] = 'localhost',
-                 redis_port: Optional[int] = 6379,
-                 redis_db: Optional[int] = 0,
-                 redis_decode_responses: Optional[bool] = True,
-                 redis_username: Optional[str] = None,
-                 redis_password: Optional[str] = None,
-                 redis_client: Optional[redis.Redis] = None,
-                 prefix: Optional[str] = None):
-        """Initialize a Redis-based DAO for short URL management
-
-        The option is given to either use an existing Redis client instance or
-        create one via the appropriate Redis connection parameters.
-
-        Args:
-            redis_host (Optional[str]):
-                Hostname of the Redis server. Defaults to 'localhost'.
-            redis_port (Optional[int]):
-                Redis server port. Defaults to 6379.
-            redis_db (Optional[int]):
-                Redis database index. Defaults to 0.
-            redis_decode_responses (Optional[bool]):
-                If True, decodes Redis responses. Defaults to True.
-            redis_username (Optional[str]):
-                Username for Redis authentication (if required).
-            redis_password (Optional[str]):
-                Password for Redis authentication (if required).
-            redis_client (Optional[redis.Redis]):
-                Pre-initialized Redis client. If None, a new client is created.
-            prefix (Optional[str]):
-                Namespace prefix for all Redis keys, e.g. 'app:env'.
-
-        Raises:
-            DataStoreError:
-                If Redis healthcheck fails (connectivity issues).
-        """
-        if redis_client is None:
-            redis_client = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=redis_db,
-                decode_responses=redis_decode_responses,
-                username=redis_username,
-                password=redis_password
-            )
-
-        self.redis = redis_client
-        self.keys = RedisKeySchema(prefix=prefix)
-
-        self._heatlhcheck()
     
     @handle_redis_connection_error
     @beartype
@@ -278,35 +221,3 @@ class ShortURLRedisDAO(ShortURLBaseDAO):
             return self.redis.incr(self.keys.counter_key())
         else:
             return self.redis.get(self.keys.counter_key())
-
-    def _heatlhcheck(self, raise_error: bool = True) -> bool:
-        """PING Redis to healthcheck connectivity
-        
-        Args:
-            raise_error (bool):
-                If True, raises DataStoreError on failure. Defaults to True.
-
-        Returns:
-            bool:
-                True if Redis is reachable, False otherwise (only if raise_error=False).
-
-        Raises:
-            DataStoreError:
-                If Redis connection cannot be established and raise_error=True.
-
-        Example:
-            >>> dao._heatlhcheck()
-            True
-        """
-        try:
-            self.redis.ping()
-        except redis.exceptions.ConnectionError as e:
-            if raise_error:
-                info = self.redis.connection_pool.connection_kwargs
-                redis_host = info.get('host')
-                redis_port = info.get('port')
-                redis_db = info.get('db')
-                raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}. Check the provided configuration paramters.") from e
-            return False
-        else:
-            return True

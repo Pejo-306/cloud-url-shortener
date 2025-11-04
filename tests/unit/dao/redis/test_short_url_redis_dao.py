@@ -24,7 +24,7 @@ Test coverage includes:
 """
 
 import re
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, call
 
 import pytest
 import redis
@@ -75,71 +75,6 @@ def dao(redis_client, key_schema, app_prefix):
     _dao.keys = key_schema
     return _dao
 
-
-# -------------------------------
-# 1. Initialization and configuration
-# -------------------------------
-
-def test_initialize_without_redis_client():
-    """Ensure DAO creates a Redis client when none is provided."""
-    redis_config = {
-        'redis_host': 'redis',
-        'redis_port': 6379,
-        'redis_db': 0,
-        'redis_decode_responses': True,
-        'redis_username': 'default',
-        'redis_password': 'password'
-    }
-
-    with patch('cloudshortener.dao.redis.short_url_redis_dao.redis.Redis', autospec=True) as redis_mock:
-        redis_mock_instance = redis_mock.return_value
-        dao = ShortURLRedisDAO(**redis_config, prefix='testapp:test')
-
-        redis_mock.assert_called_once_with(
-            host='redis',
-            port=6379,
-            db=0,
-            decode_responses=True,
-            username='default',
-            password='password'
-        )
-        assert dao.redis is redis_mock_instance
-
-
-def test_initialize_with_redis_client():
-    """Ensure DAO correctly uses a pre-initialized Redis client."""
-    redis_mock = MagicMock(spec=redis.Redis)
-    dao = ShortURLRedisDAO(redis_client=redis_mock, prefix='testapp:test')
-    assert dao.redis is redis_mock
-
-
-def test_initialize_with_invalid_redis_config():
-    """Ensure invalid Redis config raises DataStoreError."""
-    redis_config = {
-        'redis_host': '203.0.113.1',
-        'redis_port': 18000,
-        'redis_db': 5,
-        'redis_decode_responses': True,
-        'redis_username': 'default',
-        'redis_password': 'password'
-    }
-    exception_message = (
-        "Can't connect to Redis at 203.0.113.1:18000/5. "
-        "Check the provided configuration paramters."
-    )
-
-    with patch('cloudshortener.dao.redis.short_url_redis_dao.redis.Redis', autospec=True) as redis_mock:
-        redis_mock_instance = redis_mock.return_value
-        redis_mock_instance.ping.side_effect = redis.exceptions.ConnectionError("Connection error")
-        redis_mock_instance.connection_pool = MagicMock()
-        redis_mock_instance.connection_pool.connection_kwargs = {
-            'host': '203.0.113.1',
-            'port': 18000,
-            'db': 5
-        }
-
-        with pytest.raises(DataStoreError, match=exception_message):
-            ShortURLRedisDAO(**redis_config, prefix='testapp:test')
 
 
 # -------------------------------

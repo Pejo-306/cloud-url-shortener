@@ -3,7 +3,7 @@ from typing import Any, Dict
 
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO, UserRedisDAO
-from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError, UserDoesNotExistError
+from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
 from cloudshortener.utils import generate_shortcode, load_config, get_short_url, app_prefix
 from cloudshortener.utils.constants import DEFAULT_LINK_GENERATION_QUOTA
 
