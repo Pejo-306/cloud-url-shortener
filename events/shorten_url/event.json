@@ -9,6 +9,16 @@
   "isBase64Encoded": false,
   "requestContext": {
     "domainName": "localhost:3000",
-    "stage": "local"
+    "stage": "local",
+    "resourcePath": "/v1/shorten",
+    "httpMethod": "POST",
+    "authorizer": {
+        "claims": {
+            "sub": "lambda123",
+            "email": "lambda@example.com",
+            "cognito:username": "lambda-user",
+            "email_verified": "true"
+        }
+    }
   }
 }
