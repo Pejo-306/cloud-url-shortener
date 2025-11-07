@@ -31,7 +31,7 @@ Fixtures:
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from unittest.mock import MagicMock, patch
 import pytest
 
@@ -116,7 +116,7 @@ def dao(target_url):
         target=target_url,
         shortcode='abc123',
         hits=10000,
-        expires_at=datetime.utcnow() + timedelta(days=10),
+        expires_at=datetime.now(UTC) + timedelta(days=10),
     )
     return _dao
 

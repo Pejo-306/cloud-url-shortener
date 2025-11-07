@@ -41,7 +41,7 @@ TODO:
     - Add support for configurable TTL and hit quotas.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 from beartype import beartype
 
@@ -194,7 +194,7 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
             target=original_url,
             shortcode=shortcode,
             hits=hits,
-            expires_at=datetime.utcnow() + timedelta(seconds=ttl),
+            expires_at=datetime.now(UTC) + timedelta(seconds=ttl),
         )
 
     @handle_redis_connection_error
