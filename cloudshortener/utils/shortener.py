@@ -19,8 +19,8 @@ import xxhash
 
 
 ALPHABET = string.ascii_lowercase + string.ascii_uppercase + string.digits
-BASE = len(ALPHABET)  # hashids produce base62-safe strings: 
-                      # 26 lowercase + 26 uppercase + 10 digits
+BASE = len(ALPHABET)  # noqa: E114 hashids produce base62-safe strings: 
+                      # noqa: E114, E116 26 lowercase + 26 uppercase + 10 digits
 
 
 def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7) -> str:

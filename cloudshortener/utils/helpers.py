@@ -32,10 +32,10 @@ Example:
         'http://localhost:3000'
 """
 
-from typing import Dict, Any
+from typing import Any
 
 
-def base_url(event: Dict[str, Any]) -> str:
+def base_url(event: dict[str, Any]) -> str:
     """Extract public base URL from API Gateway event
     
     Return the public base URL for the current Lambda invocation.
@@ -67,7 +67,7 @@ def base_url(event: Dict[str, Any]) -> str:
         return 'http://localhost:3000'
 
 
-def get_short_url(shortcode: str, event: Dict[str, Any]) -> str:
+def get_short_url(shortcode: str, event: dict[str, Any]) -> str:
     """Get string representation of shortened URL
     
     Args:

@@ -73,7 +73,7 @@ def test_counter_key():
 
 
 @pytest.mark.parametrize(
-    'user_id, todays_date, expected',[
+    'user_id, todays_date, expected', [
         ('user123', '2025-11-10', 'users:user123:quota:2025-11'),
         ('User710', '2025-11-23', 'users:User710:quota:2025-11'),
         ('pesho', '2024-01-01', 'users:pesho:quota:2024-01'),

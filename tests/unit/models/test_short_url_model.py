@@ -40,7 +40,7 @@ def test_valid_short_url_model_creation():
     """Ensure ShortURLModel can be created with valid data and types."""
     original_url = "https://example.com/article/123"
     shortcode = "abc123"
-    hits=10000
+    hits = 10000
     expires_at = datetime(2026, 1, 1, 0, 0, 0)  # 1st Jan 2026 00:00:00
 
     short_url = ShortURLModel(

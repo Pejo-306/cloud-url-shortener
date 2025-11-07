@@ -21,6 +21,7 @@ Example:
     cloudshortener.dao.exceptions.ShortURLNotFoundError: Short code 'abc123' not found.
 """
 
+
 class DAOError(Exception):
     """Generic base class for DAO-related exceptions."""
     pass

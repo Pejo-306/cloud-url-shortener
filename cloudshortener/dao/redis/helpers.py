@@ -1,6 +1,7 @@
 import functools
 import redis
-from typing import TypeVar, Any, Callable
+from typing import TypeVar, Any
+from collections.abc import Callable
 
 from cloudshortener.dao.exceptions import DataStoreError
 
@@ -10,7 +11,7 @@ __all__ = []
 F = TypeVar('F', bound=Callable[..., Any])
 
 
-def handle_redis_connection_error(method: F) -> F:
+def handle_redis_connection_error[F](method: F) -> F:
     """Wrap Redis-interacting DAO methods to handle connection errors
 
     Args:

@@ -1,12 +1,12 @@
 import json
-from typing import Dict, Any
+from typing import Any
 
 from cloudshortener.dao.redis import ShortURLRedisDAO
 from cloudshortener.dao.exceptions import ShortURLNotFoundError
 from cloudshortener.utils import load_config, get_short_url, app_prefix
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Handle incoming API Gateway requests to redirect URLs
 
     This Lambda handler follows this procedure to redirect URLs:
@@ -74,7 +74,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     # 3- Get short_url record from database
     try:
         short_url = short_url_dao.get(shortcode=shortcode)
-    except ShortURLNotFoundError as e:
+    except ShortURLNotFoundError:
         return {
             'statusCode': 400,
             'body': json.dumps({

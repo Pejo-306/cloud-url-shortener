@@ -1,5 +1,5 @@
 import json
-from typing import Any, Dict
+from typing import Any
 
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO, UserRedisDAO
@@ -8,7 +8,7 @@ from cloudshortener.utils import generate_shortcode, load_config, get_short_url,
 from cloudshortener.utils.constants import DEFAULT_LINK_GENERATION_QUOTA
 
 
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Handle incoming API Gateway requests to shorten URLs
 
     This Lambda handler follows this procedure to shorten URLs:
@@ -102,7 +102,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             }),
         }
     target_url = request_body.get('target_url')
-    if not target_url :
+    if not target_url:
         return {
             'statusCode': 400,
             'body': json.dumps({
@@ -119,11 +119,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         short_url = ShortURLModel(shortcode=shortcode, target=target_url)
         short_url_dao.insert(short_url=short_url)
-    except ShortURLAlreadyExistsError as e:
+    except ShortURLAlreadyExistsError:
         return {
             'statusCode': 500,
             'body': json.dumps({
-                'message': f"Internal Server Error",
+                'message': "Internal Server Error",
             }),
         }
     else:

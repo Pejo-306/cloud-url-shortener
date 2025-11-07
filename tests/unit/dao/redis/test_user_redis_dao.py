@@ -30,7 +30,6 @@ import re
 from unittest.mock import MagicMock
 
 import pytest
-import redis
 import redis.client
 
 from cloudshortener.dao.redis import RedisKeySchema, UserRedisDAO
@@ -116,7 +115,7 @@ def test_increment_quota_user_does_not_exist(dao, redis_client):
     """Ensure `increment_quota()` raises UserDoesNotExistError when user is missing."""
     redis_client.exists.return_value = 0  # key does not exist
     user_id = 'user123'
-    with pytest.raises(UserDoesNotExistError, match=re.escape(f"User with ID 'user123' does not exist.")):
+    with pytest.raises(UserDoesNotExistError, match=re.escape("User with ID 'user123' does not exist.")):
         dao.increment_quota(user_id)
 
 
