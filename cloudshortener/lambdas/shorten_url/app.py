@@ -62,9 +62,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     except FileNotFoundError:
         return {
             'statusCode': 500,
-            'body': json.dumps({
-                'message': "Internal Server Error",
-            }),
+            'body': json.dumps(
+                {
+                    'message': 'Internal Server Error',
+                }
+            ),
         }
     else:
         redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
@@ -75,9 +77,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     if user_id is None:
         return {
             'statusCode': 401,
-            'body': json.dumps({
-                'message': "Unathorized: missing 'sub' in JWT claims",
-            }),
+            'body': json.dumps(
+                {
+                    'message': "Unathorized: missing 'sub' in JWT claims",
+                }
+            ),
         }
 
     # 2- Check if monthly quota is already reached
@@ -86,9 +90,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     if user_quota >= DEFAULT_LINK_GENERATION_QUOTA:
         return {
             'statusCode': 429,
-            'body': json.dumps({
-                'message': "Too many link generation requests: monthly quota reached",
-            }),
+            'body': json.dumps(
+                {
+                    'message': 'Too many link generation requests: monthly quota reached',
+                }
+            ),
         }
 
     # 3- Extract original URL from request body
@@ -97,17 +103,21 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {
             'statusCode': 400,
-            'body': json.dumps({
-                'message': "Bad Request (invalid JSON body)",
-            }),
+            'body': json.dumps(
+                {
+                    'message': 'Bad Request (invalid JSON body)',
+                }
+            ),
         }
     target_url = request_body.get('target_url')
     if not target_url:
         return {
             'statusCode': 400,
-            'body': json.dumps({
-                'message': "Bad Request (missing 'target_url' in JSON body)",
-            }),
+            'body': json.dumps(
+                {
+                    'message': "Bad Request (missing 'target_url' in JSON body)",
+                }
+            ),
         }
 
     # 4- Generate shortcode for the new link
@@ -122,9 +132,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     except ShortURLAlreadyExistsError:
         return {
             'statusCode': 500,
-            'body': json.dumps({
-                'message': "Internal Server Error",
-            }),
+            'body': json.dumps(
+                {
+                    'message': 'Internal Server Error',
+                }
+            ),
         }
     else:
         user_dao.increment_quota(user_id=user_id)
@@ -138,12 +150,14 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             'Access-Control-Allow-Headers': 'Content-Type',
             'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
         },
-        'body': json.dumps({
-            'message': f"Successfully shortened {target_url} to {short_url_string}",
-            'target_url': target_url,
-            'short_url': short_url_string,
-            'shortcode': shortcode,
-            'user_quota': user_quota,
-            'new user_quota': user_quota + 1
-        }),
+        'body': json.dumps(
+            {
+                'message': f'Successfully shortened {target_url} to {short_url_string}',
+                'target_url': target_url,
+                'short_url': short_url_string,
+                'shortcode': shortcode,
+                'user_quota': user_quota,
+                'new user_quota': user_quota + 1,
+            }
+        ),
     }

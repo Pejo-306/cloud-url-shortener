@@ -41,6 +41,7 @@ from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_Q
 # Fixtures
 # -------------------------------
 
+
 @pytest.fixture
 def app_prefix():
     """Provide a consistent Redis key prefix for testing."""
@@ -76,10 +77,10 @@ def dao(redis_client, key_schema, app_prefix):
     return _dao
 
 
-
 # -------------------------------
 # 2. Insertion behavior
 # -------------------------------
+
 
 def test_insert_short_url(dao, redis_client):
     """Ensure valid short URL insertion stores URL and hits atomically."""
@@ -89,12 +90,7 @@ def test_insert_short_url(dao, redis_client):
         call('testapp:test:links:abc123:hits', DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS),
     ]
 
-    short_url = ShortURLModel(
-        target='https://example.com/test',
-        shortcode='abc123',
-        hits=None,
-        expires_at=None
-    )
+    short_url = ShortURLModel(target='https://example.com/test', shortcode='abc123', hits=None, expires_at=None)
     dao.insert(short_url)
 
     assert redis_client.exists.call_count == 1
@@ -112,19 +108,11 @@ def test_insert_short_url_with_invalid_type(dao):
 
 def test_insert_short_url_with_redis_connection_error(dao, redis_client):
     """Ensure Redis connection errors during insert raise DataStoreError."""
-    short_url = ShortURLModel(
-        target='https://example.com/failure',
-        shortcode='abc123',
-        expires_at=None
-    )
+    short_url = ShortURLModel(target='https://example.com/failure', shortcode='abc123', expires_at=None)
 
-    redis_client.set.side_effect = redis.exceptions.ConnectionError("Connection error")
+    redis_client.set.side_effect = redis.exceptions.ConnectionError('Connection error')
     redis_client.connection_pool = MagicMock()
-    redis_client.connection_pool.connection_kwargs = {
-        'host': '203.0.113.1',
-        'port': 18000,
-        'db': 5
-    }
+    redis_client.connection_pool.connection_kwargs = {'host': '203.0.113.1', 'port': 18000, 'db': 5}
 
     with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
         dao.insert(short_url)
@@ -133,11 +121,7 @@ def test_insert_short_url_with_redis_connection_error(dao, redis_client):
 def test_insert_short_url_which_already_exists(dao, redis_client):
     """Ensure duplicate shortcodes raise ShortURLAlreadyExistsError."""
     exception_message = "Short URL with code 'abc123' already exists."
-    short_url = ShortURLModel(
-        target='https://example.com/duplicate',
-        shortcode='abc123',
-        expires_at=None
-    )
+    short_url = ShortURLModel(target='https://example.com/duplicate', shortcode='abc123', expires_at=None)
 
     redis_client.exists.return_value = True
     with pytest.raises(ShortURLAlreadyExistsError, match=re.escape(exception_message)):
@@ -148,13 +132,10 @@ def test_insert_short_url_which_already_exists(dao, redis_client):
 # 3. Retrieval behavior
 # -------------------------------
 
+
 def test_get_short_url(dao, redis_client):
     """Ensure valid shortcode retrieval returns a complete ShortURLModel."""
-    redis_client.execute.return_value = (
-        'https://example.com/test',
-        10000,
-        ONE_YEAR_SECONDS
-    )
+    redis_client.execute.return_value = ('https://example.com/test', 10000, ONE_YEAR_SECONDS)
 
     short_url = dao.get('abc123')
     assert isinstance(short_url, ShortURLModel)
@@ -173,13 +154,9 @@ def test_get_short_url_with_invalid_type(dao):
 
 def test_get_short_url_with_redis_connection_error(dao, redis_client):
     """Ensure Redis connection errors during get raise DataStoreError."""
-    redis_client.get.side_effect = redis.exceptions.ConnectionError("Connection Error")
+    redis_client.get.side_effect = redis.exceptions.ConnectionError('Connection Error')
     redis_client.connection_pool = MagicMock()
-    redis_client.connection_pool.connection_kwargs = {
-        'host': '203.0.113.1',
-        'port': 18000,
-        'db': 5
-    }
+    redis_client.connection_pool.connection_kwargs = {'host': '203.0.113.1', 'port': 18000, 'db': 5}
 
     with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
         dao.get('abc123')
@@ -195,6 +172,7 @@ def test_get_short_url_which_does_not_exist(dao, redis_client):
 # -------------------------------
 # 4. Counter operations
 # -------------------------------
+
 
 def test_count_with_increment(dao, redis_client):
     """Ensure count(increment=True) increments the global counter."""
@@ -214,14 +192,9 @@ def test_count_without_increment(dao, redis_client):
 
 def test_count_with_redis_connection_error(dao, redis_client):
     """Ensure Redis connection errors during count raise DataStoreError."""
-    redis_client.get.side_effect = redis.exceptions.ConnectionError("Connection Error")
+    redis_client.get.side_effect = redis.exceptions.ConnectionError('Connection Error')
     redis_client.connection_pool = MagicMock()
-    redis_client.connection_pool.connection_kwargs = {
-        'host': '203.0.113.1',
-        'port': 18000,
-        'db': 5
-    }
+    redis_client.connection_pool.connection_kwargs = {'host': '203.0.113.1', 'port': 18000, 'db': 5}
 
     with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
         dao.count(increment=False)
-

@@ -87,7 +87,7 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         >>> dao.get("abc123").target
         'https://example.com'
     """
-    
+
     @handle_redis_connection_error
     @beartype
     def insert(self, short_url: ShortURLModel, **kwargs) -> 'ShortURLRedisDAO':

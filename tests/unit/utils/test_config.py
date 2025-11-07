@@ -28,6 +28,7 @@ from pathlib import Path
 # 1. Environment variable resolution
 # -------------------------------
 
+
 def test_app_env(monkeypatch):
     """Ensure app_env() returns the correct environment value from APP_ENV"""
     monkeypatch.setitem(os.environ, 'APP_ENV', 'test')
@@ -57,6 +58,7 @@ def test_app_prefix(monkeypatch):
 # 2. Project root resolution
 # -------------------------------
 
+
 def test_project_root(monkeypatch):
     """Ensure project_root() returns the corrent environment value from PROJECT_ROOT"""
     monkeypatch.setitem(os.environ, 'PROJECT_ROOT', '/monkey/path')
@@ -66,6 +68,7 @@ def test_project_root(monkeypatch):
 # -------------------------------
 # 3. Configuration loading behavior
 # -------------------------------
+
 
 def test_load_config(monkeypatch):
     """Ensure load_config() loads and returns the expected configuration"""
@@ -78,7 +81,7 @@ def test_load_config(monkeypatch):
     }
 
     # Mock builtins.open to prevent file I/O
-    monkeypatch.setattr(builtins, 'open', lambda *a, **kw: StringIO("FAKENESS"))
+    monkeypatch.setattr(builtins, 'open', lambda *a, **kw: StringIO('FAKENESS'))
 
     # Mock yaml.safe_load to return fake configuration
     monkeypatch.setattr(config.yaml, 'safe_load', lambda f: monkey_config)

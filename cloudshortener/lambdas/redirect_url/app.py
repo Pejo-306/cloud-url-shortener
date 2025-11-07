@@ -52,9 +52,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     except FileNotFoundError:
         return {
             'statusCode': 500,
-            'body': json.dumps({
-                'message': "Internal Server Error",
-            }),
+            'body': json.dumps(
+                {
+                    'message': 'Internal Server Error',
+                }
+            ),
         }
 
     # 1- Extract shortcode from request's path
@@ -62,9 +64,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     if shortcode is None:
         return {
             'statusCode': 400,
-            'body': json.dumps({
-                'message': "Bad Request (missing 'shortcode' in path)",
-            }),
+            'body': json.dumps(
+                {
+                    'message': "Bad Request (missing 'shortcode' in path)",
+                }
+            ),
         }
 
     # 2- Create DAO class to access short URL records
@@ -77,9 +81,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     except ShortURLNotFoundError:
         return {
             'statusCode': 400,
-            'body': json.dumps({
-                'message': f"Bad Request (short url {get_short_url(shortcode, event)} doesn't exist)",
-            }),
+            'body': json.dumps(
+                {
+                    'message': f"Bad Request (short url {get_short_url(shortcode, event)} doesn't exist)",
+                }
+            ),
         }
     else:
         target_url = short_url.target

@@ -2,7 +2,7 @@
 
 Connection details:
 - redis: 127.0.0.1:6379
-- redisinsight: 127.0.0.1:5540 
+- redisinsight: 127.0.0.1:5540
 
 Expect to see the string "Redis 8.2" pritned in your local console.
 
@@ -22,4 +22,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

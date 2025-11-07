@@ -70,7 +70,7 @@ class ShortURLBaseDAO(ABC):
     NOTE:
         - Mappings are expected to expire automatically. The DAO does not
           provide an interface to manually delete entries.
-    
+
     TODO:
         - Track and decrement link access quotas per ShortURLModel.
         - Consider whether the DAO should allow manual deletion of entries.
@@ -81,20 +81,20 @@ class ShortURLBaseDAO(ABC):
         """Insert a new ShortURLModel into the data store.
 
         Args:
-            short_url (ShortURLModel): 
+            short_url (ShortURLModel):
                 The ShortURLModel instance to be inserted.
 
-            **kwargs: 
+            **kwargs:
                 Additional keyword arguments, used by data store.
 
         Returns:
             ShortURLBaseDAO: self (for method chaining)
 
         Raises:
-            ShortURLAlreadyExistsError: 
+            ShortURLAlreadyExistsError:
                 If a ShortURLModel with the same short code already exists
 
-            DataStoreError: 
+            DataStoreError:
                 If there is an error in the data store.
         """
         pass
@@ -104,24 +104,24 @@ class ShortURLBaseDAO(ABC):
         """Retrieve a ShortURLModel from the data store by its short code.
 
         Args:
-            short_code (str): 
+            short_code (str):
                 The short code of the ShortURLModel to be retrieved.
 
-            **kwargs: 
+            **kwargs:
                 Additional keyword arguments, used by data store.
 
         Returns:
             ShortURLModel | None: The ShortURLModel instance if found, otherwise None.
 
         Raises:
-            ShortURLNotFoundError: 
+            ShortURLNotFoundError:
                 If no ShortURLModel with the given short code exists.
 
-            DataStoreError: 
+            DataStoreError:
                 If there is an error in the data store.
         """
         pass
-    
+
     @abstractmethod
     def count(self, increment: bool = False, **kwargs) -> int:
         """Retrieve the current counter value from the data store.

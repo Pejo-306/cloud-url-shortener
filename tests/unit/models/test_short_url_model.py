@@ -36,10 +36,11 @@ from cloudshortener.models.short_url_model import ShortURLModel
 # 1. Model creation and field type validation
 # -------------------------------------------------
 
+
 def test_valid_short_url_model_creation():
     """Ensure ShortURLModel can be created with valid data and types."""
-    original_url = "https://example.com/article/123"
-    shortcode = "abc123"
+    original_url = 'https://example.com/article/123'
+    shortcode = 'abc123'
     hits = 10000
     expires_at = datetime(2026, 1, 1, 0, 0, 0)  # 1st Jan 2026 00:00:00
 
@@ -56,7 +57,7 @@ def test_valid_short_url_model_creation():
     assert isinstance(short_url.shortcode, str)
     assert short_url.shortcode == shortcode
     assert isinstance(short_url.hits, int)
-    assert short_url.hits == hits 
+    assert short_url.hits == hits
     assert isinstance(short_url.expires_at, datetime)
     assert short_url.expires_at == expires_at
 
@@ -64,6 +65,7 @@ def test_valid_short_url_model_creation():
 # -------------------------------------------------
 # 2. Optional fields
 # -------------------------------------------------
+
 
 def test_hits_is_optional():
     """Verify that hits can be omitted and defaults to None."""
@@ -79,8 +81,8 @@ def test_hits_is_optional():
 def test_expires_at_is_optional():
     """Verify that expires_at can be omitted and defaults to None."""
     short_url = ShortURLModel(
-        target="https://example.com/article/123",
-        shortcode="abc123",
+        target='https://example.com/article/123',
+        shortcode='abc123',
     )
 
     assert isinstance(short_url, ShortURLModel)
@@ -91,20 +93,21 @@ def test_expires_at_is_optional():
 # 3. Equality semantics
 # -------------------------------------------------
 
+
 def test_short_url_model_equality():
     """Models with identical data should compare equal."""
     expires_at = datetime(2026, 1, 1, 0, 0, 0)
 
     short_url1 = ShortURLModel(
-        target="https://example.com/article/123",
-        shortcode="abc123",
+        target='https://example.com/article/123',
+        shortcode='abc123',
         hits=10000,
         expires_at=expires_at,
     )
 
     short_url2 = ShortURLModel(
-        target="https://example.com/article/123",
-        shortcode="abc123",
+        target='https://example.com/article/123',
+        shortcode='abc123',
         hits=10000,
         expires_at=expires_at,
     )
@@ -119,6 +122,7 @@ def test_short_url_model_equality():
 # -------------------------------------------------
 # 4. Inequality semantics
 # -------------------------------------------------
+
 
 @pytest.mark.parametrize(
     'right_url_parameters',
@@ -152,8 +156,8 @@ def test_short_url_model_equality():
 def test_short_url_model_inequality(right_url_parameters):
     """Models with differing data should not compare equal."""
     left_url = ShortURLModel(
-        target="https://example.com/article/123",
-        shortcode="abc123",
+        target='https://example.com/article/123',
+        shortcode='abc123',
         hits=10000,
         expires_at=datetime(2026, 1, 1, 0, 0, 0),
     )
@@ -166,6 +170,7 @@ def test_short_url_model_inequality(right_url_parameters):
 # -------------------------------------------------
 # 5. Immutability
 # -------------------------------------------------
+
 
 @pytest.mark.parametrize(
     'field, new_value',

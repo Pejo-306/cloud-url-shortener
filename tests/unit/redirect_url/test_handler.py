@@ -45,39 +45,40 @@ from cloudshortener.dao.exceptions import ShortURLNotFoundError
 # Fixtures
 # -------------------------------
 
+
 @pytest.fixture()
 def apigw_event():
     return {
-        "resource": "/{shortcode}",
-        "requestContext": {"resourcePath": "/{shortcode}", "httpMethod": "GET"},
-        "pathParameters": {"apigw": "event"},
-        "httpMethod": "GET",
-        "path": "/abc123",
-        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
+        'resource': '/{shortcode}',
+        'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
+        'pathParameters': {'apigw': 'event'},
+        'httpMethod': 'GET',
+        'path': '/abc123',
+        'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
     }
 
 
 @pytest.fixture()
 def successful_event_302():
     return {
-        "resource": "/{shortcode}",
-        "requestContext": {"resourcePath": "/{shortcode}", "httpMethod": "GET"},
-        "pathParameters": {"shortcode": "abc123"},
-        "httpMethod": "GET",
-        "path": "/abc123",
-        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
+        'resource': '/{shortcode}',
+        'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
+        'pathParameters': {'shortcode': 'abc123'},
+        'httpMethod': 'GET',
+        'path': '/abc123',
+        'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
     }
 
 
 @pytest.fixture()
 def bad_request_400():
     return {
-        "resource": "/{shortcode}",
-        "requestContext": {"resourcePath": "/{shortcode}", "httpMethod": "GET"},
-        "pathParameters": {"invalid": "path"},
-        "httpMethod": "GET",
-        "path": "/abc123",
-        "requestContext": {"domainName": "testhost:1000", "stage": "test"}
+        'resource': '/{shortcode}',
+        'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
+        'pathParameters': {'invalid': 'path'},
+        'httpMethod': 'GET',
+        'path': '/abc123',
+        'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
     }
 
 
@@ -95,18 +96,13 @@ def base_url():
 def context():
     class _Context:
         function_name = 'redirect_url'
+
     return _Context()
 
 
 @pytest.fixture()
 def config():
-    return {
-        'redis': {
-            'host': 'redis.test', 
-            'port': 6379, 
-            'db': 0
-        }
-    }
+    return {'redis': {'host': 'redis.test', 'port': 6379, 'db': 0}}
 
 
 @pytest.fixture()
@@ -132,6 +128,7 @@ def _patch_lambda_dependencies(monkeypatch, config, dao):
 # 1. Successful redirect
 # -------------------------------
 
+
 def test_lambda_handler(successful_event_302, context, dao, target_url):
     """Ensure Lambda correctly redirects valid shortcodes (HTTP 302)."""
     response = app.lambda_handler(successful_event_302, context)
@@ -151,6 +148,7 @@ def test_lambda_handler(successful_event_302, context, dao, target_url):
 # 2. Invalid path parameters
 # -------------------------------
 
+
 def test_lambda_handler_with_invalid_path_parameters(bad_request_400, context):
     """Ensure missing `shortcode` path parameter returns HTTP 400."""
     response = app.lambda_handler(bad_request_400, context)
@@ -163,6 +161,7 @@ def test_lambda_handler_with_invalid_path_parameters(bad_request_400, context):
 # -------------------------------
 # 3. Invalid shortode
 # -------------------------------
+
 
 def test_lambda_handler_with_invalid_shortcode(successful_event_302, context, dao, base_url):
     """Ensure non-existing shortcodes raise HTTP 400."""
@@ -181,6 +180,7 @@ def test_lambda_handler_with_invalid_shortcode(successful_event_302, context, da
 # 3. Configuration errors
 # -------------------------------
 
+
 def test_lambda_handler_with_invalid_configuration_file(apigw_event, context):
     """Ensure missing or unreadable config file raises HTTP 500."""
     with patch('cloudshortener.lambdas.redirect_url.app.load_config') as mock_load_config:
@@ -189,5 +189,4 @@ def test_lambda_handler_with_invalid_configuration_file(apigw_event, context):
         body = json.loads(response['body'])
 
         assert response['statusCode'] == 500
-        assert body['message'] == "Internal Server Error"
-
+        assert body['message'] == 'Internal Server Error'

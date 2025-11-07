@@ -27,38 +27,42 @@ from cloudshortener.dao.exceptions import DataStoreError
 # 1. Normal execution
 # -------------------------------
 
+
 def test_decorator_allows_normal_execution():
     """Ensure the wrapped function executes normally when no error occurs."""
+
     class DummyDAO:
         def __init__(self):
             self.redis = MagicMock()
 
         @handle_redis_connection_error
         def ping(self):
-            return "OK"
+            return 'OK'
 
     dao = DummyDAO()
-    assert dao.ping() == "OK"
+    assert dao.ping() == 'OK'
 
 
 # -------------------------------
 # 2. Connection error handling
 # -------------------------------
 
+
 def test_decorator_transforms_redis_connection_error():
     """Ensure Redis ConnectionError is caught and re-raised as DataStoreError."""
+
     class DummyDAO:
         def __init__(self):
             self.redis = MagicMock()
             self.redis.connection_pool.connection_kwargs = {
-                "host": "localhost",
-                "port": 6379,
-                "db": 0,
+                'host': 'localhost',
+                'port': 6379,
+                'db': 0,
             }
 
         @handle_redis_connection_error
         def fail(self):
-            raise redis.exceptions.ConnectionError("Cannot connect")
+            raise redis.exceptions.ConnectionError('Cannot connect')
 
     dao = DummyDAO()
 
@@ -70,12 +74,14 @@ def test_decorator_transforms_redis_connection_error():
 # 3. Function metadata preservation
 # -------------------------------
 
+
 def test_decorator_preserves_function_metadata():
     """Ensure function name and docstring are preserved via functools.wraps."""
+
     @handle_redis_connection_error
     def sample_function():
         """This is a sample docstring."""
-        return "OK"
+        return 'OK'
 
-    assert sample_function.__name__ == "sample_function"
-    assert "sample docstring" in sample_function.__doc__
+    assert sample_function.__name__ == 'sample_function'
+    assert 'sample docstring' in sample_function.__doc__

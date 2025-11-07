@@ -1,6 +1,6 @@
 """Redis key schema utility for consistent key naming in Redis DAO operations.
 
-This module provides a lightweight key schema class for generating 
+This module provides a lightweight key schema class for generating
 predictable, namespaced Redis keys used by data access objects (DAOs).
 
 Responsibilities:
@@ -50,13 +50,13 @@ def prefix_key(func: callable) -> callable:
 
     Returns:
         callable:
-            A wrapped function that prefixes the generated key with the 
+            A wrapped function that prefixes the generated key with the
             configured prefix (if provided).
 
     Example:
         >>> class RedisKeySchema:
         ...     @prefix_key
-        ...     def link_url_key(self, short_code: str) -> str: 
+        ...     def link_url_key(self, short_code: str) -> str:
         ...         return ...  # valid Redis key as string
         ...
         >>> schema = RedisKeySchema(prefix="app")
@@ -66,7 +66,7 @@ def prefix_key(func: callable) -> callable:
 
     def wrapper(self, *args, **kwargs) -> str:
         key = func(self, *args, **kwargs)
-        return f"{self.prefix}:{key}" if self.prefix is not None else key
+        return f'{self.prefix}:{key}' if self.prefix is not None else key
 
     return wrapper
 
@@ -118,7 +118,7 @@ class RedisKeySchema:
                 If the provided prefix is not a string.
         """
         if prefix is not None and not isinstance(prefix, str):
-            raise TypeError(f"Prefix must be of type string (given type: {type(prefix)}).")
+            raise TypeError(f'Prefix must be of type string (given type: {type(prefix)}).')
 
         self.prefix = prefix
 

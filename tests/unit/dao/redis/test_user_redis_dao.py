@@ -16,7 +16,7 @@ Test coverage includes:
    - Ensures  `increment_quota()` raise UserDoesNotExistError when
      the user record does not exist.
 
-4. Auto-initialize user quota 
+4. Auto-initialize user quota
    - Ensure `quota()` auto initializes a user's monthly quota to 0 if key does not exist in Redis.
 
 Fixtures:
@@ -40,6 +40,7 @@ from cloudshortener.utils.constants import ONE_MONTH_SECONDS
 # -------------------------------
 # Fixtures
 # -------------------------------
+
 
 @pytest.fixture
 def app_prefix():
@@ -78,6 +79,7 @@ def dao(redis_client, key_schema, app_prefix):
 # 1. Retrieving user quotas
 # -------------------------------
 
+
 def test_quota(dao, redis_client):
     """Ensure `quota()` returns correct value for an existing user."""
     redis_client.incrby.return_value = 20
@@ -93,6 +95,7 @@ def test_quota(dao, redis_client):
 # -------------------------------
 # 2. Incrementing user quotas
 # -------------------------------
+
 
 def test_increment_quota(dao, redis_client):
     """Ensure `increment_quota()` increments and returns new value when key exists."""
@@ -111,6 +114,7 @@ def test_increment_quota(dao, redis_client):
 # 3. Missing user
 # -------------------------------
 
+
 def test_increment_quota_user_does_not_exist(dao, redis_client):
     """Ensure `increment_quota()` raises UserDoesNotExistError when user is missing."""
     redis_client.exists.return_value = 0  # key does not exist
@@ -122,6 +126,7 @@ def test_increment_quota_user_does_not_exist(dao, redis_client):
 # -------------------------------
 # 4. Auto-initialize user quota
 # -------------------------------
+
 
 def test_quota_auto_initialize(dao, redis_client):
     """Ensure `quota()` auto-initializes user quota when missing."""

@@ -20,12 +20,14 @@ from cloudshortener.utils.helpers import base_url, get_short_url
 # 1.1. AWS default domain handling
 # -------------------------------
 
+
 @pytest.mark.parametrize(
-    'domain, stage, expected', [
+    'domain, stage, expected',
+    [
         ('abc123.execute-api.us-east-1.amazonaws.com', 'Dev', 'https://abc123.execute-api.us-east-1.amazonaws.com/Dev'),
         ('xyz789.execute-api.us-east-1.amazonaws.com', 'Dev', 'https://xyz789.execute-api.us-east-1.amazonaws.com/Dev'),
         ('abc123.execute-api.us-east-1.amazonaws.com', 'Prod', 'https://abc123.execute-api.us-east-1.amazonaws.com/Prod'),
-    ]
+    ],
 )
 def test_base_url_with_aws_domain(domain, stage, expected):
     """Ensure base_url() appends stage for default AWS execute-api domains."""
@@ -43,11 +45,13 @@ def test_base_url_with_aws_domain(domain, stage, expected):
 # 1.2. Custom domain handling
 # -------------------------------
 
+
 @pytest.mark.parametrize(
-    'domain, stage, expected', [
+    'domain, stage, expected',
+    [
         ('lambda.hello.com', 'Dev', 'https://lambda.hello.com'),
         ('example.com', 'Prod', 'https://example.com'),
-    ]
+    ],
 )
 def test_base_url_with_custom_domain(domain, stage, expected):
     """Ensure base_url() excludes stage for custom user-defined domains."""
@@ -65,6 +69,7 @@ def test_base_url_with_custom_domain(domain, stage, expected):
 # 1.3. Local fallback behavior
 # -------------------------------
 
+
 def test_base_url_local_fallback():
     """Ensure base_url() returns localhost URL when no domain is provided."""
     event = {}
@@ -76,26 +81,31 @@ def test_base_url_local_fallback():
 # 1.4. Missing or partial requestContext
 # -------------------------------
 
-@pytest.mark.parametrize('event', [
-    {'requestContext': {}},
-    {'requestContext': {'domainName': ''}},
-    {'requestContext': {'stage': 'Dev'}},
-])
+
+@pytest.mark.parametrize(
+    'event',
+    [
+        {'requestContext': {}},
+        {'requestContext': {'domainName': ''}},
+        {'requestContext': {'stage': 'Dev'}},
+    ],
+)
 def test_base_url_handles_incomplete_context(event):
     """Ensure base_url() gracefully falls back when requestContext is incomplete."""
     result = base_url(event)
-    assert result == "http://localhost:3000"
+    assert result == 'http://localhost:3000'
 
 
 # -------------------------------
 # 2. Get short url string representation
 # -------------------------------
 @pytest.mark.parametrize(
-    'shortcode, domain, stage, expected', [
+    'shortcode, domain, stage, expected',
+    [
         ('abc123', 'lambda.hello.com', 'Prod', 'https://lambda.hello.com/abc123'),
         ('xyz789', 'lambda.hello.com', 'Prod', 'https://lambda.hello.com/xyz789'),
         ('abc123', 'lambda.api.com', 'Prod', 'https://lambda.api.com/abc123'),
-    ]
+    ],
 )
 def test_get_short_url(shortcode, domain, stage, expected):
     """Ensure get_short_url() returns the correct short URL string."""

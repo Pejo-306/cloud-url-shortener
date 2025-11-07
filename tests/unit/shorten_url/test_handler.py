@@ -56,117 +56,86 @@ from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
 # Fixtures
 # -------------------------------
 
+
 @pytest.fixture()
 def apigw_event():
     return {
-        "body": '{ "test": "body"}',
-        "resource": "/{proxy+}",
-        "requestContext": {"resourcePath": "/{proxy+}", "httpMethod": "POST"},
-        "headers": {
-            "User-Agent": "pytest",
-            "Authorization": "Bearer fake-jwt-token"
+        'body': '{ "test": "body"}',
+        'resource': '/{proxy+}',
+        'requestContext': {'resourcePath': '/{proxy+}', 'httpMethod': 'POST'},
+        'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
+        'httpMethod': 'POST',
+        'path': '/examplepath',
+        'requestContext': {
+            'resourcePath': '/{proxy+}',
+            'httpMethod': 'POST',
+            'domainName': 'testhost:1000',
+            'stage': 'test',
+            'authorizer': {
+                'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+            },
         },
-        "httpMethod": "POST",
-        "path": "/examplepath",
-        "requestContext": {
-            "resourcePath": "/{proxy+}",
-            "httpMethod": "POST",
-            "domainName": "testhost:1000",
-            "stage": "test",
-            "authorizer": {
-                "claims": {
-                    "sub": "user123",
-                    "email": "pytest@example.com",
-                    "cognito:username": "pytest-user",
-                    "email_verified": "true"
-                }
-            }
-        }
     }
 
 
 @pytest.fixture()
 def successful_event_200():
     return {
-        "body": json.dumps({'target_url': 'https://example.com/blog/chuck-norris-is-awesome'}),
-        "resource": "/v1/shorten",
-        "requestContext": {"resourcePath": "/v1/shorten", "httpMethod": "POST"},
-        "headers": {
-            "User-Agent": "pytest",
-            "Authorization": "Bearer fake-jwt-token"
+        'body': json.dumps({'target_url': 'https://example.com/blog/chuck-norris-is-awesome'}),
+        'resource': '/v1/shorten',
+        'requestContext': {'resourcePath': '/v1/shorten', 'httpMethod': 'POST'},
+        'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
+        'httpMethod': 'POST',
+        'path': '/v1/shorten',
+        'requestContext': {
+            'resourcePath': '/v1/shorten',
+            'httpMethod': 'POST',
+            'domainName': 'testhost:1000',
+            'stage': 'test',
+            'authorizer': {
+                'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+            },
         },
-        "httpMethod": "POST",
-        "path": "/v1/shorten",
-        "requestContext": {
-            "resourcePath": "/v1/shorten",
-            "httpMethod": "POST",
-            "domainName": "testhost:1000",
-            "stage": "test",
-            "authorizer": {
-                "claims": {
-                    "sub": "user123",
-                    "email": "pytest@example.com",
-                    "cognito:username": "pytest-user",
-                    "email_verified": "true"
-                }
-            }
-        }
     }
 
 
 @pytest.fixture()
 def bad_request_400():
     return {
-        "body": '{"invalid_json": true',
-        "resource": "/v1/shorten",
-        "headers": {
-            "User-Agent": "pytest",
-            "Authorization": "Bearer fake-jwt-token"
+        'body': '{"invalid_json": true',
+        'resource': '/v1/shorten',
+        'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
+        'httpMethod': 'POST',
+        'path': '/v1/shorten',
+        'requestContext': {
+            'resourcePath': '/v1/shorten',
+            'httpMethod': 'POST',
+            'domainName': 'testhost:1000',
+            'stage': 'test',
+            'authorizer': {
+                'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+            },
         },
-        "httpMethod": "POST",
-        "path": "/v1/shorten",
-        "requestContext": {
-            "resourcePath": "/v1/shorten",
-            "httpMethod": "POST",
-            "domainName": "testhost:1000",
-            "stage": "test",
-            "authorizer": {
-                "claims": {
-                    "sub": "user123",
-                    "email": "pytest@example.com",
-                    "cognito:username": "pytest-user",
-                    "email_verified": "true"
-                }
-            }
-        }
     }
 
 
 @pytest.fixture()
 def bad_request_400_no_target_url():
     return {
-        "body": json.dumps({'invalid_json': True}),
-        "resource": "/v1/shorten",
-        "headers": {
-            "User-Agent": "pytest",
-            "Authorization": "Bearer fake-jwt-token"
+        'body': json.dumps({'invalid_json': True}),
+        'resource': '/v1/shorten',
+        'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
+        'httpMethod': 'POST',
+        'path': '/v1/shorten',
+        'requestContext': {
+            'resourcePath': '/v1/shorten',
+            'httpMethod': 'POST',
+            'domainName': 'testhost:1000',
+            'stage': 'test',
+            'authorizer': {
+                'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+            },
         },
-        "httpMethod": "POST",
-        "path": "/v1/shorten",
-        "requestContext": {
-            "resourcePath": "/v1/shorten",
-            "httpMethod": "POST",
-            "domainName": "testhost:1000",
-            "stage": "test",
-            "authorizer": {
-                "claims": {
-                    "sub": "user123",
-                    "email": "pytest@example.com",
-                    "cognito:username": "pytest-user",
-                    "email_verified": "true"
-                }
-            }
-        }
     }
 
 
@@ -174,18 +143,13 @@ def bad_request_400_no_target_url():
 def context():
     class _Context:
         function_name = 'shorten_url'
+
     return _Context()
 
 
 @pytest.fixture()
 def config():
-    return {
-        'redis': {
-            'host': 'redis.test',
-            'port': 6379,
-            'db': 0
-        }
-    }
+    return {'redis': {'host': 'redis.test', 'port': 6379, 'db': 0}}
 
 
 @pytest.fixture()
@@ -207,11 +171,12 @@ def _patch_lambda_dependencies(monkeypatch, config, short_url_dao, user_dao):
     monkeypatch.setattr(app, 'generate_shortcode', lambda *a, **kw: 'abc123')
     monkeypatch.setattr(app, 'ShortURLRedisDAO', lambda *a, **kw: short_url_dao)
     monkeypatch.setattr(app, 'UserRedisDAO', lambda *a, **kw: user_dao)
-    
+
 
 # -------------------------------
 # 1. Successful shortening
 # -------------------------------
+
 
 def test_lambda_handler(successful_event_200, context, short_url_dao, user_dao):
     """Ensure Lambda successfully shortens URLs and updates datastore."""
@@ -241,18 +206,20 @@ def test_lambda_handler(successful_event_200, context, short_url_dao, user_dao):
 # 2. Invalid JSON body
 # -------------------------------
 
+
 def test_lambda_handler_with_invalid_json(bad_request_400, context):
     """Ensure invalid JSON body returns HTTP 400 Bad Request."""
     response = app.lambda_handler(bad_request_400, context)
     body = json.loads(response['body'])
 
     assert response['statusCode'] == 400
-    assert body['message'] == "Bad Request (invalid JSON body)"
+    assert body['message'] == 'Bad Request (invalid JSON body)'
 
 
 # -------------------------------
 # 3. Missing target_url field
 # -------------------------------
+
 
 def test_lambda_handler_with_missing_target_url(bad_request_400_no_target_url, context):
     """Ensure missing 'target_url' in JSON body returns HTTP 400."""
@@ -267,6 +234,7 @@ def test_lambda_handler_with_missing_target_url(bad_request_400_no_target_url, c
 # 4. Configuration error handling
 # -------------------------------
 
+
 def test_lambda_handler_with_invalid_configuration_file(apigw_event, context):
     """Ensure FileNotFoundError in load_config raises HTTP 500."""
     with patch('cloudshortener.lambdas.shorten_url.app.load_config') as mock_load_config:
@@ -275,12 +243,13 @@ def test_lambda_handler_with_invalid_configuration_file(apigw_event, context):
         body = json.loads(response['body'])
 
         assert response['statusCode'] == 500
-        assert body['message'] == "Internal Server Error"
+        assert body['message'] == 'Internal Server Error'
 
 
 # -------------------------------
 # 5. Short URL already exists
 # -------------------------------
+
 
 def test_lambda_handler_with_existing_short_url(successful_event_200, context, short_url_dao):
     """Ensure lambda wont overwrite an existing short URL and raise HTTP 500."""
@@ -290,12 +259,13 @@ def test_lambda_handler_with_existing_short_url(successful_event_200, context, s
     body = json.loads(response['body'])
 
     assert response['statusCode'] == 500
-    assert body['message'] == "Internal Server Error"
+    assert body['message'] == 'Internal Server Error'
 
 
 # -------------------------------
 # 6. Monthly link generation quota reached
 # -------------------------------
+
 
 def test_lambda_handler_with_quota_reached(monkeypatch, successful_event_200, context, user_dao):
     """Ensure lambda wont create a short URL if the monthly quota is reached."""
@@ -306,7 +276,7 @@ def test_lambda_handler_with_quota_reached(monkeypatch, successful_event_200, co
     body = json.loads(response['body'])
 
     assert response['statusCode'] == 429
-    assert body['message'] == "Too many link generation requests: monthly quota reached"
+    assert body['message'] == 'Too many link generation requests: monthly quota reached'
 
 
 # -------------------------------

@@ -37,7 +37,7 @@ from typing import Any
 
 def base_url(event: dict[str, Any]) -> str:
     """Extract public base URL from API Gateway event
-    
+
     Return the public base URL for the current Lambda invocation.
 
     Works seamlessly with both custom and default AWS API Gateway domains.
@@ -59,7 +59,7 @@ def base_url(event: dict[str, Any]) -> str:
     if domain and 'execute-api' not in domain:
         # If the domain is a custom domain (no execute-api), skip stage
         return f'https://{domain}'
-    elif domain:  
+    elif domain:
         # Otherwise include the stage (for AWS default domains)
         return f'https://{domain}/{stage}'
     else:
@@ -69,9 +69,9 @@ def base_url(event: dict[str, Any]) -> str:
 
 def get_short_url(shortcode: str, event: dict[str, Any]) -> str:
     """Get string representation of shortened URL
-    
+
     Args:
-        shortcode (str): shortcode 
+        shortcode (str): shortcode
         event (dict): API Gateway event object passed to Lambda handler
 
     Returns:

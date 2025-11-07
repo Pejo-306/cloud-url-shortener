@@ -11,7 +11,7 @@ Example:
     Typical usage with a DAO implementation:
 
         >>> class UserRedisDAO(RedisClientMixin, UserBaseDAO):
-        ...     pass 
+        ...     pass
         ...
         >>> dao = UserRedisDAO(prefix="myapp:prod")
         >>> dao._healthcheck()
@@ -42,15 +42,17 @@ class RedisClientMixin:
             Optionally raise a DataStoreError if unreachable.
     """
 
-    def __init__(self, 
-                 redis_host: Optional[str] = 'localhost',
-                 redis_port: Optional[int] = 6379,
-                 redis_db: Optional[int] = 0,
-                 redis_decode_responses: Optional[bool] = True,
-                 redis_username: Optional[str] = None,
-                 redis_password: Optional[str] = None,
-                 redis_client: Optional[redis.Redis] = None,
-                 prefix: Optional[str] = None):
+    def __init__(
+        self,
+        redis_host: Optional[str] = 'localhost',
+        redis_port: Optional[int] = 6379,
+        redis_db: Optional[int] = 0,
+        redis_decode_responses: Optional[bool] = True,
+        redis_username: Optional[str] = None,
+        redis_password: Optional[str] = None,
+        redis_client: Optional[redis.Redis] = None,
+        prefix: Optional[str] = None,
+    ):
         """Initialize a Redis-based DAO for short URL management
 
         The option is given to either use an existing Redis client instance or
@@ -62,7 +64,7 @@ class RedisClientMixin:
 
             redis_port (Optional[int]):
                 Redis server port. Defaults to 6379.
-                
+
             redis_db (Optional[int]):
                 Redis database index. Defaults to 0.
 
@@ -92,17 +94,17 @@ class RedisClientMixin:
                 db=redis_db,
                 decode_responses=redis_decode_responses,
                 username=redis_username,
-                password=redis_password
+                password=redis_password,
             )
 
         self.redis = redis_client
         self.keys = RedisKeySchema(prefix=prefix)
 
         self._heatlhcheck()
-    
+
     def _heatlhcheck(self, raise_error: bool = True) -> bool:
         """PING Redis to healthcheck connectivity
-        
+
         Args:
             raise_error (bool):
                 If True, raises DataStoreError on failure. Defaults to True.
@@ -127,7 +129,9 @@ class RedisClientMixin:
                 redis_host = info.get('host')
                 redis_port = info.get('port')
                 redis_db = info.get('db')
-                raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}. Check the provided configuration paramters.") from e
+                raise DataStoreError(
+                    f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}. Check the provided configuration paramters."
+                ) from e
             return False
         else:
             return True

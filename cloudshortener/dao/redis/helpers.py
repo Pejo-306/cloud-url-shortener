@@ -38,4 +38,5 @@ def handle_redis_connection_error[F](method: F) -> F:
             redis_port = info.get('port')
             redis_db = info.get('db')
             raise DataStoreError(f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}.") from e
+
     return wrapper

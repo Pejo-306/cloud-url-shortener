@@ -4,7 +4,7 @@ This module provides a helper function for generating short, deterministic,
 non-sequential hashes based on a numeric counter and a secret salt value.
 
 Functions:
-    generate_shortcode(counter, salt='default_salt', length=7): 
+    generate_shortcode(counter, salt='default_salt', length=7):
         Generate a short hash suitable for use as a URL slug.
 
 Example:
@@ -19,8 +19,8 @@ import xxhash
 
 
 ALPHABET = string.ascii_lowercase + string.ascii_uppercase + string.digits
-BASE = len(ALPHABET)  # noqa: E114 hashids produce base62-safe strings: 
-                      # noqa: E114, E116 26 lowercase + 26 uppercase + 10 digits
+BASE = len(ALPHABET)  # noqa: E114 hashids produce base62-safe strings:
+# noqa: E114, E116 26 lowercase + 26 uppercase + 10 digits
 
 
 def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7) -> str:
@@ -31,7 +31,7 @@ def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7
     BASE^length to ensure fixed-length output.
 
     Args:
-        counter (int): 
+        counter (int):
             Unique integer value identifying the URL.
 
         salt (str, optional):
@@ -59,13 +59,13 @@ def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7
         - Uses ultra-fast xxhash for hashing the salt.
     """
     if not isinstance(counter, int):
-        raise TypeError(f"Counter must be of type integer (given type: {type(counter)}).")
+        raise TypeError(f'Counter must be of type integer (given type: {type(counter)}).')
     if counter < 0:
-        raise ValueError(f"Counter must be a non-negative integer (given value: {counter}).")
+        raise ValueError(f'Counter must be a non-negative integer (given value: {counter}).')
     if not isinstance(salt, str):
-        raise TypeError(f"Salt must be of type string (given type: {type(salt)}).")
+        raise TypeError(f'Salt must be of type string (given type: {type(salt)}).')
     if len(salt) <= 0:
-        raise ValueError(f"Salt must be a non-empty string (given value: {salt}).")
+        raise ValueError(f'Salt must be a non-empty string (given value: {salt}).')
 
     # Salt and wrap around counter to ensure fixed-length output
     # NOTE: this introduces a risk of collisions for very large counter values.
@@ -80,9 +80,4 @@ def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7
     # 2- Reverse order of generator output to ensure most significant digit is first (reversed())
     # 3- Join characters into a single string (''.join())
     # 4- Pad with leading 'a' characters to ensure fixed length (rjust())
-    return ''.join(
-                reversed([
-                    ALPHABET[(salted // BASE**i) % BASE]
-                    for i in range(length)
-                ])
-            ).rjust(length, ALPHABET[0])
+    return ''.join(reversed([ALPHABET[(salted // BASE**i) % BASE] for i in range(length)])).rjust(length, ALPHABET[0])

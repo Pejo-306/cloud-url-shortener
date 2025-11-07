@@ -6,7 +6,7 @@ from typing import Optional
 @dataclass(frozen=True)
 class ShortURLModel:
     """Represent a shortend URL mapping.
-    
+
     Attributes:
         target (str):
             The original long URL that the short code redirects to.
@@ -16,8 +16,8 @@ class ShortURLModel:
             Leftover monthly quota for link hits.
         expires_at (Optional[datetime]):
             Time-To-Live(TTL) as Python datetime, after which the short URL
-            is no longer valid or persisted. 
-    
+            is no longer valid or persisted.
+
     Example:
         >>> from datetime import datetime, timedelta
         >>> url = ShortURLModel(
@@ -35,6 +35,7 @@ class ShortURLModel:
         >>> isinstance(url.expires_at, datetime)
         True
     """
+
     target: str
     shortcode: str
     hits: Optional[int] = None

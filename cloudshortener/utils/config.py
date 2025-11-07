@@ -77,7 +77,7 @@ def app_env() -> str:
         >>> app_env()
         'dev'
     """
-    return os.environ.get("APP_ENV", "local").lower()
+    return os.environ.get('APP_ENV', 'local').lower()
 
 
 def app_name() -> str | None:
@@ -115,7 +115,7 @@ def project_root() -> Path:
 
 def app_prefix() -> str | None:
     """Return application prefix for DAOs
-    
+
     Returns:
         str: app prefix as <app name>:<app env>.
              None if APP_NAME is not set.
@@ -164,6 +164,4 @@ def load_config(lambda_name: str) -> dict:
             with open(path, encoding='utf-8') as f:
                 return yaml.safe_load(f)
 
-    raise FileNotFoundError(
-        f"Config file not found in {base_path}: tried {', '.join(p.name for p in possible_files)}"
-    )
+    raise FileNotFoundError(f'Config file not found in {base_path}: tried {", ".join(p.name for p in possible_files)}')

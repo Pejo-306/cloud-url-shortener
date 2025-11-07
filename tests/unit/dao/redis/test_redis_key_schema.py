@@ -1,6 +1,6 @@
 """Unit tests for the RedisKeySchema class in redis_key_schema.py.
 
-This test suite verifies the correctness, consistency, and safety of 
+This test suite verifies the correctness, consistency, and safety of
 Redis key generation supplied by RedisKeySchema.
 
 Test coverage includes:
@@ -28,6 +28,7 @@ from cloudshortener.dao.redis.redis_key_schema import RedisKeySchema
 # Pytest fixtures
 # -------------------------------
 
+
 @pytest.fixture
 def keys():
     return RedisKeySchema()
@@ -37,11 +38,12 @@ def keys():
 # 1. Link URL key generation
 # -------------------------------
 
+
 @pytest.mark.parametrize(
-    "shortcode, expected",
+    'shortcode, expected',
     [
-        ("abc123", "links:abc123:url"),
-        ("XyZ789", "links:XyZ789:url"),
+        ('abc123', 'links:abc123:url'),
+        ('XyZ789', 'links:XyZ789:url'),
     ],
 )
 def test_link_url_key(shortcode, expected):
@@ -52,10 +54,10 @@ def test_link_url_key(shortcode, expected):
 
 
 @pytest.mark.parametrize(
-    "shortcode, expected",
+    'shortcode, expected',
     [
-        ("abc123", "links:abc123:hits"),
-        ("XyZ789", "links:XyZ789:hits"),
+        ('abc123', 'links:abc123:hits'),
+        ('XyZ789', 'links:XyZ789:hits'),
     ],
 )
 def test_link_hits_key(shortcode, expected):
@@ -73,41 +75,44 @@ def test_counter_key():
 
 
 @pytest.mark.parametrize(
-    'user_id, todays_date, expected', [
+    'user_id, todays_date, expected',
+    [
         ('user123', '2025-11-10', 'users:user123:quota:2025-11'),
         ('User710', '2025-11-23', 'users:User710:quota:2025-11'),
         ('pesho', '2024-01-01', 'users:pesho:quota:2024-01'),
-    ]
+    ],
 )
 def test_user_quota_key(user_id, todays_date, expected, keys):
     with freeze_time(todays_date):
         result = keys.user_quota_key(user_id)
-        assert result == expected  
+        assert result == expected
 
 
 # -------------------------------
 # 2. Default prefix behavior
 # -------------------------------
 
+
 def test_no_key_prefix_by_default():
     """Ensure keys are not prefixed when no prefix is provided."""
     keys = RedisKeySchema()
-    url_key = keys.link_url_key("abc123")
-    hits_key = keys.link_hits_key("abc123")
-    assert url_key == "links:abc123:url"
-    assert hits_key == "links:abc123:hits"
+    url_key = keys.link_url_key('abc123')
+    hits_key = keys.link_hits_key('abc123')
+    assert url_key == 'links:abc123:url'
+    assert hits_key == 'links:abc123:hits'
 
 
 # -------------------------------
 # 3. Custom prefix behavior
 # -------------------------------
 
+
 @pytest.mark.parametrize(
-    "prefix, shortcode, expected_url_key, expected_hits_key",
+    'prefix, shortcode, expected_url_key, expected_hits_key',
     [
-        ("testprefix", "abc123", "testprefix:links:abc123:url", "testprefix:links:abc123:hits"),
-        ("secret", "abc123", "secret:links:abc123:url", "secret:links:abc123:hits"),
-        (None, "abc123", "links:abc123:url", "links:abc123:hits"),
+        ('testprefix', 'abc123', 'testprefix:links:abc123:url', 'testprefix:links:abc123:hits'),
+        ('secret', 'abc123', 'secret:links:abc123:url', 'secret:links:abc123:hits'),
+        (None, 'abc123', 'links:abc123:url', 'links:abc123:hits'),
     ],
 )
 def test_key_prefixing(prefix, shortcode, expected_url_key, expected_hits_key):
@@ -123,9 +128,9 @@ def test_key_prefixing(prefix, shortcode, expected_url_key, expected_hits_key):
 # 4. Invalid prefix types
 # -------------------------------
 
-@pytest.mark.parametrize("prefix", [123, -1, 45.6, [], {}])
+
+@pytest.mark.parametrize('prefix', [123, -1, 45.6, [], {}])
 def test_invalid_prefix_type_raises_error(prefix):
     """Ensure invalid prefix types raise a TypeError."""
     with pytest.raises(TypeError):
         RedisKeySchema(prefix=prefix)
-

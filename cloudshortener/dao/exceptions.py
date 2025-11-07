@@ -24,27 +24,32 @@ Example:
 
 class DAOError(Exception):
     """Generic base class for DAO-related exceptions."""
+
     pass
 
 
 class ShortURLNotFoundError(DAOError):
     """Exception raised when a ShortURLModel is not found in the data store."""
+
     pass
 
 
 class ShortURLAlreadyExistsError(DAOError):
     """Exception raised when attempting to insert a ShortURLModel that already exists in the data store."""
+
     pass
 
 
 class DataStoreError(DAOError):
     """Exception raised when there is an error in the data store.
-    
+
     e.g. connection issues, timeouts, OOM, etc.
     """
+
     pass
 
 
 class UserDoesNotExistError(DAOError):
     """Exception raised when a user is not found in the data store."""
+
     pass
