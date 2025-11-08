@@ -2,14 +2,56 @@ name: Build SAM application
 
 on:
   push:
-    branches: ['main']
+    branches:
+      - 'main'
+      - 'release-*.*.*'
   pull_request:
     branches: ['main']
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+env:
+  COVERAGE_THRESHOLD: 80
 
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+        
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Prefer your dev requirements file if you have one:
+          if [ -f requirements-dev.txt ]; then
+            pip install -r requirements-dev.txt
+          else
+            pip install pytest pytest-cov
+          fi
+
+      - name: Run unit tests with coverage
+        shell: bash
+        run: |
+          set -uo pipefail
+          pytest tests/unit \
+            --cov=cloudshortener \
+            --cov-report=html \
+            --cov-report=term-missing \
+            --cov-fail-under="${COVERAGE_THRESHOLD}" |& tee pytest.out
+          exit_code=${PIPESTATUS[0]}
+
+          # Echo the pytest-cov summary line
+          grep -E 'Required test coverage.*Total coverage:' pytest.out || true
+
+          exit $exit_code
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
