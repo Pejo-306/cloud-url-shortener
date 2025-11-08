@@ -1,0 +1,49 @@
+name: Build SAM application
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install SAM CLI
+        run: |
+          pip install aws-sam-cli
+
+      - name: SAM build
+        run: sam build --use-container --exclude frontend
+
+      - name: Verify build artifacts
+        run: |
+          echo "📦 Build artifacts created:"
+          ls -lah .aws-sam/build/ || echo "❌ Build directory not found!"
+          echo ""
+          echo "📋 Built functions:"
+          find .aws-sam/build -name "*.zip" -o -name "*.jar" -o -type d -name "*Function*" | head -20
+          echo ""
+          echo "📊 Build directory size:"
+          du -sh .aws-sam/build/ || echo "❌ Could not calculate size"
+
+      - name: SAM validate
+        run: sam validate
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: sam-build-artifacts
+          path: .aws-sam/build/
+          retention-days: 7

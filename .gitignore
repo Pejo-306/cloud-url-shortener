@@ -296,6 +296,9 @@ __marimo__/
 *.swp
 *.swo
 
+# Artifacts by GitHub Actions act command
+.artifacts/
+
 # =====================================
 # End of merged .gitignore
 # =====================================
