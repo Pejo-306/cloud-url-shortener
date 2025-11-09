@@ -1,55 +1,48 @@
 name: Build SAM application
 
 on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'cloudshortener/**/*.py'
+      - 'tests/**/*.py'
+      - 'template*.yaml'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/**'
   push:
     branches:
-      - 'main'
+      - main
       - 'release-*.*.*'
-  pull_request:
-    branches: ['main']
+    paths:
+      - 'cloudshortener/**/*.py'
+      - 'tests/**/*.py'
+      - 'template*.yaml'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/**'
 
-env:
-  COVERAGE_THRESHOLD: 80
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-        
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          # Prefer your dev requirements file if you have one:
-          if [ -f requirements-dev.txt ]; then
-            pip install -r requirements-dev.txt
-          else
-            pip install pytest pytest-cov
-          fi
-
-      - name: Run unit tests with coverage
-        shell: bash
-        run: |
-          set -uo pipefail
-          pytest tests/unit \
-            --cov=cloudshortener \
-            --cov-report=html \
-            --cov-report=term-missing \
-            --cov-fail-under="${COVERAGE_THRESHOLD}" |& tee pytest.out
-          exit_code=${PIPESTATUS[0]}
-
-          # Echo the pytest-cov summary line
-          grep -E 'Required test coverage.*Total coverage:' pytest.out || true
-
-          exit $exit_code
+    # reuse your unit test workflow
+    uses: ./.github/workflows/unit_tests.yml
+    with:
+      python-version: '3.13'
+      coverage-threshold: 80
+      workdir: .
+    secrets: {}  # keep empty
 
   build:
+    # build only on pushes to main or release-*
+    # avoid building on PRs - only run tests & coverage on PRs
+    if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-')) }}
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -60,6 +53,11 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            requirements*.txt
+            pyproject.toml
+            poetry.lock
 
       - name: Install SAM CLI
         run: |
