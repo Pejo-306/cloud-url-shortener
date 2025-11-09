@@ -1,0 +1,120 @@
+# .github/act/deploy.yml
+# NOTE: this workflow is ONLY meant to be used to deploy the SAM stack via act from a local machine
+#       NEVER run this workflow via GitHub Actions on your github account.
+# act create -W .github/act/deploy.yml -e .github/events/create_release.json -j deploy
+name: Deploy SAM application via act
+
+on:
+  create
+
+concurrency:
+  group: deploy-${{ github.event.ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  print-vars:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+          aws --version
+      - name: Show workflow and environment variables
+        run: |
+          echo "---- ENVIRONMENT VARIABLES ----"
+          printenv | sort
+          
+          echo ""
+          echo "---- GITHUB VARS ----"
+          echo "APP_ENV=${{ vars.APP_ENV }}"
+          echo "APP_NAME=${{ vars.APP_NAME }}"
+          echo "FRONTEND_BUCKET_NAME=${{ vars.FRONTEND_BUCKET_NAME }}"
+          echo "AWS_REGION=${{ vars.AWS_REGION }}"
+          echo "aws=$(which aws)"
+
+  precheck:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.gate.outputs.ok }}
+    steps:
+      - id: gate
+        run: |
+          if [ "${{ github.event.ref_type }}" = "branch" ] && [[ "${{ github.event.ref }}" == release-* ]]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.proceed == 'true' }}
+    uses: ./.github/workflows/unit_tests.yml
+    with:
+      python-version: '3.13'
+      coverage-threshold: 80
+      workdir: .
+    secrets: {}
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: ${{ vars.APP_ENV }}  # uses the environment name from the variable (e.g., staging)
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+          aws --version
+
+      - name: Install and setup SAM
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure AWS credentials (local via act)
+        if: ${{ env.ACT == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+            aws-access-key-id:     ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+            aws-region:            ${{ vars.AWS_REGION }}
+
+      - name: Rebuild for deploy
+        run: sam build --use-container --cached --exclude frontend
+
+      - name: Validate
+        run: sam validate --lint
+
+      - name: Deploy SAM stack (local)
+        if: ${{ env.ACT == 'true' }}
+        run: |
+          echo "Running locally via act → skipping --role-arn"
+          sam deploy \
+            --no-confirm-changeset \
+            --resolve-s3 \
+            --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+              AppEnv=${{ vars.APP_ENV }} \
+              AppName=${{ vars.APP_NAME }} \
+              FrontendBucketName=${{ vars.FRONTEND_BUCKET_NAME }}
+
+      - name: Show stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --no-cli-pager \
+            --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
+            --query "Stacks[0].Outputs[].[OutputKey,OutputValue]" \
+            --output table

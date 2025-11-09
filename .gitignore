@@ -284,6 +284,15 @@ marimo/_lsp/
 __marimo__/
 
 # =====================================
+# act - Run GitHub actions locally
+# =====================================
+
+# Artifacts by GitHub Actions act command
+.secrets
+.vars
+.artifacts/
+
+# =====================================
 # Miscellaneous
 # =====================================
 
@@ -295,9 +304,6 @@ __marimo__/
 *.bak
 *.swp
 *.swo
-
-# Artifacts by GitHub Actions act command
-.artifacts/
 
 # =====================================
 # End of merged .gitignore
