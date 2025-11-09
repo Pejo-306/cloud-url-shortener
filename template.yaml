@@ -99,9 +99,15 @@ Resources:
       SupportedIdentityProviders:
         - COGNITO
       CallbackURLs:
-        - !Sub "https://${CloudFrontDistribution.DomainName}/"
+        - !Sub https://${CloudFrontDistribution.DomainName}
+        - !Sub https://${CloudFrontDistribution.DomainName}/
       LogoutURLs:
-        - !Sub "https://${CloudFrontDistribution.DomainName}/"
+        - !Sub https://${CloudFrontDistribution.DomainName}
+        - !Sub https://${CloudFrontDistribution.DomainName}/
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
       TokenValidityUnits:
         IdToken: days
         AccessToken: days
@@ -127,7 +133,7 @@ Resources:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt CognitoUserPool.Arn
         DefaultAuthorizer: CognitoAuthorizer
-        AddDefaultAuthorizerToCorsPreflight: false 
+        AddDefaultAuthorizerToCorsPreflight: false
 
   ##################################################
   # Lambda: Shorten URL (protected)
@@ -199,7 +205,7 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${FrontendBucketName}-${AWS::AccountId}-${AWS::Region}
+      BucketName: !Sub ${FrontendBucketName}-${AppEnv}-${AWS::AccountId}-${AWS::Region}
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: index.html
@@ -276,10 +282,6 @@ Outputs:
   FrontendUrl:
     Description: HTTPS CloudFront URL for the frontend
     Value: !Sub https://${CloudFrontDistribution.DomainName}
-
-  FrontendS3Url:
-    Description: S3 website URL (HTTP only)
-    Value: !GetAtt FrontendBucket.WebsiteURL
 
   ShortenUrlFunctionArn:
     Description: ARN of the Shorten URL Lambda Function
