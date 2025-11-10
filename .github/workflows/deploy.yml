@@ -1,0 +1,78 @@
+# .github/workflows/deploy.yml
+name: Deploy SAM application
+
+on:
+  create
+
+concurrency:
+  group: deploy-${{ github.event.ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    outputs:
+      proceed: ${{ steps.gate.outputs.ok }}
+    steps:
+      - id: gate
+        run: |
+          if [ "${{ github.event.ref_type }}" = "branch" ] && [[ "${{ github.event.ref }}" == release-* ]]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.proceed == 'true' }}
+    uses: ./.github/workflows/unit_tests.yml
+    with:
+      python-version: '3.13'
+      coverage-threshold: 80
+      workdir: .
+    secrets: {}
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: ${{ vars.APP_ENV }}  # uses the environment name from the variable (e.g., staging)
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install and setup SAM
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+    
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+            role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+            aws-region:     ${{ vars.AWS_REGION }}
+
+      - name: Rebuild for deploy
+        run: sam build --use-container --cached --exclude frontend
+
+      - name: Validate
+        run: sam validate --lint
+
+      - name: Deploy SAM stack
+        run: |
+          sam deploy \
+            --no-confirm-changeset \
+            --resolve-s3 \
+            --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
+            --capabilities CAPABILITY_IAM \
+            --parameter-overrides \
+            AppEnv=${{ vars.APP_ENV }} \
+            AppName=${{ vars.APP_NAME }} \
+            FrontendBucketName=${{ vars.FRONTEND_BUCKET_NAME }} \
+            --role-arn "${{ secrets.CLOUDFORMATION_EXEC_ROLE_ARN }}"
+
