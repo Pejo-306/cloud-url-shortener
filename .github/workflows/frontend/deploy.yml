@@ -1,0 +1,83 @@
+# .github/workflows/frontend/deploy.yml
+name: Deploy Frontend application
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - release-**
+    paths:
+      - 'frontend/**'
+
+concurrency:
+  group: deploy-frontend-${{ github.event.ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+          aws --version
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+            role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+            aws-region:     ${{ vars.AWS_REGION }}
+
+      - name: Extract frontend bucket name
+        id: get_bucket
+        run: |
+          BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue | [0]" \
+            --output text)
+          if [[ -z "$BUCKET" || "$BUCKET" == "None" ]]; then
+            echo "Bucket name not found" >&2
+            exit 1
+          fi
+          echo "bucket_name=$BUCKET" >> "$GITHUB_OUTPUT"
+
+      - name: Extract CloudFront distribution ID
+        id: get_dist
+        run: |
+          DIST_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue | [0]" \
+            --output text)
+          if [[ -z "$DIST_ID" || "$DIST_ID" == "None" ]]; then
+            echo "Distribution ID not found" >&2
+            exit 1
+          fi
+          echo "dist_id=$DIST_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Upload frontend app
+        if: steps.get_bucket.outputs.bucket_name != ''
+        run: |
+          aws s3 sync frontend/ \
+            s3://${{ steps.get_bucket.outputs.bucket_name }} \
+            --delete \
+            --region ${{ vars.AWS_REGION }}
+
+      - name: Invalidate CloudFront cache
+        if: steps.get_dist.outputs.dist_id != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --no-cli-pager \
+            --distribution-id "${{ steps.get_dist.outputs.dist_id }}" \
+            --paths "/*" \
+            --region "${{ vars.AWS_REGION }}" 
+
+    

@@ -1,0 +1,89 @@
+# .github/workflows/act/frontend/deploy.yml
+# NOTE: this workflow is ONLY meant to be used to deploy the frontend via act from a local machine
+#       NEVER run this workflow via GitHub Actions on your github account.
+# act push -W .github/workflows/act/frontend/deploy.yml -e .github/events/push_main.json -j deploy
+name: (act) Deploy Frontend application via act
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - release-**
+    paths:
+      - 'frontend/**'
+
+concurrency:
+  group: deploy-frontend-${{ github.event.ref || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ vars.APP_ENV }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install AWS CLI
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -q awscliv2.zip
+          sudo ./aws/install
+          aws --version
+
+      - name: Configure AWS credentials (local via act)
+        if: ${{ env.ACT == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+            aws-access-key-id:     ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+            aws-region:            ${{ vars.AWS_REGION }}
+
+      - name: Extract frontend bucket name
+        id: get_bucket
+        run: |
+          BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue | [0]" \
+            --output text)
+          if [[ -z "$BUCKET" || "$BUCKET" == "None" ]]; then
+            echo "Bucket name not found" >&2
+            exit 1
+          fi
+          echo "bucket_name=$BUCKET" >> "$GITHUB_OUTPUT"
+
+      - name: Extract CloudFront distribution ID
+        id: get_dist
+        run: |
+          DIST_ID=$(aws cloudformation describe-stacks \
+            --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
+            --query "Stacks[0].Outputs[?OutputKey=='CloudFrontDistributionId'].OutputValue | [0]" \
+            --output text)
+          if [[ -z "$DIST_ID" || "$DIST_ID" == "None" ]]; then
+            echo "Distribution ID not found" >&2
+            exit 1
+          fi
+          echo "dist_id=$DIST_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Upload frontend app
+        if: steps.get_bucket.outputs.bucket_name != ''
+        run: |
+          aws s3 sync frontend/ \
+            s3://${{ steps.get_bucket.outputs.bucket_name }} \
+            --delete \
+            --region ${{ vars.AWS_REGION }}
+
+      - name: Invalidate CloudFront cache
+        if: steps.get_dist.outputs.dist_id != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --no-cli-pager \
+            --distribution-id "${{ steps.get_dist.outputs.dist_id }}" \
+            --paths "/*" \
+            --region "${{ vars.AWS_REGION }}" 
+
+    
