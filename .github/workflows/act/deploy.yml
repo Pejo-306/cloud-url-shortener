@@ -1,8 +1,8 @@
 # .github/act/deploy.yml
 # NOTE: this workflow is ONLY meant to be used to deploy the SAM stack via act from a local machine
 #       NEVER run this workflow via GitHub Actions on your github account.
-# act create -W .github/act/deploy.yml -e .github/events/create_release.json -j deploy
-name: Deploy SAM application via act
+# act create -W .github/workflows/act/deploy.yml -e .github/events/create_release.json -j deploy
+name: (act) Deploy SAM application via act
 
 on:
   create
