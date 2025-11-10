@@ -283,9 +283,9 @@ Outputs:
     Description: HTTPS CloudFront URL for the frontend
     Value: !Sub https://${CloudFrontDistribution.DomainName}
 
-  ShortenUrlFunctionArn:
-    Description: ARN of the Shorten URL Lambda Function
-    Value: !GetAtt ShortenUrlFunction.Arn
+  FrontendBucketName:
+    Description: S3 bucket name, hosting frontend application
+    Value: !Ref FrontendBucket
 
   RedirectUrlFunctionArn:
     Description: ARN of the Redirect URL Lambda Function
