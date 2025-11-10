@@ -1,7 +1,7 @@
 version = 0.1
 
 [default.global.parameters]
-stack_name = "url-shortener-dev"
+stack_name = "cloudshortener-dev"
 region = "eu-central-1"
 
 [default.build.parameters]
@@ -22,7 +22,7 @@ parameters = { }
 [default.sync.parameters]
 watch = false
 template_file = "template.yaml"
-stack_name = "url-shortener-dev"
+stack_name = "cloudshortener-dev"
 dependency_layer = false
 code = true
 use_container = true

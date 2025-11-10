@@ -70,13 +70,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install AWS CLI
-        run: |
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip -q awscliv2.zip
-          sudo ./aws/install
-          aws --version
-
       - name: Install and setup SAM
         uses: aws-actions/setup-sam@v2
         with:
@@ -110,11 +103,3 @@ jobs:
               AppEnv=${{ vars.APP_ENV }} \
               AppName=${{ vars.APP_NAME }} \
               FrontendBucketName=${{ vars.FRONTEND_BUCKET_NAME }}
-
-      - name: Show stack outputs
-        run: |
-          aws cloudformation describe-stacks \
-            --no-cli-pager \
-            --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
-            --query "Stacks[0].Outputs[].[OutputKey,OutputValue]" \
-            --output table
