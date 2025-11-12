@@ -21,15 +21,24 @@ Test coverage includes:
 4. Counter operations
    - Ensures global counter increments or retrieves correctly.
    - Confirms Redis connectivity issues raise DataStoreError.
+
+5. Link hits counter operations
+   - Ensures hit() decrements monthly quota correctly when key exists.
+   - Validates monthly quota initialization when missing.
+   - Confirms missing links raise ShortURLNotFoundError.
+   - Validates negative quota values are allowed.
+   - Confirms Redis connectivity issues raise DataStoreError.
+   - Ensures invalid parameter types raise type errors.
 """
 
 import re
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, call
 
 import pytest
 import redis
-import redis.client
 from beartype.roar import BeartypeCallHintParamViolation
+from freezegun import freeze_time
 
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.exceptions import DataStoreError, ShortURLAlreadyExistsError, ShortURLNotFoundError
@@ -64,7 +73,7 @@ def key_schema():
     """Mock RedisKeySchema to return predictable key values."""
     mock = MagicMock(spec=RedisKeySchema)
     mock.link_url_key.return_value = 'testapp:test:links:abc123:url'
-    mock.link_hits_key.return_value = 'testapp:test:links:abc123:hits'
+    mock.link_hits_key.return_value = 'testapp:test:links:abc123:hits:2025-10'
     mock.counter_key.return_value = 'testapp:test:links:counter'
     return mock
 
@@ -82,12 +91,13 @@ def dao(redis_client, key_schema, app_prefix):
 # -------------------------------
 
 
+@freeze_time('2025-10-15')
 def test_insert_short_url(dao, redis_client):
     """Ensure valid short URL insertion stores URL and hits atomically."""
     expected_calls = [
         call('testapp:test:links:abc123:url'),
         call('testapp:test:links:abc123:url', 'https://example.com/test', ex=ONE_YEAR_SECONDS),
-        call('testapp:test:links:abc123:hits', DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS),
+        call('testapp:test:links:abc123:hits:2025-10', DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS),
     ]
 
     short_url = ShortURLModel(target='https://example.com/test', shortcode='abc123', hits=None, expires_at=None)
@@ -198,3 +208,92 @@ def test_count_with_redis_connection_error(dao, redis_client):
 
     with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
         dao.count(increment=False)
+
+
+# -------------------------------
+# 5. Link hits counter operations
+# -------------------------------
+
+# TODO: continue tests from here
+
+@freeze_time('2025-10-15')
+def test_hit_decrements_existing_monthly_quota(dao, redis_client):
+    """Ensure hit() decrements an existing monthly hits counter correctly."""
+    redis_client.exists.side_effect = lambda key: key == 'testapp:test:links:abc123:url'
+    redis_client.execute.return_value = (
+        None,                           # SET  links:<shortcode>:hits:<YYYY-MM> <DEFAULT_LINK_HITS_QUOTA> NX EXAT <timestamp: first second of next month>
+        9994                            # DECR links:<shortcode>:hits:<YYYY-MM>
+    )
+    
+    result = dao.hit('abc123')
+    
+    assert result == 9994
+    redis_client.exists.assert_called_once_with('testapp:test:links:abc123:url')
+    redis_client.decr.assert_called_once_with('testapp:test:links:abc123:hits:2025-10')
+
+
+@freeze_time('2025-10-15')
+def test_hit_initializes_monthly_quota_when_missing(dao, redis_client):
+    redis_client.exists.side_effect = lambda key: key == 'testapp:test:links:abc123:url'
+    redis_client.execute.return_value = (True, DEFAULT_LINK_HITS_QUOTA - 1)
+    redis_client.execute.return_value = (
+        True,                           # SET  links:<shortcode>:hits:<YYYY-MM> <DEFAULT_LINK_HITS_QUOTA> NX EXAT <timestamp: first second of next month>
+        DEFAULT_LINK_HITS_QUOTA -1      # DECR links:<shortcode>:hits:<YYYY-MM>
+    )
+
+    expire_at = int(datetime(2025, 11, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp())
+
+    result = dao.hit('abc123')
+
+    assert result == DEFAULT_LINK_HITS_QUOTA - 1
+    redis_client.exists.assert_called_once_with('testapp:test:links:abc123:url')
+    redis_client.set.assert_called_once_with(
+        'testapp:test:links:abc123:hits:2025-10',
+        DEFAULT_LINK_HITS_QUOTA,
+        nx=True,
+        exat=expire_at,
+    )
+    redis_client.decr.assert_called_once_with('testapp:test:links:abc123:hits:2025-10')
+
+
+@freeze_time('2025-10-15')
+def test_hit_raises_error_when_link_does_not_exist(dao, redis_client):
+    redis_client.exists.return_value = False
+
+    with pytest.raises(ShortURLNotFoundError, match="Short URL with code 'abc123' not found"):
+        dao.hit('abc123')
+
+    redis_client.exists.assert_called_once_with('testapp:test:links:abc123:url')
+    redis_client.decr.assert_not_called()
+
+
+@freeze_time('2025-10-15')
+def test_hit_allows_negative_values(dao, redis_client):
+    redis_client.exists.side_effect = lambda key: key == 'testapp:test:links:abc123:url'
+    redis_client.execute.return_value = (
+        None,  # SET  links:<shortcode>:hits:<YYYY-MM> <DEFAULT_LINK_HITS_QUOTA> NX EXAT <timestamp: first second of next month>
+        -233   # DECR links:<shortcode>:hits:<YYYY-MM>
+    )
+
+    result = dao.hit('abc123')
+
+    assert result == -233
+    redis_client.decr.assert_called_once_with('testapp:test:links:abc123:hits:2025-10')
+
+
+@freeze_time('2025-10-15')
+def test_hit_with_redis_connection_error(dao, redis_client):
+    redis_client.exists.side_effect = redis.exceptions.ConnectionError('Connection error')
+    redis_client.connection_pool = MagicMock()
+    redis_client.connection_pool.connection_kwargs = {'host': '203.0.113.1', 'port': 18000, 'db': 5}
+
+    with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
+        dao.hit('abc123')
+
+
+@freeze_time('2025-10-15')
+def test_hit_with_invalid_type(dao):
+    """Ensure invalid shortcode types raise TypeError or Beartype error."""
+    invalid_shortcode = [1, 2, 88]
+    with pytest.raises((TypeError, BeartypeCallHintParamViolation)):
+        dao.hit(invalid_shortcode)

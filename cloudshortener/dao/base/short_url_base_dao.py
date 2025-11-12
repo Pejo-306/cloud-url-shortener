@@ -51,9 +51,13 @@ class ShortURLBaseDAO(ABC):
             Raises ShortURLAlreadyExistsError if the short code already exists.
             Raises DataStoreError on connection or write failure.
 
-        get(short_code: str, **kwargs) -> ShortURLModel | None:
+        get(shortcode: str, **kwargs) -> ShortURLModel | None:
             Retrieve a ShortURLModel from the data store by short code.
-            Returns None if not found.
+            Raises ShortURLNotFoundError if the entry does not exist.
+            Raises DataStoreError on connection or read failure.
+
+        hit(shortcode: str, **kwargs) -> int:
+            Decrement a short URL's monhtly link hit quota.
             Raises ShortURLNotFoundError if the entry does not exist.
             Raises DataStoreError on connection or read failure.
 
@@ -100,22 +104,46 @@ class ShortURLBaseDAO(ABC):
         pass
 
     @abstractmethod
-    def get(self, shortcode: str, **kwargs) -> ShortURLModel | None:
+    def get(self, shortcode: str, **kwargs) -> ShortURLModel:
         """Retrieve a ShortURLModel from the data store by its short code.
 
         Args:
-            short_code (str):
+            shortcode (str):
                 The short code of the ShortURLModel to be retrieved.
 
             **kwargs:
                 Additional keyword arguments, used by data store.
 
         Returns:
-            ShortURLModel | None: The ShortURLModel instance if found, otherwise None.
+            ShortURLModel: The ShortURLModel instance.
 
         Raises:
             ShortURLNotFoundError:
                 If no ShortURLModel with the given short code exists.
+
+            DataStoreError:
+                If there is an error in the data store.
+        """
+        pass
+
+    @abstractmethod
+    def hit(self, shortcode: str, **kwargs) -> int:
+        """Decrement a short URL's monhtly link hit quota.
+        
+        Args:
+            shortcode (str):
+                The short code of the ShortURLModel to be retrieved.
+
+            **kwargs:
+                Additional keyword arguments, used by data store.
+        
+        Return:
+            int:
+                leftover link hits for this month.
+
+        Raises:
+            ShortURLNotFoundError:
+                If no short URL with the given short code exists.
 
             DataStoreError:
                 If there is an error in the data store.

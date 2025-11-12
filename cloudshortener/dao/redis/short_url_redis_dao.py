@@ -50,6 +50,7 @@ from cloudshortener.dao.base import ShortURLBaseDAO
 from cloudshortener.dao.redis.mixins import RedisClientMixin
 from cloudshortener.dao.redis.helpers import handle_redis_connection_error
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError, ShortURLNotFoundError
+from cloudshortener.utils.helpers import beginning_of_next_month
 from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_QUOTA
 
 
@@ -70,7 +71,7 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
             Raises ShortURLAlreadyExistsError when a URL with the same shortcode exists.
             Raises DataStoreError on connectivity issues with Redis.
 
-        get(shortcode: str, **kwargs) -> ShortURLModel | None:
+        get(shortcode: str, **kwargs) -> ShortURLModel:
             Retrieve a short URL mapping and its metadata (hits, expiry) by shortcode.
             Raises ShortURLNotFoundError when the shortcode doesn't exist.
             Raises DataStoreError on connectivity issues with Redis.
@@ -147,7 +148,7 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
 
     @handle_redis_connection_error
     @beartype
-    def get(self, shortcode: str, **kwargs) -> ShortURLModel | None:
+    def get(self, shortcode: str, **kwargs) -> ShortURLModel:
         """Retrieve a stored short URL mapping by shortcode
 
         Fetches both the original URL and its associated hits counter using
@@ -161,9 +162,8 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
                 Optional keyword arguments (for future use).
 
         Returns:
-            ShortURLModel | None:
+            ShortURLModel:
                 The retrieved ShortURLModel instance if found.
-                TODO: add option to avoid raising a ShortURLNotFoundError
 
         Raises:
             ShortURLNotFoundError:
@@ -196,6 +196,80 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
             hits=hits,
             expires_at=datetime.now(UTC) + timedelta(seconds=ttl),
         )
+
+    @handle_redis_connection_error
+    @beartype
+    def hit(self, shortcode: str, **kwargs) -> int:
+        """Decrement the monthly hit counter for a short URL.
+
+        NOTE: if the link hits counter for this month still hasn't been isntantiated,
+              this method is responsible for setting this month's link hit counter with
+              the default link hit quota and set to expire by the beginning of next month
+              (YYYY-MM+1-01T00:00:00Z in UTC).
+        NOTE: the method will decrement the link hits quota value below 0 to avoid multiple
+              Redis network round trip for validity checks. It is the application's responsibility
+              to handle negative link hit counter values.
+
+        Args:
+            shortcode (str):
+                The short code of the ShortURLModel to be retrieved.
+
+            **kwargs:
+                Additional keyword arguments, used by data store.
+        
+        Return:
+            int:
+                leftover link hits for this month.
+
+        Raises:
+            ShortURLNotFoundError:
+                If no short URL with the given short code exists.
+
+            DataStoreError:
+                If Redis connectivity issues occur.
+
+        Example:
+            >>> dao.hit('abc123')
+            9999
+        """
+        link_url_key = self.keys.link_url_key(shortcode)
+        link_hits_key = self.keys.link_hits_key(shortcode)
+
+        if not self.redis.exists(link_url_key):
+            raise ShortURLNotFoundError(f"Short URL with code '{shortcode}' not found.")
+
+        # NOTE: The SET NX and DECR commands are executed as an atomic operation
+        #       to avoid race conditions where a concurrent request might steal race
+        #       preference from another concurrent request by decrementing below the link hits quota.
+
+        #       e.g. if <quota> == 1 in this example:
+        #
+        #       (lambda 1): ShortURLRedisDAO.hit():
+        #                   -> SET <app>:links:<shortcode>:hits:<YYYY-MM> <quota> NX EXAT <expiry>
+        #                   ... interruption
+        #       (lambda 2): ShortURLRedisDAO.hit():
+        #                   -> SET <app>:links:<shortcode>:hits:<YYYY-MM> <quota> NX EXAT <expiry>
+        #                   -> DECR <app>:links:<shortcode>:hits:<YYYY-MM>
+        #                   (returned value) => 0
+        #       (lambda 1): ShortURLRedisDAO.hit() continued...:
+        #                   -> DECR <app>:links:<shortcode>:hits:<YYYY-MM>
+        #                   => Both lambdas decrement, but only one initializes correctly
+        #                   (returned value) => -1
+        #
+        #       So even though (lambda 1) initialized the link hits quota key first to 1,
+        #       (lambda 2) gets to decrement the link hits quota first. Therefore, (lambda 2)'s
+        #       redirection request continues successfully, while (lambda 1)'s redirection request is
+        #       limitted.
+        with self.redis.pipeline(transaction=True) as pipe:
+            pipe.set(link_hits_key,
+                     DEFAULT_LINK_HITS_QUOTA,
+                     nx=True,
+                     exat=int(beginning_of_next_month().timestamp()))
+            pipe.decr(link_hits_key)
+            _, leftover_hits = pipe.execute()
+
+        return leftover_hits
+
 
     @handle_redis_connection_error
     def count(self, increment: bool = False, **kwargs) -> int:
