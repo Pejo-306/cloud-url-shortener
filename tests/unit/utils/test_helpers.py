@@ -9,11 +9,18 @@ Test coverage includes:
    - 1.4. Ensures graceful fallback behavior when API Gateway data is partially missing.
 
 2. get_short_url() retrieves short URL string representation
+
+3. beginning_of_next_month() computes next month's first moment
+   - 3.1. Ensures correct calculation for various dates throughout the year.
+   - 3.2. Validates year rollover behavior at December boundaries.
 """
 
-import pytest
+from datetime import datetime, UTC
 
-from cloudshortener.utils.helpers import base_url, get_short_url
+import pytest
+from freezegun import freeze_time
+
+from cloudshortener.utils.helpers import base_url, get_short_url, beginning_of_next_month
 
 
 # -------------------------------
@@ -117,3 +124,26 @@ def test_get_short_url(shortcode, domain, stage, expected):
     }
     result = get_short_url(shortcode, event)
     assert result == expected
+
+
+# -------------------------------
+# 3. beginning_of_next_month() computation
+# -------------------------------
+
+
+@pytest.mark.parametrize(
+    'frozen_date, expected',
+    [
+        ('2025-01-15', datetime(2025, 2, 1, 0, 0, 0, tzinfo=UTC)),
+        ('2025-02-28', datetime(2025, 3, 1, 0, 0, 0, tzinfo=UTC)),
+        ('2025-10-15', datetime(2025, 11, 1, 0, 0, 0, tzinfo=UTC)),
+        ('2025-11-30', datetime(2025, 12, 1, 0, 0, 0, tzinfo=UTC)),
+        ('2025-12-31', datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)),
+        ('2024-02-29', datetime(2024, 3, 1, 0, 0, 0, tzinfo=UTC)),
+    ],
+)
+def test_beginning_of_next_month(frozen_date, expected):
+    """Ensure beginning_of_next_month() computes the correct next month's first moment."""
+    with freeze_time(frozen_date):
+        result = beginning_of_next_month()
+        assert result == expected

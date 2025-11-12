@@ -5,6 +5,8 @@ Functions:
         Extract correct public base URL from API Gateway event
     get_short_url() -> str
         Get string representation of short URL for a given shortcode
+    beginning_of_next_month() -> datetime
+        Compute the first moment of the next calendar month in UTC
 
 Example:
     Typical usage inside a Lambda handler:
@@ -32,6 +34,7 @@ Example:
         'http://localhost:3000'
 """
 
+from datetime import datetime, UTC
 from typing import Any
 
 
@@ -78,3 +81,22 @@ def get_short_url(shortcode: str, event: dict[str, Any]) -> str:
         str: short url string representation
     """
     return f'{base_url(event).rstrip("/")}/{shortcode}'
+
+
+def beginning_of_next_month() -> datetime:
+    """Compute the first moment of the next calendar month in UTC.
+
+    Returns:
+        datetime:
+            Newly constructed datetime value representing the very start
+            (00:00:00) of the next calendar month in UTC.
+
+    Example:
+        >>> beginning_of_next_month()
+        datetime.datetime(2025, 11, 1, 0, 0, 0, tzinfo=datetime.timezone.utc)
+    """
+    now = datetime.now(UTC)
+    next_month = (now.month % 12) + 1
+    next_year = now.year + (1 if now.month == 12 else 0)
+
+    return datetime(next_year, next_month, 1, 0, 0, 0, tzinfo=UTC)
