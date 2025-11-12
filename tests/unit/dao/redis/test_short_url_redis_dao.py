@@ -32,7 +32,7 @@ Test coverage includes:
 """
 
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -94,10 +94,11 @@ def dao(redis_client, key_schema, app_prefix):
 @freeze_time('2025-10-15')
 def test_insert_short_url(dao, redis_client):
     """Ensure valid short URL insertion stores URL and hits atomically."""
+    first_moment_of_next_month_ts = int(datetime.strptime('2025-11-01 00:00:00', '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC).timestamp())
     expected_calls = [
         call('testapp:test:links:abc123:url'),
         call('testapp:test:links:abc123:url', 'https://example.com/test', ex=ONE_YEAR_SECONDS),
-        call('testapp:test:links:abc123:hits:2025-10', DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS),
+        call('testapp:test:links:abc123:hits:2025-10', DEFAULT_LINK_HITS_QUOTA, nx=True, exat=first_moment_of_next_month_ts),
     ]
 
     short_url = ShortURLModel(target='https://example.com/test', shortcode='abc123', hits=None, expires_at=None)

@@ -7,6 +7,7 @@ Responsibilities:
     - Insert and retrieve short URLs from Redis;
     - Increment the global counter;
     - Maintain per-link metadata (e.g., hit counters, TTL);
+    - Decrement monthly hit quotas for link access tracking;
     - Provide defensive error handling and raise appropriate DAO exceptions.
 
 Classes:
@@ -36,8 +37,11 @@ Example:
     >>> retrieved.expires_at
     <datetime>
 
+    >>> leftover_hits = dao.hit("abc123")
+    >>> leftover_hits
+    9999
+
 TODO:
-    - Add quota decrement functionality for hits management.
     - Add support for configurable TTL and hit quotas.
 """
 
@@ -76,6 +80,13 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
             Raises ShortURLNotFoundError when the shortcode doesn't exist.
             Raises DataStoreError on connectivity issues with Redis.
 
+        hit(shortcode: str, **kwargs) -> int:
+            Decrement the monthly hit counter for a short URL.
+            Initializes the monthly quota key if it doesn't exist for the current month.
+            Returns the remaining hits after decrement (may be negative if quota exceeded).
+            Raises ShortURLNotFoundError when the shortcode doesn't exist.
+            Raises DataStoreError on connectivity issues with Redis.
+
         count(increment: bool = False, **kwargs) -> int:
             Retrieve (and optionally increment) the global URL counter.
             Raises DataStoreError on connectivity issues with Redis.
@@ -87,6 +98,9 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         <ShortURLRedisDAO>
         >>> dao.get("abc123").target
         'https://example.com'
+        >>> leftover_hits = dao.hit("abc123")
+        >>> leftover_hits
+        9999
     """
 
     @handle_redis_connection_error
@@ -142,7 +156,10 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         #                   -> SET <app>:links:<shortcode>:hits <monthly link quota> EX <ttl>
         with self.redis.pipeline(transaction=True) as pipe:
             pipe.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
-            pipe.set(link_hits_key, DEFAULT_LINK_HITS_QUOTA, ex=ONE_YEAR_SECONDS)
+            pipe.set(link_hits_key,
+                     DEFAULT_LINK_HITS_QUOTA,
+                     nx=True,
+                     exat=int(beginning_of_next_month().timestamp()))
             pipe.execute()
         return self
 
@@ -187,7 +204,7 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
             pipe.ttl(link_url_key)
             original_url, hits, ttl = pipe.execute()
 
-        if original_url is None or hits is None:
+        if original_url is None:
             raise ShortURLNotFoundError(f"Short URL with code '{shortcode}' not found.")
 
         return ShortURLModel(
