@@ -18,6 +18,7 @@ Test coverage includes:
    - Ensures improper prefix types raise TypeError.
 """
 
+from gc import freeze
 import pytest
 from freezegun import freeze_time
 
@@ -54,16 +55,18 @@ def test_link_url_key(shortcode, expected):
 
 
 @pytest.mark.parametrize(
-    'shortcode, expected',
+    'shortcode, todays_date, expected',
     [
-        ('abc123', 'links:abc123:hits'),
-        ('XyZ789', 'links:XyZ789:hits'),
+        ('abc123', '2025-10-15', 'links:abc123:hits:2025-10'),
+        ('XyZ789', '2025-10-15', 'links:XyZ789:hits:2025-10'),
+        ('XyZ789', '2024-01-01', 'links:XyZ789:hits:2024-01'),
     ],
 )
-def test_link_hits_key(shortcode, expected):
+def test_link_hits_key(shortcode, todays_date, expected):
     """Ensure link_hits_key() generates valid Redis keys."""
     keys = RedisKeySchema()
-    result = keys.link_hits_key(shortcode)
+    with freeze_time(todays_date):
+        result = keys.link_hits_key(shortcode)
     assert result == expected
 
 
@@ -93,13 +96,14 @@ def test_user_quota_key(user_id, todays_date, expected, keys):
 # -------------------------------
 
 
+@freeze_time('2025-10-15')
 def test_no_key_prefix_by_default():
     """Ensure keys are not prefixed when no prefix is provided."""
     keys = RedisKeySchema()
     url_key = keys.link_url_key('abc123')
     hits_key = keys.link_hits_key('abc123')
     assert url_key == 'links:abc123:url'
-    assert hits_key == 'links:abc123:hits'
+    assert hits_key == 'links:abc123:hits:2025-10'
 
 
 # -------------------------------
@@ -110,11 +114,12 @@ def test_no_key_prefix_by_default():
 @pytest.mark.parametrize(
     'prefix, shortcode, expected_url_key, expected_hits_key',
     [
-        ('testprefix', 'abc123', 'testprefix:links:abc123:url', 'testprefix:links:abc123:hits'),
-        ('secret', 'abc123', 'secret:links:abc123:url', 'secret:links:abc123:hits'),
-        (None, 'abc123', 'links:abc123:url', 'links:abc123:hits'),
+        ('testprefix', 'abc123', 'testprefix:links:abc123:url', 'testprefix:links:abc123:hits:2025-10'),
+        ('secret', 'abc123', 'secret:links:abc123:url', 'secret:links:abc123:hits:2025-10'),
+        (None, 'abc123', 'links:abc123:url', 'links:abc123:hits:2025-10'),
     ],
 )
+@freeze_time('2025-10-15')
 def test_key_prefixing(prefix, shortcode, expected_url_key, expected_hits_key):
     """Ensure keys are correctly prefixed when a prefix is provided."""
     keys = RedisKeySchema(prefix=prefix)

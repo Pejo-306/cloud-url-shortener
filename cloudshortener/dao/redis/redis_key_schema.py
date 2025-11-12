@@ -25,7 +25,7 @@ Example:
     >>> keys.link_url_key("abc123")
     'cloudshortener:links:abc123:url'
     >>> keys.link_hits_key("abc123")
-    'cloudshortener:links:abc123:hits'
+    'cloudshortener:links:abc123:hits:2025-10'
 
 TODO:
     - Add helper method to automatically generate prefix from config/environment.
@@ -88,6 +88,7 @@ class RedisKeySchema:
 
         link_hits_key(short_code: str) -> str:
             Generate a Redis key for number of hits via a given short code.
+            Appends the current month in format YYYY-MM to the end of the key.
 
         counter_key() -> str:
             Generate a Redis key for the global links counter.
@@ -100,7 +101,7 @@ class RedisKeySchema:
         >>> schema.link_url_key("abc123")
         'shortener:links:abc123:url'
         >>> schema.link_hits_key("abc123")
-        'shortener:links:abc123:hits'
+        'shortener:links:abc123:hits:2025-10'
 
     TODO:
         - Add helper method to automatically generate prefix from config/environment.
@@ -143,6 +144,8 @@ class RedisKeySchema:
     def link_hits_key(self, short_code: str) -> str:
         """Generate a Redis key for the hit counter via a given short code.
 
+        NOTE: the key attaches this month in format YYYY-MM at the end.
+
         Args:
             short_code (str):
                 The unique short code identifying the shortened URL.
@@ -151,10 +154,11 @@ class RedisKeySchema:
             str: A Redis key string for the hit counter.
 
         Example:
-            >>> RedisKeySchema().link_hits_key("abc123")
-            'links:abc123:hits'
+            >>> RedisKeySchema().link_hits_key('abc123')
+            'links:abc123:hits:2025-10'
         """
-        return f'links:{short_code}:hits'
+        this_month = date.today().strftime('%Y-%m')
+        return f'links:{short_code}:hits:{this_month}'
 
     @prefix_key
     def counter_key(self) -> str:
