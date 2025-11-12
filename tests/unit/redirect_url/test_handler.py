@@ -15,7 +15,11 @@ Test coverage includes:
 3. Invalid shortcode
     - Ensure non-existing shortcodes raise HTTP 400.
 
-4. Configuration errors
+4. Link quota exceeded
+   - Ensures requests exceeding monthly quota return HTTP 429.
+   - Validates multiple consecutive quota-exceeded requests return HTTP 429.
+
+5. Configuration errors
    - Ensures missing or unreadable config files result in HTTP 500 responses.
 
 Fixtures:
@@ -26,7 +30,7 @@ Fixtures:
     - `base_url`: mocked base URL used in response construction.
     - `context`: mock AWS Lambda context object.
     - `config`: mock Redis configuration.
-    - `dao`: mock DAO implementing ShortURLBaseDAO with a stubbed `get` method.
+    - `dao`: mock DAO implementing ShortURLBaseDAO with stubbed `get` and `hit` methods.
     - `_patch_lambda_dependencies`: autouse fixture patching app dependencies.
 """
 
@@ -34,6 +38,7 @@ import json
 from datetime import datetime, timedelta, UTC
 from unittest.mock import MagicMock, patch
 import pytest
+from freezegun import freeze_time
 
 from cloudshortener.lambdas.redirect_url import app
 from cloudshortener.models import ShortURLModel
@@ -114,6 +119,7 @@ def dao(target_url):
         hits=10000,
         expires_at=datetime.now(UTC) + timedelta(days=10),
     )
+    _dao.hit.return_value = 9999  # Default: quota not exceeded
     return _dao
 
 
@@ -140,7 +146,8 @@ def test_lambda_handler(successful_event_302, context, dao, target_url):
     assert body == {}
     assert headers['Location'] == target_url
 
-    # Assert DAO lookup occurred once with correct shortcode
+    # Assert DAO methods were called correctly
+    dao.hit.assert_called_once_with(shortcode='abc123')
     dao.get.assert_called_once_with(shortcode='abc123')
 
 
@@ -159,14 +166,14 @@ def test_lambda_handler_with_invalid_path_parameters(bad_request_400, context):
 
 
 # -------------------------------
-# 3. Invalid shortode
+# 3. Invalid shortcode
 # -------------------------------
 
 
 def test_lambda_handler_with_invalid_shortcode(successful_event_302, context, dao, base_url):
     """Ensure non-existing shortcodes raise HTTP 400."""
-    # Ensure the DAO raises ShortURLNotFoundError
-    dao.get.side_effect = ShortURLNotFoundError()
+    # Ensure the DAO raises ShortURLNotFoundError on hit()
+    dao.hit.side_effect = ShortURLNotFoundError()
     short_url = f'{base_url}/abc123'
 
     response = app.lambda_handler(successful_event_302, context)
@@ -174,10 +181,67 @@ def test_lambda_handler_with_invalid_shortcode(successful_event_302, context, da
 
     assert response['statusCode'] == 400
     assert body['message'] == f"Bad Request (short url {short_url} doesn't exist)"
+    dao.hit.assert_called_once_with(shortcode='abc123')
+    dao.get.assert_not_called()
 
 
 # -------------------------------
-# 3. Configuration errors
+# 4. Link quota exceeded
+# -------------------------------
+
+
+@freeze_time('2025-10-15')
+def test_lambda_handler_with_quota_exceeded(successful_event_302, context, dao):
+    """Ensure requests exceeding monthly quota return HTTP 429."""
+    dao.hit.return_value = -1  # Quota exceeded
+
+    response = app.lambda_handler(successful_event_302, context)
+    body = json.loads(response['body'])
+    headers = response['headers']
+
+    assert response['statusCode'] == 429
+    assert headers['Content-Type'] == 'application/json'
+    assert 'Retry-After' in headers
+    assert body['errorCode'] == 'LINK_QUOTA_EXCEEDED'
+    assert 'Monthly hit quota exceeded for link' in body['message']
+    assert '2025-11-01T00:00:00Z' in body['message']
+    dao.hit.assert_called_once_with(shortcode='abc123')
+    dao.get.assert_not_called()
+
+
+@freeze_time('2025-10-15')
+def test_lambda_handler_with_multiple_quota_exceeded_requests(successful_event_302, context, dao):
+    """Ensure multiple consecutive quota-exceeded requests return HTTP 429."""
+    dao.hit.return_value = -5  # Quota exceeded by 5
+
+    # First request
+    response1 = app.lambda_handler(successful_event_302, context)
+    body1 = json.loads(response1['body'])
+
+    assert response1['statusCode'] == 429
+    assert body1['errorCode'] == 'LINK_QUOTA_EXCEEDED'
+
+    # Second request (quota still exceeded)
+    response2 = app.lambda_handler(successful_event_302, context)
+    body2 = json.loads(response2['body'])
+
+    assert response2['statusCode'] == 429
+    assert body2['errorCode'] == 'LINK_QUOTA_EXCEEDED'
+
+    # Third request (quota still exceeded)
+    response3 = app.lambda_handler(successful_event_302, context)
+    body3 = json.loads(response3['body'])
+
+    assert response3['statusCode'] == 429
+    assert body3['errorCode'] == 'LINK_QUOTA_EXCEEDED'
+
+    # Verify hit() was called for each request
+    assert dao.hit.call_count == 3
+    dao.get.assert_not_called()
+
+
+# -------------------------------
+# 5. Configuration errors
 # -------------------------------
 
 

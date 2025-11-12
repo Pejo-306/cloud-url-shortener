@@ -1,9 +1,11 @@
 import json
+from datetime import datetime, UTC
 from typing import Any
 
 from cloudshortener.dao.redis import ShortURLRedisDAO
 from cloudshortener.dao.exceptions import ShortURLNotFoundError
 from cloudshortener.utils import load_config, get_short_url, app_prefix
+from cloudshortener.utils.helpers import beginning_of_next_month
 
 
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
@@ -45,6 +47,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     # TODO: move the prefix creation to a helper function?
     # TODO: add error handling for invalid short code
     # TODO: add lambda handling of a short URL already exists in shorten_url
+    # TODO: refactor responses as functions so it cleans up the lambda's code
 
     # 0- Get application's config
     try:
@@ -54,7 +57,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             'statusCode': 500,
             'body': json.dumps(
                 {
-                    'message': 'Internal Server Error',
+                    'message': "Internal Server Error",
                 }
             ),
         }
@@ -75,7 +78,35 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
 
-    # 3- Get short_url record from database
+    # 3- Deny redirect if monthly link quota is exceeded
+    try: 
+        leftover_hits = short_url_dao.hit(shortcode=shortcode)
+    except ShortURLNotFoundError:
+        return {
+            'statusCode': 400,
+            'body': json.dumps(
+                {
+                    'message': f"Bad Request (short url {get_short_url(shortcode, event)} doesn't exist)",
+                }
+            ),
+        }
+    else:
+        if leftover_hits < 0:
+            reset_date = beginning_of_next_month().strftime('%Y-%m-%dT%H:%M:%SZ')
+            ttl_to_reset = int((beginning_of_next_month() - datetime.now(UTC)).total_seconds())
+            return {
+                'statusCode': 429,
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Retry-After': str(ttl_to_reset)  # optional but recommended
+                },
+                'body': json.dumps({
+                    'errorCode': 'LINK_QUOTA_EXCEEDED',
+                    'message': f"Monthly hit quota exceeded for link. Try again after {reset_date}."
+                })
+            }
+
+    # 4- Get short_url record from database
     try:
         short_url = short_url_dao.get(shortcode=shortcode)
     except ShortURLNotFoundError:
