@@ -45,7 +45,7 @@ jobs:
     # avoid building on PRs - only run tests & coverage on PRs
     if: ${{ github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release-')) }}
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -80,6 +80,17 @@ jobs:
 
       - name: SAM validate
         run: sam validate
+
+      # NOTE: Manually installing node.js is only needed on act to upload build artifacts
+      - name: Install Node (local/act only)
+        if: ${{ env.ACT == 'true' }}
+        run: |
+          set -eux
+          apt-get update
+          apt-get install -y ca-certificates curl gnupg
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
+          node -v
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
