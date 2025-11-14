@@ -14,14 +14,28 @@ Test coverage includes:
    - Ensures load_config() raises FileNotFoundError when YAML configuration files are missing.
 """
 
-import builtins
 import os
-from io import StringIO
+import json
+from io import BytesIO
+from unittest.mock import MagicMock
 
 import pytest
+import botocore
 
 from cloudshortener.utils import config
 from pathlib import Path
+
+
+# -------------------------------
+# Fixtures 
+# -------------------------------
+
+@pytest.fixture(autouse=True)
+def _env(monkeypatch):
+    """Set up environment variables for testing"""
+    monkeypatch.setenv('APPCONFIG_APP_ID', 'app123')
+    monkeypatch.setenv('APPCONFIG_ENV_ID', 'env123')
+    monkeypatch.setenv('APPCONFIG_PROFILE_ID', 'prof123')
 
 
 # -------------------------------
@@ -72,34 +86,48 @@ def test_project_root(monkeypatch):
 
 def test_load_config(monkeypatch):
     """Ensure load_config() loads and returns the expected configuration"""
-    monkey_config = {
-        'redis': {
-            'host': 'monkey',
-            'port': 659595,
-            'db': 3,
-        }
+    monkey_payload = {
+        'active_backend': 'redis',
+        'configs': {
+            'test_lambda': {
+                'redis': {
+                    'host': 'monkey',
+                    'port': 659595,
+                    'db': 3
+                }
+            }
+        },
     }
 
-    # Mock builtins.open to prevent file I/O
-    monkeypatch.setattr(builtins, 'open', lambda *a, **kw: StringIO('FAKENESS'))
-
-    # Mock yaml.safe_load to return fake configuration
-    monkeypatch.setattr(config.yaml, 'safe_load', lambda f: monkey_config)
-
-    # Mock Path.exists to bypass file existence checks
-    monkeypatch.setattr(config.Path, 'exists', lambda self: True)
+    monkey_bytes = BytesIO(json.dumps(monkey_payload).encode('utf-8'))
+    mock_appconfig = MagicMock()
+    mock_appconfig.start_configuration_session.return_value = {'InitialConfigurationToken': 'monkey_token'}
+    mock_appconfig.get_latest_configuration.return_value = {'Configuration': monkey_bytes}
+    monkeypatch.setattr(config.boto3, 'client', lambda service: mock_appconfig)
 
     result = config.load_config('test_lambda')
 
     assert result['redis']['host'] == 'monkey'
     assert result['redis']['port'] == 659595
     assert result['redis']['db'] == 3
+    mock_appconfig.start_configuration_session.assert_called_once_with(
+        ApplicationIdentifier='app123',
+        EnvironmentIdentifier='env123',
+        ConfigurationProfileIdentifier='prof123',
+    )
+    mock_appconfig.get_latest_configuration.assert_called_once_with(
+        ConfigurationToken='monkey_token',
+    )
 
 
-def test_missing_file_raises_error(monkeypatch):
+def test_missing_appconfig_raises_error(monkeypatch):
     """Ensure load_config() raises FileNotFoundError when configuration files are missing"""
     # Mock Path.exists to bypass file existence checks
-    monkeypatch.setattr(config.Path, 'exists', lambda self: False)
+    mock_appconfig = MagicMock()
+    mock_appconfig.start_configuration_session.side_effect = botocore.exceptions.ClientError(
+        {'Error': {'Code': 'ResourceNotFoundException'}}, 'StartConfigurationSession'
+    )
+    monkeypatch.setattr(config.boto3, 'client', lambda service: mock_appconfig)
 
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(botocore.exceptions.ClientError):
         config.load_config('test_lambda')

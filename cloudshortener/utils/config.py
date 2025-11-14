@@ -1,68 +1,80 @@
-"""Utility functions for environment-based YAML configuration files
+"""Utility functions for application configuration management.
 
-This module provides a standardized way for Lambda functions to locate and
-load environment-specific YAML configuration files. The configuration
-directory structure is expected to follow this convention:
+This module provides a standardized interface for Lambda functions to
+access configuration data stored in **AWS AppConfig**. Each environment
+(`APP_ENV`) has a dedicated AppConfig *Environment* within the shared
+AppConfig *Application* identified by `APP_NAME`. Configuration data is
+stored as a JSON document under a configuration profile (typically
+`backend-config`) and deployed to the corresponding environment.
 
-    config/
-    ├── {lambda_name}/
-    │   ├── {environment_name}.yml
-    │   └── {environment_name}.yml
-    ├── shorten_url/
-    │   ├── local.yml
-    │   └── dev.yml
-    └── redirect_url/
-        ├── local.yml
-        └── dev.yml
+The configuration JSON follows this structure:
 
-Responsibilities:
-    - Detect the current application environment (`APP_ENV`) from environment variables.
-    - Resolve the correct configuration file path based on the Lambda name and environment.
-    - Load and parse YAML configuration files into Python dictionaries.
-    - Provide clear error messages when configuration files are missing.
+    {
+        "active_backend": "redis",
+        "configs": {
+            "shorten_url": {
+                "redis": { ... }
+            },
+            "redirect_url": {
+                "redis": { ... }
+            }
+        }
+    }
+
+Each Lambda loads its own section (e.g., `"shorten_url"`) from this
+AppConfig document, determined by the current application environment.
+
+NOTE (Deprecated):
+    Older versions of this project stored configuration in local YAML
+    files within a `config/` directory. That mechanism is now deprecated
+    in favor of centralized AppConfig management. The previous structure
+    looked like this:
+
+        config/
+        ├── shorten_url/
+        │   ├── local.yml
+        │   └── dev.yml
+        └── redirect_url/
+            ├── local.yml
+            └── dev.yml
 
 Functions:
     app_env() -> str
-        Return the current application environment (`APP_ENV`) value, defaulting to `'local'`.
+        Return the current application environment (`APP_ENV`) value,
+        defaulting to `'local'`.
 
     app_name() -> str | None
-        Return the current application environment (`APP_NAME`) value.
-        None if variable is not set.
+        Return the application name (`APP_NAME`), or None if not set.
 
-    app_prefix() -> str | None:
-        Return application prefix for DAOs.
-        None if environemnt variable 'APP_NAME' is not set.
+    app_prefix() -> str | None
+        Return application prefix for DAOs, or None if `APP_NAME` is not set.
 
     project_root() -> Path
-        Return the absolute path to the project root directory, using the
-        `PROJECT_ROOT` environment variable when available.
+        Return the absolute path to the project root directory, using
+        `PROJECT_ROOT` when available.
 
     load_config(lambda_name: str) -> dict
-        Load and parse the YAML configuration file for the specified Lambda function
-        and environment. Raises `FileNotFoundError` if the configuration file does not exist.
+        Load configuration for a given Lambda from AWS AppConfig and
+        return it as a Python dictionary.
 
 Example:
-    Typical usage within a Lambda handler:
+    Typical usage inside a Lambda handler:
 
         >>> from cloudshortener.utils.config import load_config
         >>> config = load_config('shorten_url')
-
         >>> print(config['redis']['host'])
-        redis
-
-        >>> print(config['redis']['port'])
-        6379
+        redis-15501.host.docker.internal
 
 TODO:
     - Add schema validation for required configuration keys.
-    - Consider caching loaded configurations to improve performance
-      on subsequent invocations.
+    - Add caching of AppConfig responses for better cold-start performance.
 """
 
 import os
+import json
 from pathlib import Path
 
-import yaml
+import boto3
 
 
 def app_env() -> str:
@@ -130,38 +142,45 @@ def app_prefix() -> str | None:
 
 
 def load_config(lambda_name: str) -> dict:
-    """Load YAML configuration file for a given Lambda and environment.
+    """Load configuration for a given Lambda from AWS AppConfig
 
-    The file is loaded as a Python dictionary and located at path (relative to project root):
+    Fetches the AppConfig JSON once and returns the section relevant
+    to the requested Lambda function (e.g., 'shorten_url', 'redirect_url').
 
-        config/{lambda_name}/{APP_ENV}.yml or config/{lambda_name}/{APP_ENV}.yaml
+    Environment variables required:
+        APPCONFIG_APP_ID       – AppConfig Application ID
+        APPCONFIG_ENV_ID       – AppConfig Environment ID
+        APPCONFIG_PROFILE_ID   – AppConfig Configuration Profile ID
 
     Args:
         lambda_name (str):
-            Name of the lambda function (e.g., 'shorten_url' or 'redirect_url').
+            Name of the Lambda (e.g., "shorten_url" or "redirect_url").
 
     Returns:
-        dict:
-            Parsed YAML configuration as a Python dictionary.
-
-    Raises:
-        FileNotFoundError:
-            If neither the `.yml` nor `.yaml` configuration file exists.
+        dict: The lambda's config section as a Python dictionary.
 
     Example:
-        >>> config = load_config('shorten_url')
-        >>> config['redis']['host']
-        'redis'
+        >>> app_config = load_config('shorten_url')
+        >>> app_config['redis']['host']
+        'redis-15501.host.docker.internal'
     """
-    base_path = project_root() / 'config' / lambda_name
-    possible_files = [
-        base_path / f'{app_env()}.yml',
-        base_path / f'{app_env()}.yaml',
-    ]
+    appconfig = boto3.client('appconfigdata')
 
-    for path in possible_files:
-        if path.exists():
-            with open(path, encoding='utf-8') as f:
-                return yaml.safe_load(f)
+    # Start an AppConfig data session
+    session_token = appconfig.start_configuration_session(
+        ApplicationIdentifier=os.environ['APPCONFIG_APP_ID'],
+        EnvironmentIdentifier=os.environ['APPCONFIG_ENV_ID'],
+        ConfigurationProfileIdentifier=os.environ['APPCONFIG_PROFILE_ID'],
+    )['InitialConfigurationToken']
 
-    raise FileNotFoundError(f'Config file not found in {base_path}: tried {", ".join(p.name for p in possible_files)}')
+    # Fetch the configuration
+    response = appconfig.get_latest_configuration(ConfigurationToken=session_token)
+    content = response['Configuration'].read()
+    config = json.loads(content.decode('utf-8'))
+
+    # Extract the active backend config for this lambda
+    backend = config['active_backend']
+    # TODO: change the way I receive and interpret the config in my lambda handler
+    #       so I don't strictly confine this configuration to my data store backend
+    data = {backend: config['configs'][lambda_name][backend]}
+    return data

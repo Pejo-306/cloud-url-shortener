@@ -10,6 +10,10 @@
                 "templatePath": "${workspaceFolder}/template.yaml",
                 "logicalId": "ShortenUrlFunction"
             },
+            "aws": {
+                "credentials": "profile:personal-dev",
+                "region": "eu-central-1"
+            },
             "lambda": {
                 "payload": {
                     "json": {
@@ -40,7 +44,10 @@
                 "environmentVariables": {
                     "APP_ENV": "local",
                     "APP_NAME": "cloudshortener",
-                    "PROJECT_ROOT": "/var/task/"
+                    "PROJECT_ROOT": "/var/task/",
+                    "APPCONFIG_APP_ID": "wciikr7",
+                    "APPCONFIG_ENV_ID": "flrtvhe",
+                    "APPCONFIG_PROFILE_ID": "3y1ug0b"
                 },
                 "runtime": "python3.13"
             },
@@ -57,6 +64,10 @@
                 "target": "template",
                 "templatePath": "${workspaceFolder}/template.yaml",
                 "logicalId": "RedirectUrlFunction"
+            },
+            "aws": {
+                "credentials": "profile:personal-dev",
+                "region": "eu-central-1"
             },
             "lambda": {
                 "payload": {
@@ -76,7 +87,10 @@
                 "environmentVariables": {
                     "APP_ENV": "local",
                     "APP_NAME": "cloudshortener",
-                    "PROJECT_ROOT": "/var/task/"
+                    "PROJECT_ROOT": "/var/task/",
+                    "APPCONFIG_APP_ID": "wciikr7",
+                    "APPCONFIG_ENV_ID": "flrtvhe",
+                    "APPCONFIG_PROFILE_ID": "3y1ug0b"
                 },
                 "runtime": "python3.13"
             },
