@@ -1,5 +1,5 @@
-redis:
-  host: redis
-  port: 6379
-  db: 0
-
+params:
+  redis:
+    host: redis
+    port: 6379
+    db: 0
