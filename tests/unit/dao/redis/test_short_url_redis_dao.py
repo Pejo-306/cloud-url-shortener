@@ -32,7 +32,7 @@ Test coverage includes:
 """
 
 import re
-from datetime import datetime, timezone, UTC
+from datetime import datetime, UTC
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -239,10 +239,10 @@ def test_hit_initializes_monthly_quota_when_missing(dao, redis_client):
     redis_client.execute.return_value = (True, DEFAULT_LINK_HITS_QUOTA - 1)
     redis_client.execute.return_value = (
         True,                           # SET  links:<shortcode>:hits:<YYYY-MM> <DEFAULT_LINK_HITS_QUOTA> NX EXAT <timestamp: first second of next month>
-        DEFAULT_LINK_HITS_QUOTA -1      # DECR links:<shortcode>:hits:<YYYY-MM>
+        DEFAULT_LINK_HITS_QUOTA - 1     # DECR links:<shortcode>:hits:<YYYY-MM>
     )
 
-    expire_at = int(datetime(2025, 11, 1, 0, 0, 0, tzinfo=timezone.utc).timestamp())
+    expire_at = int(datetime(2025, 11, 1, 0, 0, 0, tzinfo=UTC).timestamp())
 
     result = dao.hit('abc123')
 

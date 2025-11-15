@@ -287,7 +287,6 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
 
         return leftover_hits
 
-
     @handle_redis_connection_error
     def count(self, increment: bool = False, **kwargs) -> int:
         """Retrieve global short URL counter

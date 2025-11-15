@@ -39,7 +39,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
-from typing import Any, Dict
+from typing import Any
 
 from bootstrap.helper import (
     boto3_session,
@@ -124,7 +124,7 @@ def main(argv: list[str] | None = None) -> None:
         if args.env_allow and env_name not in args.env_allow:
             continue
 
-        doc: Dict[str, Any] = load_yaml(yaml_path)
+        doc: dict[str, Any] = load_yaml(yaml_path)
         params = doc.get("params") or {}
         if not isinstance(params, dict):
             raise ValueError(f"'params' section must be a mapping in {yaml_path}")

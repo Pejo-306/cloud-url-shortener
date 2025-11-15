@@ -18,7 +18,6 @@ Test coverage includes:
    - Ensures improper prefix types raise TypeError.
 """
 
-from gc import freeze
 import pytest
 from freezegun import freeze_time
 

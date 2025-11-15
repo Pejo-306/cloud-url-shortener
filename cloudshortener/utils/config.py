@@ -53,9 +53,13 @@ Functions:
         Return the absolute path to the project root directory, using
         `PROJECT_ROOT` when available.
 
+    running_locally() -> bool:
+        True if lambda is running in local SAM, False otherwise.
+
     load_config(lambda_name: str) -> dict
         Load configuration for a given Lambda from AWS AppConfig and
-        return it as a Python dictionary.
+        return it as a Python dictionary. In SAM, load configuration
+        from a local AppConfig agent.
 
 Example:
     Typical usage inside a Lambda handler:
@@ -75,7 +79,7 @@ import json
 import functools
 import urllib
 from pathlib import Path
-from typing import Callable, Any
+from collections.abc import Callable
 
 import boto3
 
@@ -162,7 +166,7 @@ def running_locally() -> bool:
     return env == 'local' or os.getenv('AWS_SAM_LOCAL') == 'true'
 
 
-def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], dict]:
+def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], dict]:  # pragma: no cover
     """Decorator: load AppConfig from a local AppConfig Agent when running under SAM
 
     Behavior:
@@ -192,6 +196,7 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
         >>> # When APP_ENV=local and APPCONFIG_AGENT_URL is set,
         >>> # calling load_config('shorten_url') will read from the local agent instead.
     """
+    # ruff: noqa: E701
     def __validate_appconfig_url(url: str) -> str:
         if not url: return ''
         components = urllib.parse.urlparse(url)
@@ -199,6 +204,7 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
         if components.hostname not in {'localhost', '127.0.0.1', 'host.docker.internal'}: raise ValueError(f'Bad host {url}')
         if components.port not in {2772, None}: raise ValueError(f'Bad port {url}')
         return url
+    # ruff: enable
 
     @functools.wraps(func)
     def wrapper(lambda_name: str) -> dict:
@@ -207,7 +213,7 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
 
         profile_name = os.getenv('APPCONFIG_PROFILE_NAME', 'backend-config')
         url = f'{agent_url}/applications/{app_name()}/environments/{app_env()}/configurations/{profile_name}'
-        with urllib.request.urlopen(url, timeout=5) as r:
+        with urllib.request.urlopen(url, timeout=5) as r:  # noqa: S310
             config = json.load(r)
 
         backend = config['active_backend']

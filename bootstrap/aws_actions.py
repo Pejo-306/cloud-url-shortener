@@ -48,7 +48,7 @@ Example:
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 def put_parameter(
@@ -56,7 +56,7 @@ def put_parameter(
     name: str,
     value: str,
     *,
-    tags: Optional[List[Dict[str, str]]] = None,
+    tags: Optional[list[dict[str, str]]] = None,
     dry_run: bool = False,
 ) -> None:
     """Create or update a String SSM parameter with correct tagging semantics.
@@ -116,9 +116,9 @@ def put_parameter(
 def create_or_update_secret(
     secrets_client,
     name: str,
-    payload: Dict[str, Any],
+    payload: dict[str, Any],
     *,
-    tags: Optional[List[Dict[str, str]]] = None,
+    tags: Optional[list[dict[str, str]]] = None,
     kms_key_id: Optional[str] = None,
     dry_run: bool = False,
 ) -> None:

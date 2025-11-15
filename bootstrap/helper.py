@@ -36,13 +36,14 @@ Example:
 from __future__ import annotations
 
 import pathlib
-from typing import Any, Dict, Iterable, Iterator, List
+from typing import Any
+from collections.abc import Iterator
 
 import boto3
 import yaml
 
 
-def load_yaml(path: pathlib.Path) -> Dict[str, Any]:
+def load_yaml(path: pathlib.Path) -> dict[str, Any]:
     """Load a YAML file into a Python dictionary.
 
     Args:
@@ -89,7 +90,7 @@ def yaml_config_files(root: pathlib.Path) -> Iterator[pathlib.Path]:
         yield from sorted(function_dir.glob("*.yaml"))
 
 
-def normalize_user_tags(tag_str: str) -> List[Dict[str, str]]:
+def normalize_user_tags(tag_str: str) -> list[dict[str, str]]:
     """Normalize a comma-separated tag string into AWS tag dicts.
 
     Input format:
@@ -111,7 +112,7 @@ def normalize_user_tags(tag_str: str) -> List[Dict[str, str]]:
         >>> normalize_user_tags("Owner=Pesho,Service=cloudshortener")
         [{'Key': 'Owner', 'Value': 'Pesho'}, {'Key': 'Service', 'Value': 'cloudshortener'}]
     """
-    tags: List[Dict[str, str]] = []
+    tags: list[dict[str, str]] = []
     if not tag_str:
         return tags
 
@@ -131,7 +132,7 @@ def normalize_user_tags(tag_str: str) -> List[Dict[str, str]]:
     return tags
 
 
-def flatten(prefix: str, data: Dict[str, Any]) -> Dict[str, str]:
+def flatten(prefix: str, data: dict[str, Any]) -> dict[str, str]:
     """Flatten nested dictionaries into path -> string value pairs.
 
     Rules:
@@ -153,7 +154,7 @@ def flatten(prefix: str, data: Dict[str, Any]) -> Dict[str, str]:
         >>> flatten("/p/e/f", {"redis": {"host": "h", "port": 6379}})
         {'/p/e/f/redis/host': 'h', '/p/e/f/redis/port': '6379'}
     """
-    out: Dict[str, str] = {}
+    out: dict[str, str] = {}
 
     def _walk(base: str, node: Any) -> None:
         if isinstance(node, dict):

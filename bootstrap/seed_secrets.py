@@ -47,7 +47,7 @@ from __future__ import annotations
 
 import argparse
 import pathlib
-from typing import Any, Dict, Iterable
+from typing import Any
 
 from bootstrap.helper import (
     boto3_session,
@@ -58,7 +58,7 @@ from bootstrap.helper import (
 from bootstrap.aws_actions import create_or_update_secret
 
 
-def _gather_component_secrets(secrets_node: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+def _gather_component_secrets(secrets_node: dict[str, Any]) -> dict[str, dict[str, Any]]:
     """Return a mapping of component -> secret payload dict.
 
     Rules:
@@ -72,7 +72,7 @@ def _gather_component_secrets(secrets_node: Dict[str, Any]) -> Dict[str, Dict[st
     Returns:
         Dict[str, Dict[str, Any]]: component -> payload
     """
-    out: Dict[str, Dict[str, Any]] = {}
+    out: dict[str, dict[str, Any]] = {}
     for component, payload in (secrets_node or {}).items():
         if isinstance(payload, dict):
             out[component] = payload
@@ -155,7 +155,7 @@ def main(argv: list[str] | None = None) -> None:
         if args.env_allow and env_name not in args.env_allow:
             continue
 
-        doc: Dict[str, Any] = load_yaml(yaml_path)
+        doc: dict[str, Any] = load_yaml(yaml_path)
         secrets_node = doc.get("secrets") or {}
         if not isinstance(secrets_node, dict):
             raise ValueError(f"'secrets' section must be a mapping in {yaml_path}")

@@ -17,13 +17,13 @@ Test coverage includes:
 import os
 import json
 from io import BytesIO
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 import botocore
 
 from cloudshortener.utils import config
-from pathlib import Path
 
 
 # -------------------------------
