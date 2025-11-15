@@ -1,4 +1,4 @@
-# .github/act/deploy.yml
+# .github/workflows/act/deploy.yml
 # NOTE: this workflow is ONLY meant to be used to deploy the SAM stack via act from a local machine
 #       NEVER run this workflow via GitHub Actions on your github account.
 # act create -W .github/workflows/act/deploy.yml -e .github/events/create_release.json -j deploy
@@ -90,7 +90,7 @@ jobs:
       - name: Validate
         run: sam validate --lint
 
-      - name: Deploy SAM stack (local)
+      - name: Deploy SAM stack (from local SAM)
         if: ${{ env.ACT == 'true' }}
         run: |
           echo "Running locally via act → skipping --role-arn"

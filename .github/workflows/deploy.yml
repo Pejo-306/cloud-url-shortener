@@ -37,7 +37,7 @@ jobs:
 
   deploy:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     environment: ${{ vars.APP_ENV }}  # uses the environment name from the variable (e.g., staging)
     permissions:
       contents: read
