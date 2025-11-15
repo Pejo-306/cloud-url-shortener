@@ -27,6 +27,18 @@ Parameters:
     Default: cloudshortener-frontend
     Description: S3 bucket for hosting the frontend
 
+  AppConfigAgentURL:
+    Type: String
+    Default: 'n/a'
+    NoEcho: true
+    Description: AppConfig agent URL for the backend
+
+Conditions:
+  IsLocal:
+    Fn::Equals:
+      - !Ref AppEnv
+      - "local"
+
 Globals:
   Function:
     Timeout: 3
@@ -41,8 +53,16 @@ Globals:
         APP_ENV: !Ref AppEnv
         APP_NAME: !Ref AppName
         PROJECT_ROOT: /var/task
+        # TODO: move out cognito user environment variables only to shortenURLbackend
         USER_POOL_ID: !Ref CognitoUserPool
         USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
+        APPCONFIG_APP_ID: !Ref AppConfigApplication
+        APPCONFIG_ENV_ID: !Ref AppConfigEnvironment
+        APPCONFIG_PROFILE_ID: !Ref BackendConfigProfile
+        APPCONFIG_AGENT_URL: !If
+          - IsLocal
+          - !Ref AppConfigAgentURL
+          - !Ref AWS::NoValue
   Api:
     TracingEnabled: true
     Cors:
@@ -51,6 +71,72 @@ Globals:
       AllowOrigin: '''*'''
 
 Resources:
+  ##################################################
+  # AppConfig
+  ##################################################
+  AppConfigApplication:
+    Type: AWS::AppConfig::Application
+    Properties:
+      Name: !Sub ${AppName}
+
+  AppConfigEnvironment:
+    Type: AWS::AppConfig::Environment
+    Properties:
+      ApplicationId: !Ref AppConfigApplication
+      Name: !Ref AppEnv
+
+  BackendConfigProfile:
+    Type: AWS::AppConfig::ConfigurationProfile
+    Properties:
+      ApplicationId: !Ref AppConfigApplication
+      Name: backend-config
+      LocationUri: hosted # using AppConfig hosted store
+      Type: AWS.Freeform
+      # Optional: add a JSON schema validator later
+  
+    # Create a hosted configuration version with inline JSON
+  BackendHostedConfigVersion:
+    Type: AWS::AppConfig::HostedConfigurationVersion
+    Properties:
+      ApplicationId: !Ref AppConfigApplication
+      ConfigurationProfileId: !Ref BackendConfigProfile
+      ContentType: application/json
+      # Keep placeholders literal; do NOT wrap with !Sub
+      Content: !Sub |
+        {
+          "active_backend": "redis",
+          "configs": {
+            "shorten_url": {
+              "redis": {
+                "host": "{{resolve:ssm:/${AppName}/${AppEnv}/shorten_url/redis/host}}",
+                "port": {{resolve:ssm:/${AppName}/${AppEnv}/shorten_url/redis/port}},
+                "db":   {{resolve:ssm:/${AppName}/${AppEnv}/shorten_url/redis/db}},
+                "username": "{{resolve:secretsmanager:${AppName}/${AppEnv}/shorten_url/redis:SecretString:username}}",
+                "password": "{{resolve:secretsmanager:${AppName}/${AppEnv}/shorten_url/redis:SecretString:password}}"
+              }
+            },
+            "redirect_url": {
+              "redis": {
+                "host": "{{resolve:ssm:/${AppName}/${AppEnv}/redirect_url/redis/host}}",
+                "port": {{resolve:ssm:/${AppName}/${AppEnv}/redirect_url/redis/port}},
+                "db":   {{resolve:ssm:/${AppName}/${AppEnv}/redirect_url/redis/db}},
+                "username": "{{resolve:secretsmanager:${AppName}/${AppEnv}/redirect_url/redis:SecretString:username}}",
+                "password": "{{resolve:secretsmanager:${AppName}/${AppEnv}/redirect_url/redis:SecretString:password}}"
+              }
+            }
+          }
+        }
+
+  # Deploy the hosted configuration version
+  BackendConfigDeployment:
+    Type: AWS::AppConfig::Deployment
+    Properties:
+      ApplicationId: !Ref AppConfigApplication
+      EnvironmentId: !Ref AppConfigEnvironment
+      ConfigurationProfileId: !Ref BackendConfigProfile
+      ConfigurationVersion: !GetAtt BackendHostedConfigVersion.VersionNumber
+      DeploymentStrategyId: AppConfig.AllAtOnce
+      Description: Deploy backend config
 
   ##################################################
   # Cognito User Pool + Client
@@ -136,10 +222,54 @@ Resources:
         AddDefaultAuthorizerToCorsPreflight: false
 
   ##################################################
+  # Lambda: Common IAM Role
+  ##################################################
+  LambdaFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaFunctionAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - appconfig:StartConfigurationSession
+                  - appconfig:GetLatestConfiguration
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter*
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${AppEnv}/*
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AppName}/${AppEnv}/*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: "*"
+
+  ##################################################
   # Lambda: Shorten URL (protected)
   ##################################################
   ShortenUrlFunction:
     Type: AWS::Serverless::Function
+    # TODO: remove if fetching is successful
     Metadata:
       BuildMethod: python3.13
       BuildProperties:
@@ -150,6 +280,7 @@ Resources:
       FunctionName: shorten-url-function
       CodeUri: .
       Handler: cloudshortener.lambdas.shorten_url.app.lambda_handler
+      Role: !GetAtt LambdaFunctionRole.Arn
       Events:
         ShortenUrlApi:
           Type: Api
@@ -163,6 +294,7 @@ Resources:
   ##################################################
   RedirectUrlFunction:
     Type: AWS::Serverless::Function
+    # TODO: remove if fetching is successful
     Metadata:
       BuildMethod: python3.13
       BuildProperties:
@@ -173,6 +305,7 @@ Resources:
       FunctionName: redirect-url-function
       CodeUri: .
       Handler: cloudshortener.lambdas.redirect_url.app.lambda_handler
+      Role: !GetAtt LambdaFunctionRole.Arn
       Events:
         RedirectUrlApi:
           Type: Api
@@ -310,3 +443,15 @@ Outputs:
   CloudFrontDistributionId:
     Description: CloudFront Distribution ID (for cache invalidation)
     Value: !Ref CloudFrontDistribution
+
+  AppConfigApplicationId:
+    Description: AppConfig Application ID
+    Value: !Ref AppConfigApplication
+
+  AppConfigEnvironmentId:
+    Description: AppConfig Environment ID
+    Value: !Ref AppConfigEnvironment
+
+  BackendConfigProfileId:
+    Description: AppConfig Configuration Profile ID
+    Value: !Ref BackendConfigProfile
