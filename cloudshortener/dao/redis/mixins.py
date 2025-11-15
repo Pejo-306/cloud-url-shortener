@@ -90,8 +90,8 @@ class RedisClientMixin:
         if redis_client is None:
             redis_client = redis.Redis(
                 host=redis_host,
-                port=redis_port,
-                db=redis_db,
+                port=int(redis_port),
+                db=int(redis_db),
                 decode_responses=redis_decode_responses,
                 username=redis_username,
                 password=redis_password,
