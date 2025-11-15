@@ -434,7 +434,7 @@ Outputs:
 
   CognitoHostedUIUrl:
     Description: Cognito Hosted UI Login URL
-    Value: !Sub https://${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${CognitoUserPoolClient}&response_type=code&scope=openid+email+profile&redirect_uri=https://${CloudFrontDistribution.DomainName}
+    Value: !Sub https://${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${CognitoUserPoolClient}&response_type=code&scope=openid+email+profile&redirect_uri=https://${CloudFrontDistribution.DomainName}/
 
   CognitoHostedUIDomain:
     Description: Cognito Hosted UI Domain
