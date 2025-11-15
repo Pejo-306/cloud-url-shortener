@@ -2,7 +2,15 @@
 name: Deploy SAM application
 
 on:
-  create
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (must match an Environment name)"
+        type: choice
+        required: true
+        options: [dev, staging, prod]
+        default: dev
+  create:
 
 concurrency:
   group: deploy-${{ github.event.ref || github.ref }}
@@ -38,7 +46,7 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-24.04-arm
-    environment: ${{ vars.APP_ENV }}  # uses the environment name from the variable (e.g., staging)
+    environment: ${{ inputs.environment || 'dev' }}  # uses the inputted environment variable OR defaults to 'dev'
     permissions:
       contents: read
       id-token: write
