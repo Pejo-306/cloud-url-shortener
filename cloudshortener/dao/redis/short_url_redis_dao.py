@@ -156,10 +156,12 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         #                   -> SET <app>:links:<shortcode>:hits <monthly link quota> EX <ttl>
         with self.redis.pipeline(transaction=True) as pipe:
             pipe.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
+            # fmt: off
             pipe.set(link_hits_key,
                      DEFAULT_LINK_HITS_QUOTA,
                      nx=True,
                      exat=int(beginning_of_next_month().timestamp()))
+            # fmt: on
             pipe.execute()
         return self
 
@@ -233,7 +235,7 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
 
             **kwargs:
                 Additional keyword arguments, used by data store.
-        
+
         Return:
             int:
                 leftover link hits for this month.
@@ -278,10 +280,12 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         #       redirection request continues successfully, while (lambda 1)'s redirection request is
         #       limitted.
         with self.redis.pipeline(transaction=True) as pipe:
+            # fmt: off
             pipe.set(link_hits_key,
                      DEFAULT_LINK_HITS_QUOTA,
                      nx=True,
                      exat=int(beginning_of_next_month().timestamp()))
+            # fmt: on
             pipe.decr(link_hits_key)
             _, leftover_hits = pipe.execute()
 

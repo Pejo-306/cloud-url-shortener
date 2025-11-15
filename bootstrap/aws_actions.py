@@ -90,7 +90,7 @@ def put_parameter(
     """
     msg = f"SSM upsert name='{name}'"
     if dry_run:
-        print("[DRY-RUN]", msg)
+        print('[DRY-RUN]', msg)
         return
 
     exists = False
@@ -102,15 +102,15 @@ def put_parameter(
 
     if exists:
         # Update existing parameter (no tags)
-        ssm_client.put_parameter(Name=name, Type="String", Value=value, Overwrite=True)
-        print(msg + " [updated]")
+        ssm_client.put_parameter(Name=name, Type='String', Value=value, Overwrite=True)
+        print(msg + ' [updated]')
     else:
         # Create new parameter (tags allowed on create)
-        kwargs = {"Name": name, "Type": "String", "Value": value}
+        kwargs = {'Name': name, 'Type': 'String', 'Value': value}
         if tags:
-            kwargs["Tags"] = tags
+            kwargs['Tags'] = tags
         ssm_client.put_parameter(**kwargs)
-        print(msg + " [created]")
+        print(msg + ' [created]')
 
 
 def create_or_update_secret(
@@ -156,7 +156,7 @@ def create_or_update_secret(
     preview_keys = list(payload.keys())
     msg = f"Secrets upsert name='{name}' keys={preview_keys}"
     if dry_run:
-        print("[DRY-RUN]", msg)
+        print('[DRY-RUN]', msg)
         return
 
     # Existence check
@@ -164,22 +164,22 @@ def create_or_update_secret(
     exists = False
     try:
         resp = secrets_client.describe_secret(SecretId=name)
-        arn = resp.get("ARN")
+        arn = resp.get('ARN')
         exists = True
     except secrets_client.exceptions.ResourceNotFoundException:
         exists = False
 
     if not exists:
-        kwargs = {"Name": name, "SecretString": json.dumps(payload)}
+        kwargs = {'Name': name, 'SecretString': json.dumps(payload)}
         if kms_key_id:
-            kwargs["KmsKeyId"] = kms_key_id
+            kwargs['KmsKeyId'] = kms_key_id
         if tags:
-            kwargs["Tags"] = tags
+            kwargs['Tags'] = tags
         resp = secrets_client.create_secret(**kwargs)
-        arn = resp.get("ARN")
-        print(msg + " [created]")
+        arn = resp.get('ARN')
+        print(msg + ' [created]')
     else:
         secrets_client.put_secret_value(SecretId=name, SecretString=json.dumps(payload))
-        print(msg + " [updated]")
+        print(msg + ' [updated]')
         if tags:
             secrets_client.tag_resource(SecretId=arn or name, Tags=tags)

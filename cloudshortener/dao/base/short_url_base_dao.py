@@ -129,14 +129,14 @@ class ShortURLBaseDAO(ABC):
     @abstractmethod
     def hit(self, shortcode: str, **kwargs) -> int:
         """Decrement a short URL's monhtly link hit quota.
-        
+
         Args:
             shortcode (str):
                 The short code of the ShortURLModel to be retrieved.
 
             **kwargs:
                 Additional keyword arguments, used by data store.
-        
+
         Return:
             int:
                 leftover link hits for this month.

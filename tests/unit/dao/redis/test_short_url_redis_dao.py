@@ -217,17 +217,20 @@ def test_count_with_redis_connection_error(dao, redis_client):
 
 # TODO: continue tests from here
 
+
 @freeze_time('2025-10-15')
 def test_hit_decrements_existing_monthly_quota(dao, redis_client):
     """Ensure hit() decrements an existing monthly hits counter correctly."""
     redis_client.exists.side_effect = lambda key: key == 'testapp:test:links:abc123:url'
+    # fmt: off
     redis_client.execute.return_value = (
         None,                           # SET  links:<shortcode>:hits:<YYYY-MM> <DEFAULT_LINK_HITS_QUOTA> NX EXAT <timestamp: first second of next month>
         9994                            # DECR links:<shortcode>:hits:<YYYY-MM>
     )
-    
+    # fmt: on
+
     result = dao.hit('abc123')
-    
+
     assert result == 9994
     redis_client.exists.assert_called_once_with('testapp:test:links:abc123:url')
     redis_client.decr.assert_called_once_with('testapp:test:links:abc123:hits:2025-10')
@@ -237,10 +240,12 @@ def test_hit_decrements_existing_monthly_quota(dao, redis_client):
 def test_hit_initializes_monthly_quota_when_missing(dao, redis_client):
     redis_client.exists.side_effect = lambda key: key == 'testapp:test:links:abc123:url'
     redis_client.execute.return_value = (True, DEFAULT_LINK_HITS_QUOTA - 1)
+    # fmt: off
     redis_client.execute.return_value = (
         True,                           # SET  links:<shortcode>:hits:<YYYY-MM> <DEFAULT_LINK_HITS_QUOTA> NX EXAT <timestamp: first second of next month>
         DEFAULT_LINK_HITS_QUOTA - 1     # DECR links:<shortcode>:hits:<YYYY-MM>
     )
+    # fmt: on
 
     expire_at = int(datetime(2025, 11, 1, 0, 0, 0, tzinfo=UTC).timestamp())
 
@@ -273,7 +278,7 @@ def test_hit_allows_negative_values(dao, redis_client):
     redis_client.exists.side_effect = lambda key: key == 'testapp:test:links:abc123:url'
     redis_client.execute.return_value = (
         None,  # SET  links:<shortcode>:hits:<YYYY-MM> <DEFAULT_LINK_HITS_QUOTA> NX EXAT <timestamp: first second of next month>
-        -233   # DECR links:<shortcode>:hits:<YYYY-MM>
+        -233,  # DECR links:<shortcode>:hits:<YYYY-MM>
     )
 
     result = dao.hit('abc123')

@@ -93,70 +93,70 @@ def main(argv: list[str] | None = None) -> None:
         boto3/botocore exceptions: on AWS API failures.
     """
     parser = argparse.ArgumentParser(
-        prog="seed_secrets.py",
-        description="Publish application secrets from config/<function>/<env>.yaml to AWS Secrets Manager",
+        prog='seed_secrets.py',
+        description='Publish application secrets from config/<function>/<env>.yaml to AWS Secrets Manager',
     )
     parser.add_argument(
-        "--app-name",
+        '--app-name',
         required=True,
-        help="Application name for the secret name prefix (e.g., cloudshortener)",
+        help='Application name for the secret name prefix (e.g., cloudshortener)',
     )
     parser.add_argument(
-        "--root",
-        default="config",
-        help="Root directory containing <function>/<env>.yaml files (default: config)",
+        '--root',
+        default='config',
+        help='Root directory containing <function>/<env>.yaml files (default: config)',
     )
     parser.add_argument(
-        "--env-allow",
-        nargs="*",
+        '--env-allow',
+        nargs='*',
         default=None,
-        help="Optional environment allowlist (e.g., dev staging prod). If omitted, all envs found are processed.",
+        help='Optional environment allowlist (e.g., dev staging prod). If omitted, all envs found are processed.',
     )
     parser.add_argument(
-        "--tags",
-        default="",
+        '--tags',
+        default='',
         help='Comma-separated tags to attach, e.g. "Owner=Pesho,Service=cloudshortener"',
     )
     parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Preview actions without writing to AWS",
+        '--dry-run',
+        action='store_true',
+        help='Preview actions without writing to AWS',
     )
     parser.add_argument(
-        "--aws-profile",
+        '--aws-profile',
         default=None,
-        help="AWS shared config/credentials profile name to use (e.g., default, dev, prod)",
+        help='AWS shared config/credentials profile name to use (e.g., default, dev, prod)',
     )
     parser.add_argument(
-        "--kms-key-id",
+        '--kms-key-id',
         default=None,
-        help="KMS key ID/ARN/alias for encrypting secrets (default: service-managed key)",
+        help='KMS key ID/ARN/alias for encrypting secrets (default: service-managed key)',
     )
 
     args = parser.parse_args(argv)
 
-    app_name = getattr(args, "app_name", None)
+    app_name = getattr(args, 'app_name', None)
     if not app_name:
-        raise ValueError("Missing required --app-name")
+        raise ValueError('Missing required --app-name')
 
     root = pathlib.Path(args.root)
     if not root.is_dir():
-        raise FileNotFoundError(f"Bad config root: {root}")
+        raise FileNotFoundError(f'Bad config root: {root}')
 
     extra_tags = normalize_user_tags(args.tags)
     session = boto3_session(args.aws_profile)
-    sm = session.client("secretsmanager")
+    sm = session.client('secretsmanager')
 
     writes = 0
     for yaml_path in yaml_config_files(root):
         function_name = yaml_path.parent.name  # e.g., "shorten_url"
-        env_name = yaml_path.stem              # e.g., "dev"
+        env_name = yaml_path.stem  # e.g., "dev"
 
         if args.env_allow and env_name not in args.env_allow:
             continue
 
         doc: dict[str, Any] = load_yaml(yaml_path)
-        secrets_node = doc.get("secrets") or {}
+        secrets_node = doc.get('secrets') or {}
         if not isinstance(secrets_node, dict):
             raise ValueError(f"'secrets' section must be a mapping in {yaml_path}")
         if not secrets_node:
@@ -168,14 +168,14 @@ def main(argv: list[str] | None = None) -> None:
 
         # Base tags shared across this YAML file
         base_tags = [
-            {"Key": "App", "Value": app_name},
-            {"Key": "Env", "Value": env_name},
-            {"Key": "Function", "Value": function_name},
+            {'Key': 'App', 'Value': app_name},
+            {'Key': 'Env', 'Value': env_name},
+            {'Key': 'Function', 'Value': function_name},
         ] + extra_tags
 
         for component, payload in sorted(component_map.items()):
-            secret_name = f"{app_name}/{env_name}/{function_name}/{component}"
-            tags = base_tags + [{"Key": "Component", "Value": component}]
+            secret_name = f'{app_name}/{env_name}/{function_name}/{component}'
+            tags = base_tags + [{'Key': 'Component', 'Value': component}]
 
             create_or_update_secret(
                 secrets_client=sm,
@@ -187,8 +187,8 @@ def main(argv: list[str] | None = None) -> None:
             )
             writes += 1
 
-    print(f"Done. {'Previewed' if args.dry_run else 'Wrote'} {writes} secrets.")
+    print(f'Done. {"Previewed" if args.dry_run else "Wrote"} {writes} secrets.')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

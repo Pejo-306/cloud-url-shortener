@@ -150,10 +150,10 @@ def app_prefix() -> str | None:
 
 def running_locally() -> bool:
     """Check if the lambda is running locally via sam local invoke
-    
+
     Returns:
         bool: True if running locally, False otherwise.
-    
+
     Example:
         >>> os.environ['APP_ENV'] = 'local'
         >>> running_locally()
@@ -196,20 +196,27 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
         >>> # When APP_ENV=local and APPCONFIG_AGENT_URL is set,
         >>> # calling load_config('shorten_url') will read from the local agent instead.
     """
+
     # ruff: noqa: E701
     def __validate_appconfig_url(url: str) -> str:
-        if not url: return ''
+        if not url:
+            return ''
         components = urllib.parse.urlparse(url)
-        if components.scheme not in {'http', 'https'}: raise ValueError(f'Bad scheme {url}')
-        if components.hostname not in {'localhost', '127.0.0.1', 'host.docker.internal'}: raise ValueError(f'Bad host {url}')
-        if components.port not in {2772, None}: raise ValueError(f'Bad port {url}')
+        if components.scheme not in {'http', 'https'}:
+            raise ValueError(f'Bad scheme {url}')
+        if components.hostname not in {'localhost', '127.0.0.1', 'host.docker.internal'}:
+            raise ValueError(f'Bad host {url}')
+        if components.port not in {2772, None}:
+            raise ValueError(f'Bad port {url}')
         return url
+
     # ruff: enable
 
     @functools.wraps(func)
     def wrapper(lambda_name: str) -> dict:
         agent_url = __validate_appconfig_url(os.getenv('APPCONFIG_AGENT_URL'))
-        if not running_locally() or not agent_url: return func(lambda_name)
+        if not running_locally() or not agent_url:
+            return func(lambda_name)
 
         profile_name = os.getenv('APPCONFIG_PROFILE_NAME', 'backend-config')
         url = f'{agent_url}/applications/{app_name()}/environments/{app_env()}/configurations/{profile_name}'
@@ -219,7 +226,7 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
         backend = config['active_backend']
         data = {backend: config['configs'][lambda_name][backend]}
         return data
-        
+
     return wrapper
 
 

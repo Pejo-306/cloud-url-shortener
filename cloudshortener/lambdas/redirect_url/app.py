@@ -57,7 +57,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             'statusCode': 500,
             'body': json.dumps(
                 {
-                    'message': "Internal Server Error",
+                    'message': 'Internal Server Error',
                 }
             ),
         }
@@ -79,7 +79,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
 
     # 3- Deny redirect if monthly link quota is exceeded
-    try: 
+    try:
         leftover_hits = short_url_dao.hit(shortcode=shortcode)
     except ShortURLNotFoundError:
         return {
@@ -94,6 +94,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         if leftover_hits < 0:
             reset_date = beginning_of_next_month().strftime('%Y-%m-%dT%H:%M:%SZ')
             ttl_to_reset = int((beginning_of_next_month() - datetime.now(UTC)).total_seconds())
+            # fmt: off
             return {
                 'statusCode': 429,
                 'headers': {
@@ -105,6 +106,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                     'message': f"Monthly hit quota exceeded for link. Try again after {reset_date}."
                 })
             }
+            # fmt: on
 
     # 4- Get short_url record from database
     try:

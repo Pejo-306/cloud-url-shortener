@@ -64,8 +64,8 @@ def load_yaml(path: pathlib.Path) -> dict[str, Any]:
         {'params': {...}, 'secrets': {...}}
     """
     if not path.is_file():
-        raise FileNotFoundError(f"YAML not found: {path}")
-    with path.open("r", encoding="utf-8") as f:
+        raise FileNotFoundError(f'YAML not found: {path}')
+    with path.open('r', encoding='utf-8') as f:
         data = yaml.safe_load(f)
     return data or {}
 
@@ -87,7 +87,7 @@ def yaml_config_files(root: pathlib.Path) -> Iterator[pathlib.Path]:
         [PosixPath('config/redirect_url/dev.yaml'), PosixPath('config/shorten_url/dev.yaml')]
     """
     for function_dir in sorted(p for p in root.iterdir() if p.is_dir()):
-        yield from sorted(function_dir.glob("*.yaml"))
+        yield from sorted(function_dir.glob('*.yaml'))
 
 
 def normalize_user_tags(tag_str: str) -> list[dict[str, str]]:
@@ -116,19 +116,19 @@ def normalize_user_tags(tag_str: str) -> list[dict[str, str]]:
     if not tag_str:
         return tags
 
-    for raw in tag_str.split(","):
+    for raw in tag_str.split(','):
         item = raw.strip()
         if not item:
             # Skip empty segments like trailing commas.
             continue
-        if "=" not in item:
+        if '=' not in item:
             raise ValueError(f"Malformed tag (expected key=value): '{item}'")
-        key, value = item.split("=", 1)
+        key, value = item.split('=', 1)
         key = key.strip()
         value = value.strip()
         if not key:
             raise ValueError(f"Malformed tag (empty key): '{item}'")
-        tags.append({"Key": key, "Value": value})
+        tags.append({'Key': key, 'Value': value})
     return tags
 
 
@@ -159,9 +159,9 @@ def flatten(prefix: str, data: dict[str, Any]) -> dict[str, str]:
     def _walk(base: str, node: Any) -> None:
         if isinstance(node, dict):
             for k, v in node.items():
-                _walk(f"{base}/{k}", v)
+                _walk(f'{base}/{k}', v)
         else:
-            out[base] = "" if node is None else str(node)
+            out[base] = '' if node is None else str(node)
 
     _walk(prefix, data)
     return out

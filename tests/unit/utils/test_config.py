@@ -27,8 +27,9 @@ from cloudshortener.utils import config
 
 
 # -------------------------------
-# Fixtures 
+# Fixtures
 # -------------------------------
+
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
@@ -86,6 +87,7 @@ def test_project_root(monkeypatch):
 
 def test_load_config(monkeypatch):
     """Ensure load_config() loads and returns the expected configuration"""
+    # fmt: off
     monkey_payload = {
         'active_backend': 'redis',
         'configs': {
@@ -98,6 +100,7 @@ def test_load_config(monkeypatch):
             }
         },
     }
+    # fmt: on
 
     monkey_bytes = BytesIO(json.dumps(monkey_payload).encode('utf-8'))
     mock_appconfig = MagicMock()
