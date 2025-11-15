@@ -1,0 +1,19 @@
+{
+    "active_backend": "redis",
+    "configs": {
+        "shorten_url": {
+            "redis": {
+                "host": "redis",
+                "port": 6379,
+                "db": 0
+            }
+        },
+        "redirect_url": {
+            "redis": {
+                "host": "redis",
+                "port": 6379,
+                "db": 0
+            }
+        }
+    }
+}
