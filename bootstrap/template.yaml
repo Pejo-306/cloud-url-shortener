@@ -1,0 +1,367 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Bootstrap: GitHub OIDC (conditional), GitHub deploy role, and
+  CloudFormation exec role for cloudshortener'
+
+Parameters:
+  GitHubOrg:
+    Type: String
+    Default: Pejo-306
+  RepoName:
+    Type: String
+    Default: cloud-url-shortener
+  AllowedBranchGlob:
+    Type: String
+    Default: release-*
+  ExistingOidcProviderArn:
+    Type: String
+    Default: ''
+    Description: If set, reuse this existing OIDC provider ARN
+  OidcUrl:
+    Type: String
+    Default: https://token.actions.githubusercontent.com
+  OidcClientIdList:
+    Type: CommaDelimitedList
+    Default: sts.amazonaws.com
+  OidcThumbprints:
+    Type: CommaDelimitedList
+    Default: ''
+    Description: Thumbprint(s) for GitHub OIDC; required only when creating a new provider
+  DeployRoleName:
+    Type: String
+    Default: github-oidc-deploy-cloudshortener
+  ExecRoleName:
+    Type: String
+    Default: cloudformation-exec-cloudshortener
+
+Conditions:
+  CreateOidcProvider:
+    Fn::Equals:
+      - !Ref ExistingOidcProviderArn
+      - ""
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: CreateOidcProvider
+    Properties:
+      Url: !Ref OidcUrl
+      ClientIdList: !Ref OidcClientIdList
+      ThumbprintList: !Ref OidcThumbprints
+
+  CloudshortenerExecPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CloudshortenerAccessAllResources
+      Description: Permissions for CloudFormation exec role to manage the SAM stack
+        resources
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudFormationControlPlane
+            Effect: Allow
+            Action:
+              - cloudformation:CreateStack
+              - cloudformation:UpdateStack
+              - cloudformation:DeleteStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:Describe*
+              - cloudformation:GetTemplate
+              - cloudformation:GetTemplateSummary
+              - cloudformation:ValidateTemplate
+              - cloudformation:List*
+              - cloudformation:TagResource
+              - cloudformation:UntagResource
+            Resource: '*'
+          - Sid: ReadDynamicReferences
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+              - ssm:GetParameter
+              - ssm:GetParameters
+            Resource:
+              - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:cloudshortener/*
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cloudshortener/*
+          - Sid: IamCrudForStackRoles
+            Effect: Allow
+            Action:
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:UpdateAssumeRolePolicy
+              - iam:PutRolePolicy
+              - iam:DeleteRolePolicy
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+              - iam:TagRole
+              - iam:UntagRole
+            Resource: '*'
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: LambdaCrud
+            Effect: Allow
+            Action:
+              - lambda:CreateFunction
+              - lambda:UpdateFunctionCode
+              - lambda:UpdateFunctionConfiguration
+              - lambda:DeleteFunction
+              - lambda:AddPermission
+              - lambda:RemovePermission
+              - lambda:TagResource
+              - lambda:UntagResource
+            Resource: '*'
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: IamReadLambdaExecutionRole
+            Effect: Allow
+            Action: iam:GetRole
+            Resource:
+              - !Sub arn:aws:iam::${AWS::AccountId}:role/cloudshortener-*-LambdaFunctionRole-*
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: ApiGatewayCrud
+            Effect: Allow
+            Action:
+              - apigateway:POST
+              - apigateway:PUT
+              - apigateway:PATCH
+              - apigateway:DELETE
+              - apigateway:GET
+            Resource: '*'
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: AppConfigCrud
+            Effect: Allow
+            Action:
+              - appconfig:CreateApplication
+              - appconfig:UpdateApplication
+              - appconfig:DeleteApplication
+              - appconfig:CreateEnvironment
+              - appconfig:UpdateEnvironment
+              - appconfig:DeleteEnvironment
+              - appconfig:CreateConfigurationProfile
+              - appconfig:UpdateConfigurationProfile
+              - appconfig:DeleteConfigurationProfile
+              - appconfig:CreateHostedConfigurationVersion
+              - appconfig:DeleteHostedConfigurationVersion
+              - appconfig:StartDeployment
+              - appconfig:StopDeployment
+              - appconfig:List*
+              - appconfig:Get*
+              - appconfig:TagResource
+              - appconfig:UntagResource
+            Resource: '*'
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: CognitoIdpCrud
+            Effect: Allow
+            Action:
+              - cognito-idp:CreateUserPool
+              - cognito-idp:UpdateUserPool
+              - cognito-idp:DeleteUserPool
+              - cognito-idp:CreateUserPoolClient
+              - cognito-idp:UpdateUserPoolClient
+              - cognito-idp:DeleteUserPoolClient
+              - cognito-idp:CreateUserPoolDomain
+              - cognito-idp:DeleteUserPoolDomain
+              - cognito-idp:Describe*
+              - cognito-idp:List*
+              - cognito-idp:TagResource
+              - cognito-idp:UntagResource
+            Resource: '*'
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: FrontendBucketCrud
+            Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:PutBucketPolicy
+              - s3:DeleteBucketPolicy
+              - s3:PutBucketVersioning
+              - s3:PutBucketWebsite
+              - s3:DeleteBucketWebsite
+              - s3:PutBucketPublicAccessBlock
+              - s3:GetBucketPublicAccessBlock
+              - s3:GetBucketLocation
+              - s3:PutBucketTagging
+              - s3:GetBucketTagging
+            Resource: '*'
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: CloudFrontCrud
+            Effect: Allow
+            Action:
+              - cloudfront:CreateDistribution
+              - cloudfront:UpdateDistribution
+              - cloudfront:DeleteDistribution
+              - cloudfront:CreateOriginAccessControl
+              - cloudfront:UpdateOriginAccessControl
+              - cloudfront:DeleteOriginAccessControl
+              - cloudfront:Get*
+              - cloudfront:List*
+              - cloudfront:TagResource
+              - cloudfront:UntagResource
+            Resource: '*'
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: AppInsightsAndResourceGroups
+            Effect: Allow
+            Action:
+              - resource-groups:CreateGroup
+              - resource-groups:UpdateGroup
+              - resource-groups:DeleteGroup
+              - resource-groups:Get*
+              - resource-groups:List*
+              - resource-groups:Tag
+              - resource-groups:Untag
+              - applicationinsights:CreateApplication
+              - applicationinsights:UpdateApplication
+              - applicationinsights:DeleteApplication
+              - applicationinsights:Describe*
+              - applicationinsights:List*
+              - applicationinsights:TagResource
+              - applicationinsights:UntagResource
+            Resource: '*'
+            Condition:
+              ForAnyValue:StringEquals:
+                aws:CalledVia: cloudformation.amazonaws.com
+          - Sid: SamArtifacts
+            Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+            Resource:
+              - arn:aws:s3:::aws-sam-cli-managed-*
+              - arn:aws:s3:::aws-sam-cli-managed-*/*
+          - Sid: FrontendBucketWrites
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource:
+              - arn:aws:s3:::cloudshortener-frontend-*
+              - arn:aws:s3:::cloudshortener-frontend-*/*
+
+  CloudFormationExecRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref ExecRoleName
+      Description: Allow CloudFormation to create, update, delete the cloudshortener stack
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref CloudshortenerExecPolicy
+
+  CloudshortenerDeployPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CloudshortenerDeployPolicy
+      Description: Permissions for GitHub OIDC deploy role to drive CloudFormation and
+        artifacts
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudFormationControlPlane
+            Effect: Allow
+            Action:
+              - cloudformation:CreateStack
+              - cloudformation:UpdateStack
+              - cloudformation:DeleteStack
+              - cloudformation:CreateChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:Describe*
+              - cloudformation:GetTemplate
+              - cloudformation:GetTemplateSummary
+              - cloudformation:ValidateTemplate
+              - cloudformation:List*
+            Resource: '*'
+          - Sid: PassExecutionRole
+            Effect: Allow
+            Action: iam:PassRole
+            Resource: !GetAtt CloudFormationExecRole.Arn
+          - Sid: SamArtifacts
+            Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+            Resource:
+              - arn:aws:s3:::aws-sam-cli-managed-*
+              - arn:aws:s3:::aws-sam-cli-managed-*/*
+          - Sid: FrontendBucketWrites
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource:
+              - arn:aws:s3:::cloudshortener-frontend-*
+              - arn:aws:s3:::cloudshortener-frontend-*/*
+
+  GitHubOidcDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref DeployRoleName
+      Description: IAM role to deploy the cloudshortener app to AWS from GitHub Actions
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              ForAnyValue:StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubOrg}/${RepoName}:environment:*
+                  - !Sub repo:${GitHubOrg}/${RepoName}:ref:refs/heads/${AllowedBranchGlob}
+      ManagedPolicyArns:
+        - !Ref CloudshortenerDeployPolicy
+
+Outputs:
+  GitHubOidcProviderArn:
+    Description: ARN of the GitHub OIDC provider (existing or created)
+    Value: !If
+      - CreateOidcProvider
+      - !Ref GitHubOidcProvider
+      - !Ref ExistingOidcProviderArn
+    Export:
+      Name: GitHubOidcProviderArn
+  GitHubOidcDeployRoleArn:
+    Description: ARN of the GitHub OIDC deploy role
+    Value: !GetAtt GitHubOidcDeployRole.Arn
+    Export:
+      Name: GitHubOidcDeployRoleArn
+  CloudFormationExecRoleArn:
+    Description: ARN of the CloudFormation execution role
+    Value: !GetAtt CloudFormationExecRole.Arn
+    Export:
+      Name: CloudFormationExecRoleArn
+  CloudshortenerDeployPolicyArn:
+    Description: ARN of the deploy role policy
+    Value: !Ref CloudshortenerDeployPolicy
+  CloudshortenerExecPolicyArn:
+    Description: ARN of the exec role policy
+    Value: !Ref CloudshortenerExecPolicy

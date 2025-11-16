@@ -4,7 +4,7 @@ Description: |
   URL Shortener Service
   Simplified AWS SAM template for local and regional use.
   Two Lambda functions (shorten & redirect) behind an API Gateway,
-  plus a lightweight S3-hosted frontend (no CloudFront).
+  plus a lightweight S3-hosted frontend.
 
 Parameters:
   AppEnv:

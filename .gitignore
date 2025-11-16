@@ -306,5 +306,13 @@ __marimo__/
 *.swo
 
 # =====================================
+# Project-specific
+# =====================================
+
+# IAM managed and trust policies as JSON files 
+# used only for documentation purposes
+bootstrap/.iam
+
+# =====================================
 # End of merged .gitignore
 # =====================================
