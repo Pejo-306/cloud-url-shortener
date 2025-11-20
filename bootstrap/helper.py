@@ -9,6 +9,7 @@ Exposed functions (signatures):
     normalize_user_tags(tag_str: str) -> list[dict[str, str]]
     flatten(prefix: str, data: dict[str, Any]) -> dict[str, str]
     boto3_session(profile: str | None) -> "boto3.Session"
+    parameter_overrides(overrides: str) -> dict[str, str]
 
 Behavior:
     - `load_yaml` safely loads YAML files, defaulting to {} for empty files.
@@ -16,6 +17,7 @@ Behavior:
     - `normalize_user_tags` converts "K1=V1,K2=V2" into AWS tag dicts.
     - `flatten` turns nested dicts into SSM-like path/value pairs.
     - `boto3_session` builds a boto3 session honoring an optional profile.
+    - `parameter_overrides` parses comma-separated key=value pairs into a dict.
 
 Raises:
     FileNotFoundError: When a provided path does not exist.
@@ -185,3 +187,42 @@ def boto3_session(profile: str | None):
     if profile:
         return boto3.Session(profile_name=profile)
     return boto3.Session()
+
+
+def parameter_overrides(overrides: str) -> dict[str, str]:
+    """Parse a comma-separated CloudFormation --parameter-overrides string.
+
+    Input format:
+        "A=B,C=D,E="  (whitespace around items is ignored)
+
+    Behavior:
+        - Empty string returns {}.
+        - Missing "=value" yields an empty string value (e.g., "Key" -> {"Key": ""}).
+        - Preserves empty values (e.g., "E=" -> {"E": ""}).
+
+    Args:
+        overrides (str):
+            Comma-separated key=value pairs.
+
+    Returns:
+        dict[str, str]:
+            Parsed mapping suitable for boto3 ParameterKey/ParameterValue conversion.
+
+    Example:
+        >>> parameter_overrides("GitHubOrg=Pejo-306,RepoName=cloud-url-shortener,E=")
+        {'GitHubOrg': 'Pejo-306', 'RepoName': 'cloud-url-shortener', 'E': ''}
+    """
+    result: dict[str, str] = {}
+    if not overrides:
+        return result
+    for part in overrides.split(','):
+        item = part.strip()
+        if not item:
+            continue
+        if '=' not in item:
+            # Allow bare keys; treat as empty string
+            result[item] = ''
+            continue
+        k, v = item.split('=', 1)
+        result[k.strip()] = v
+    return result
