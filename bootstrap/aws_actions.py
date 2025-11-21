@@ -96,6 +96,7 @@ from botocore.exceptions import ClientError
 # SSM Parameter Store actions
 # ---------------------------
 
+
 def put_parameter(
     ssm_client,
     name: str,
@@ -159,6 +160,7 @@ def put_parameter(
 # ------------------------
 # Secrets Manager actions
 # ------------------------
+
 
 def create_or_update_secret(
     secrets_client,
@@ -236,18 +238,18 @@ def create_or_update_secret(
 # ---------------------------------------
 
 _TERMINAL_STATUSES = {
-    "CREATE_COMPLETE",
-    "CREATE_FAILED",
-    "ROLLBACK_COMPLETE",
-    "ROLLBACK_FAILED",
-    "UPDATE_COMPLETE",
-    "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS",  # transient, but treat as near-terminal
-    "UPDATE_ROLLBACK_COMPLETE",
-    "UPDATE_ROLLBACK_FAILED",
-    "IMPORT_COMPLETE",
-    "IMPORT_ROLLBACK_COMPLETE",
-    "DELETE_COMPLETE",
-    "DELETE_FAILED",
+    'CREATE_COMPLETE',
+    'CREATE_FAILED',
+    'ROLLBACK_COMPLETE',
+    'ROLLBACK_FAILED',
+    'UPDATE_COMPLETE',
+    'UPDATE_COMPLETE_CLEANUP_IN_PROGRESS',  # transient, but treat as near-terminal
+    'UPDATE_ROLLBACK_COMPLETE',
+    'UPDATE_ROLLBACK_FAILED',
+    'IMPORT_COMPLETE',
+    'IMPORT_ROLLBACK_COMPLETE',
+    'DELETE_COMPLETE',
+    'DELETE_FAILED',
 }
 
 
@@ -257,7 +259,7 @@ def _stack_exists(cfn_client, stack_name: str) -> bool:
         cfn_client.describe_stacks(StackName=stack_name)
         return True
     except ClientError as e:
-        if "does not exist" in str(e):
+        if 'does not exist' in str(e):
             return False
         raise
 
@@ -265,19 +267,19 @@ def _stack_exists(cfn_client, stack_name: str) -> bool:
 def _current_status(cfn_client, stack_name: str) -> str | None:
     """Return the stack status string, or None if the stack does not exist."""
     try:
-        stacks = cfn_client.describe_stacks(StackName=stack_name)["Stacks"]
+        stacks = cfn_client.describe_stacks(StackName=stack_name)['Stacks']
         if not stacks:
             return None
-        return stacks[0]["StackStatus"]
+        return stacks[0]['StackStatus']
     except ClientError as e:
-        if "does not exist" in str(e):
+        if 'does not exist' in str(e):
             return None
         raise
 
 
 def _param_list(params: dict[str, str]) -> list[dict[str, str]]:
     """Convert a dict of parameters into CloudFormation's required list format."""
-    return [{"ParameterKey": k, "ParameterValue": str(v)} for k, v in params.items()]
+    return [{'ParameterKey': k, 'ParameterValue': str(v)} for k, v in params.items()]
 
 
 def _stream_events(cfn_client, stack_name: str, poll_seconds: int) -> None:
@@ -285,25 +287,25 @@ def _stream_events(cfn_client, stack_name: str, poll_seconds: int) -> None:
     seen: set[str] = set()
     while True:
         try:
-            events = cfn_client.describe_stack_events(StackName=stack_name)["StackEvents"]
+            events = cfn_client.describe_stack_events(StackName=stack_name)['StackEvents']
         except ClientError:
             # During creation/deletion, describe_stack_events may briefly fail; retry.
             time.sleep(poll_seconds)
             continue
 
         for ev in events:
-            evid = ev["EventId"]
+            evid = ev['EventId']
             if evid in seen:
                 continue
             seen.add(evid)
-            ts = ev["Timestamp"].strftime("%Y-%m-%d %H:%M:%S")
-            rid = ev.get("LogicalResourceId", "")
-            rtype = ev.get("ResourceType", "")
-            status = ev.get("ResourceStatus", "")
-            reason = ev.get("ResourceStatusReason", "")
-            line = f"{ts} | {status:>24} | {rid:40} | {rtype}"
+            ts = ev['Timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+            rid = ev.get('LogicalResourceId', '')
+            rtype = ev.get('ResourceType', '')
+            status = ev.get('ResourceStatus', '')
+            reason = ev.get('ResourceStatusReason', '')
+            line = f'{ts} | {status:>24} | {rid:40} | {rtype}'
             if reason:
-                line += f" | {reason}"
+                line += f' | {reason}'
             print(line)
 
         # Termination condition
@@ -359,8 +361,8 @@ def deploy_stack_with_changeset(
         botocore.exceptions.BotoCoreError / ClientError: On AWS API failures.
         RuntimeError: When Change Set creation fails for non-trivial reasons.
     """
-    change_set_type = "UPDATE" if _stack_exists(cfn_client, stack_name) else "CREATE"
-    cs_name = f"{stack_name}-cs-{int(time.time())}"
+    change_set_type = 'UPDATE' if _stack_exists(cfn_client, stack_name) else 'CREATE'
+    cs_name = f'{stack_name}-cs-{int(time.time())}'
 
     resp = cfn_client.create_change_set(
         StackName=stack_name,
@@ -370,40 +372,40 @@ def deploy_stack_with_changeset(
         Parameters=_param_list(parameters),
         Capabilities=capabilities,
     )
-    cs_arn = resp["Id"]
+    cs_arn = resp['Id']
 
     # Wait for Change Set creation
     while True:
         desc = cfn_client.describe_change_set(ChangeSetName=cs_arn)
-        status = desc["Status"]
-        reason = desc.get("StatusReason", "")
-        if status == "CREATE_COMPLETE":
+        status = desc['Status']
+        reason = desc.get('StatusReason', '')
+        if status == 'CREATE_COMPLETE':
             break
-        if status == "FAILED":
+        if status == 'FAILED':
             if "didn't contain changes" in reason:
-                print("No changes to apply.")
+                print('No changes to apply.')
                 return
-            raise RuntimeError(f"Change Set failed: {reason}")
+            raise RuntimeError(f'Change Set failed: {reason}')
         time.sleep(2)
 
     # Print diff summary
-    changes = desc.get("Changes", [])
+    changes = desc.get('Changes', [])
     if changes:
-        print("Planned changes:")
+        print('Planned changes:')
         for c in changes:
-            rc = c["ResourceChange"]
-            act = rc.get("Action", "")
-            lid = rc.get("LogicalResourceId", "")
-            rtype = rc.get("ResourceType", "")
-            print(f"  - {act} {lid} ({rtype})")
+            rc = c['ResourceChange']
+            act = rc.get('Action', '')
+            lid = rc.get('LogicalResourceId', '')
+            rtype = rc.get('ResourceType', '')
+            print(f'  - {act} {lid} ({rtype})')
     else:
-        print("Change Set ready (no listed changes).")
+        print('Change Set ready (no listed changes).')
 
     if dry_run:
         print(f"[DRY-RUN] Created Change Set '{cs_name}' but not executing.")
         return
 
-    print("Executing Change Set...")
+    print('Executing Change Set...')
     cfn_client.execute_change_set(ChangeSetName=cs_arn)
 
     if watch:
@@ -412,10 +414,10 @@ def deploy_stack_with_changeset(
         except KeyboardInterrupt:
             pass
 
-    waiter_name = "stack_update_complete" if change_set_type == "UPDATE" else "stack_create_complete"
+    waiter_name = 'stack_update_complete' if change_set_type == 'UPDATE' else 'stack_create_complete'
     waiter = cfn_client.get_waiter(waiter_name)
     waiter.wait(StackName=stack_name)
-    print("Stack operation completed.")
+    print('Stack operation completed.')
 
 
 def delete_stack(
@@ -471,7 +473,7 @@ def delete_stack(
     # If streaming already ended because the stack disappeared, waiter will raise;
     # guard by checking existence again.
     if _stack_exists(cfn_client, stack_name):
-        waiter = cfn_client.get_waiter("stack_delete_complete")
+        waiter = cfn_client.get_waiter('stack_delete_complete')
         waiter.wait(StackName=stack_name)
 
-    print("Stack deleted.")
+    print('Stack deleted.')

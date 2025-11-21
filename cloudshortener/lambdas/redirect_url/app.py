@@ -9,50 +9,50 @@ from cloudshortener.utils.helpers import beginning_of_next_month
 
 
 def response_500(message: str | None = None) -> dict[str, Any]:
-    base = "Internal Server Error"
-    body = {"message": base if not message else f"{base} ({message})"}
+    base = 'Internal Server Error'
+    body = {'message': base if not message else f'{base} ({message})'}
     return {
-        "statusCode": 500,
-        "body": json.dumps(body),
+        'statusCode': 500,
+        'body': json.dumps(body),
     }
 
 
 def response_400(message: str | None = None, error_code: str | None = None) -> dict[str, Any]:
-    base = "Bad Request"
-    body = {"message": base if not message else f"{base} ({message})"}
+    base = 'Bad Request'
+    body = {'message': base if not message else f'{base} ({message})'}
     if error_code:
-        body["errorCode"] = error_code
+        body['errorCode'] = error_code
     return {
-        "statusCode": 400,
-        "body": json.dumps(body),
+        'statusCode': 400,
+        'body': json.dumps(body),
     }
 
 
 def response_429(*, retry_after: int, message: str | None = None, error_code: str | None = None) -> dict[str, Any]:
-    body = {"message": message or "Too Many Requests"}
+    body = {'message': message or 'Too Many Requests'}
     if error_code:
-        body["errorCode"] = error_code
+        body['errorCode'] = error_code
     return {
-        "statusCode": 429,
-        "headers": {
-            "Content-Type": "application/json",
-            "Retry-After": str(retry_after),
+        'statusCode': 429,
+        'headers': {
+            'Content-Type': 'application/json',
+            'Retry-After': str(retry_after),
         },
-        "body": json.dumps(body),
+        'body': json.dumps(body),
     }
 
 
 def response_302(*, location: str) -> dict[str, Any]:
     return {
-        "statusCode": 302,
-        "headers": {
-            "Location": location,
+        'statusCode': 302,
+        'headers': {
+            'Location': location,
             # TODO: remove later (Needed only for temporary frontend)
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Headers": "Content-Type",
-            "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
         },
-        "body": json.dumps({}),  # no body needed for redirects
+        'body': json.dumps({}),  # no body needed for redirects
     }
 
 
@@ -116,10 +116,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     try:
         leftover_hits = short_url_dao.hit(shortcode=shortcode)
     except ShortURLNotFoundError:
-        return response_400(
-            message=f"short url {get_short_url(shortcode, event)} doesn't exist",
-            error_code='SHORT_URL_NOT_FOUND'
-        )
+        return response_400(message=f"short url {get_short_url(shortcode, event)} doesn't exist", error_code='SHORT_URL_NOT_FOUND')
     else:
         if leftover_hits < 0:
             reset_dt = beginning_of_next_month()
@@ -128,17 +125,14 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             return response_429(
                 retry_after=ttl_to_reset,
                 error_code='LINK_QUOTA_EXCEEDED',
-                message=f"Monthly hit quota exceeded for link. Try again after {reset_date}."
+                message=f'Monthly hit quota exceeded for link. Try again after {reset_date}.',
             )
 
     # 4- Get short_url record from database
     try:
         short_url = short_url_dao.get(shortcode=shortcode)
     except ShortURLNotFoundError:
-        return response_400(
-            message=f"short url {get_short_url(shortcode, event)} doesn't exist",
-            error_code='SHORT_URL_NOT_FOUND'
-        )
+        return response_400(message=f"short url {get_short_url(shortcode, event)} doesn't exist", error_code='SHORT_URL_NOT_FOUND')
     else:
         target_url = short_url.target
 
