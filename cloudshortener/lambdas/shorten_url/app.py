@@ -8,6 +8,70 @@ from cloudshortener.utils import generate_shortcode, load_config, get_short_url,
 from cloudshortener.utils.constants import DEFAULT_LINK_GENERATION_QUOTA
 
 
+def response_500(message: str | None = None) -> dict[str, Any]:
+    base = "Internal Server Error"
+    body = {"message": base if not message else f"{base} ({message})"}
+    return {
+        "statusCode": 500,
+        "body": json.dumps(body),
+    }
+
+
+def response_401(message: str | None = None, error_code: str | None = None) -> dict[str, Any]:
+    base = "Unauthorized"
+    body = {"message": base if not message else f"{base} ({message})"}
+    if error_code:
+        body["errorCode"] = error_code
+    return {
+        "statusCode": 401,
+        "body": json.dumps(body),
+    }
+
+
+def response_400(message: str | None = None, error_code: str | None = None) -> dict[str, Any]:
+    base = "Bad Request"
+    body = {"message": base if not message else f"{base} ({message})"}
+    if error_code:
+        body["errorCode"] = error_code
+    return {
+        "statusCode": 400,
+        "body": json.dumps(body),
+    }
+
+
+def response_429(message: str | None = None, error_code: str | None = None) -> dict[str, Any]:
+    base = "Too Many Link Generation Requests"
+    body = {"message": base if not message else f"{base} ({message})"}
+    if error_code:
+        body["errorCode"] = error_code
+    return {
+        "statusCode": 429,
+        "body": json.dumps(body),
+    }
+
+
+def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota: int) -> dict[str, Any]:
+    return {
+        "statusCode": 200,
+        "headers": {
+            # TODO: remove later (Needed only for temporary frontend)
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+        },
+        "body": json.dumps(
+            {
+                "message": f"Successfully shortened {target_url} to {short_url}",
+                "target_url": target_url,
+                "short_url": short_url,
+                "shortcode": shortcode,
+                "user_quota": user_quota,
+                "new user_quota": user_quota + 1,
+            }
+        ),
+    }
+
+
 def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     """Handle incoming API Gateway requests to shorten URLs
 
@@ -58,106 +122,52 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     # 0- Get application's config
     try:
-        app_config = load_config('shorten_url')
+        app_config = load_config("shorten_url")
     except FileNotFoundError:
-        return {
-            'statusCode': 500,
-            'body': json.dumps(
-                {
-                    'message': 'Internal Server Error',
-                }
-            ),
-        }
+        return response_500()
     else:
-        redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
+        redis_config = {f"redis_{k}": v for k, v in app_config["redis"].items()}
 
     # 1- Extract user id from Cognito
-    claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
-    user_id = claims.get('sub')
+    claims = event.get("requestContext", {}).get("authorizer", {}).get("claims", {})
+    user_id = claims.get("sub")
     if user_id is None:
-        return {
-            'statusCode': 401,
-            'body': json.dumps(
-                {
-                    'message': "Unathorized: missing 'sub' in JWT claims",
-                }
-            ),
-        }
+        return response_401(message="missing 'sub' in JWT claims", error_code="MISSING_USER_ID")
 
     # 2- Check if monthly quota is already reached
     user_dao = UserRedisDAO(**redis_config, prefix=app_prefix())
     user_quota = user_dao.quota(user_id=user_id)
     if user_quota >= DEFAULT_LINK_GENERATION_QUOTA:
-        return {
-            'statusCode': 429,
-            'body': json.dumps(
-                {
-                    'message': 'Too many link generation requests: monthly quota reached',
-                }
-            ),
-        }
+        return response_429(message="monthly quota reached", error_code="LINK_QUOTA_EXCEEDED")
 
     # 3- Extract original URL from request body
     try:
-        request_body = json.loads(event.get('body') or '{}')
+        request_body = json.loads(event.get("body") or "{}")
     except json.JSONDecodeError:
-        return {
-            'statusCode': 400,
-            'body': json.dumps(
-                {
-                    'message': 'Bad Request (invalid JSON body)',
-                }
-            ),
-        }
-    target_url = request_body.get('target_url')
+        return response_400(message="invalid JSON body", error_code="INVALID_JSON")
+    target_url = request_body.get("target_url")
     if not target_url:
-        return {
-            'statusCode': 400,
-            'body': json.dumps(
-                {
-                    'message': "Bad Request (missing 'target_url' in JSON body)",
-                }
-            ),
-        }
+        return response_400(message="missing 'target_url' in JSON body", error_code="MISSING_TARGET_URL")
 
     # 4- Generate shortcode for the new link
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
     counter = short_url_dao.count(increment=True)
-    shortcode = generate_shortcode(counter, salt='my_secret', length=7)
+    shortcode = generate_shortcode(counter, salt="my_secret", length=7)
 
     # 5- Store short_url and target_url mapping in database (via DAO)
     try:
         short_url = ShortURLModel(shortcode=shortcode, target=target_url)
         short_url_dao.insert(short_url=short_url)
     except ShortURLAlreadyExistsError:
-        return {
-            'statusCode': 500,
-            'body': json.dumps(
-                {
-                    'message': 'Internal Server Error',
-                }
-            ),
-        }
+        return response_500(message="short URL already exists")
     else:
         user_dao.increment_quota(user_id=user_id)
         short_url_string = get_short_url(shortcode, event)
 
     # 6- Return successful response to user
-    return {
-        'statusCode': 200,
-        'headers': {  # TODO: remove later (Needed only for temporary frontend)
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
-        },
-        'body': json.dumps(
-            {
-                'message': f'Successfully shortened {target_url} to {short_url_string}',
-                'target_url': target_url,
-                'short_url': short_url_string,
-                'shortcode': shortcode,
-                'user_quota': user_quota,
-                'new user_quota': user_quota + 1,
-            }
-        ),
-    }
+    return response_200(
+        target_url=target_url,
+        short_url=short_url_string,
+        shortcode=shortcode,
+        user_quota=user_quota,
+    )

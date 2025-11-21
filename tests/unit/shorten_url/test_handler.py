@@ -259,7 +259,7 @@ def test_lambda_handler_with_existing_short_url(successful_event_200, context, s
     body = json.loads(response['body'])
 
     assert response['statusCode'] == 500
-    assert body['message'] == 'Internal Server Error'
+    assert body['message'] == 'Internal Server Error (short URL already exists)'
 
 
 # -------------------------------
@@ -276,7 +276,7 @@ def test_lambda_handler_with_quota_reached(monkeypatch, successful_event_200, co
     body = json.loads(response['body'])
 
     assert response['statusCode'] == 429
-    assert body['message'] == 'Too many link generation requests: monthly quota reached'
+    assert body['message'] == 'Too Many Link Generation Requests (monthly quota reached)'
 
 
 # -------------------------------
@@ -289,4 +289,4 @@ def test_lambda_handler_with_unauthorized_access_attempt(successful_event_200, c
     body = json.loads(response['body'])
 
     assert response['statusCode'] == 401
-    assert body['message'] == "Unathorized: missing 'sub' in JWT claims"
+    assert body['message'] == "Unauthorized (missing 'sub' in JWT claims)"
