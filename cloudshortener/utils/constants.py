@@ -16,3 +16,6 @@ ELASTICACHE_USER_PARAM_ENV = 'ELASTICACHE_USER_PARAM'  # optional
 
 # ElastiCache: Secrets Manager name holding credentials JSON: {"username": "...", "password": "..."}
 ELASTICACHE_SECRET_ENV = 'ELASTICACHE_SECRET'
+
+# LocalStack: endpoint URL environment variable for local development
+LOCALSTACK_ENDPOINT_ENV = 'LOCALSTACK_ENDPOINT'

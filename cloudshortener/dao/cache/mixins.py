@@ -46,6 +46,7 @@ from cloudshortener.utils.constants import (
     ELASTICACHE_DB_PARAM_ENV,
     ELASTICACHE_USER_PARAM_ENV,
     ELASTICACHE_SECRET_ENV,
+    LOCALSTACK_ENDPOINT_ENV,
 )
 
 
@@ -181,7 +182,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
             raise KeyError(f'Missing required environment variables: {", ".join(missing)}')
 
         ssm_client_kwargs = {} if ssm_client is not None and not running_locally() else {
-            'endpoint_url': os.environ.get('LOCALSTACK_ENDPOINT', 'http://localhost:4566'),
+            'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
         }
         ssm = ssm_client or boto3.client('ssm', **ssm_client_kwargs)
 
@@ -230,7 +231,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
             raise KeyError(f'Missing required environment variable: {ELASTICACHE_SECRET_ENV}')
 
         secrets_client_kwargs = {} if secrets_client is not None and not running_locally() else {
-            'endpoint_url': os.environ.get('LOCALSTACK_ENDPOINT', 'http://localhost:4566'),
+            'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
         }
         sm = secrets_client or boto3.client('secretsmanager', **secrets_client_kwargs)
 
