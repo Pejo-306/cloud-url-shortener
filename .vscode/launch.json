@@ -45,7 +45,13 @@
                     "APP_ENV": "local",
                     "APP_NAME": "cloudshortener",
                     "PROJECT_ROOT": "/var/task/",
-                    "APPCONFIG_AGENT_URL": "http://host.docker.internal:2772"
+                    "APPCONFIG_AGENT_URL": "http://host.docker.internal:2772",
+                    "ELASTICACHE_HOST_PARAM": "/cloudshortener/local/elasticache/host",
+                    "ELASTICACHE_PORT_PARAM": "/cloudshortener/local/elasticache/port",
+                    "ELASTICACHE_DB_PARAM": "/cloudshortener/local/elasticache/db",
+                    "ELASTICACHE_USER_PARAM": "/cloudshortener/local/elasticache/user",
+                    "ELASTICACHE_SECRET": "cloudshortener/local/elasticache/credentials",
+                    "LOCALSTACK_ENDPOINT": "http://localstack:4566"
                 },
                 "runtime": "python3.13"
             },
@@ -86,7 +92,13 @@
                     "APP_ENV": "local",
                     "APP_NAME": "cloudshortener",
                     "PROJECT_ROOT": "/var/task/",
-                    "APPCONFIG_AGENT_URL": "http://host.docker.internal:2772"
+                    "APPCONFIG_AGENT_URL": "http://host.docker.internal:2772",
+                    "ELASTICACHE_HOST_PARAM": "/cloudshortener/local/elasticache/host",
+                    "ELASTICACHE_PORT_PARAM": "/cloudshortener/local/elasticache/port",
+                    "ELASTICACHE_DB_PARAM": "/cloudshortener/local/elasticache/db",
+                    "ELASTICACHE_USER_PARAM": "/cloudshortener/local/elasticache/user",
+                    "ELASTICACHE_SECRET": "cloudshortener/local/elasticache/credentials",
+                    "LOCALSTACK_ENDPOINT": "http://localstack:4566"
                 },
                 "runtime": "python3.13"
             },
