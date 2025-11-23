@@ -13,12 +13,21 @@ Classes:
     DataStoreError:
         Raised when there is an error in the data store (e.g., connection issues, time, OOM, etc.).
 
+    UserDoesNotExistError:
+        Raised when a user is not found in the data store.
+
+    CacheMissError:
+        Raised when a requested cache entry (e.g., AppConfig version) is missing.
+
+    CachePutError:
+        Raised when writing or updating a cache entry fails.
+
 Example:
-    >>> from cloudshortener.dao.exceptions import ShortURLNotFoundError
-    >>> raise ShortURLNotFoundError("Short code 'abc123' not found.")
+    >>> from cloudshortener.dao.exceptions import CacheMissError
+    >>> raise CacheMissError("AppConfig v12 not found in cache.")
     Traceback (most recent call last):
         ...
-    cloudshortener.dao.exceptions.ShortURLNotFoundError: Short code 'abc123' not found.
+    cloudshortener.dao.exceptions.CacheMissError: AppConfig v12 not found in cache.
 """
 
 
@@ -51,5 +60,17 @@ class DataStoreError(DAOError):
 
 class UserDoesNotExistError(DAOError):
     """Exception raised when a user is not found in the data store."""
+
+    pass
+
+
+class CacheMissError(DAOError):
+    """Exception raised when a requested cache entry is missing."""
+
+    pass
+
+
+class CachePutError(DAOError):
+    """Exception raised when writing or updating a cache entry fails."""
 
     pass
