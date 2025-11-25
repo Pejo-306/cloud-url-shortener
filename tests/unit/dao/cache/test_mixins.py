@@ -1,4 +1,3 @@
-# noqa: S105
 """Unit tests for cache mixins (ElastiCacheClientMixin)
 
 Test coverage includes:
@@ -57,7 +56,7 @@ def ssm_client():
     """Mock an SSM client returning host/port/db/user."""
     client = MagicMock(spec=['get_parameter'])
 
-    def _get_parameter(Name):
+    def _get_parameter(Name):  # noqa: N803
         if Name.endswith('/host'):
             return {'Parameter': {'Value': 'cache.internal'}}
         if Name.endswith('/port'):

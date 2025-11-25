@@ -30,7 +30,7 @@ Environment variables (paths/names to resolve at runtime):
 
 import json
 import os
-from typing import Optional, Tuple
+from typing import Optional
 
 import boto3
 import redis
@@ -145,7 +145,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
         self.keys = CacheKeySchema(prefix=prefix)
 
     @staticmethod
-    def _resolve_ssm_params(ssm_client: Optional[BaseClient]) -> Tuple[str, int, int, Optional[str]]:
+    def _resolve_ssm_params(ssm_client: Optional[BaseClient]) -> tuple[str, int, int, Optional[str]]:
         """Resolve host, port, db, and optional username from SSM Parameter Store.
 
         Reads parameter names from environment variables and fetches their values
@@ -207,7 +207,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
         return host, port, db, user
 
     @staticmethod
-    def _resolve_secret(secrets_client: Optional[BaseClient]) -> Tuple[Optional[str], str]:
+    def _resolve_secret(secrets_client: Optional[BaseClient]) -> tuple[Optional[str], str]:
         """Resolve optional username and required password from Secrets Manager.
 
         The secret is expected to be a JSON object with fields:

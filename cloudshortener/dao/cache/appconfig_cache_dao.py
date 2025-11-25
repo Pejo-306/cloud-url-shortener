@@ -54,7 +54,7 @@ TODO: add unit tests!
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from typing import Any
 
 import boto3
@@ -367,7 +367,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             'version': resolved_version,
             'etag': headers.get('etag'),
             'content_type': resp.get('ContentType'),
-            'fetched_at': datetime.now(timezone.utc).isoformat(),
+            'fetched_at': datetime.now(UTC).isoformat(),
         }
         return resolved_version, document, metadata
 
@@ -416,6 +416,6 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             'version': version,
             'etag': etag,
             'content_type': resp.get('ContentType'),
-            'fetched_at': datetime.now(timezone.utc).isoformat(),
+            'fetched_at': datetime.now(UTC).isoformat(),
         }
         return version, document, metadata
