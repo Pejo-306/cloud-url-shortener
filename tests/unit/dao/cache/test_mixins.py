@@ -1,3 +1,4 @@
+# noqa: S105
 """Unit tests for cache mixins (ElastiCacheClientMixin)
 
 Test coverage includes:

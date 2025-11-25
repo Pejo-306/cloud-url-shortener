@@ -230,6 +230,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         _, _, metadata = self._pull_appconfig(int(version))
         return metadata
 
+    @beartype
     def _pull_appconfig(self, version: int | str) -> tuple[int, dict[str, Any], dict[str, Any]]:
         """Fetch the requested AppConfig document + metadata and warm the cache
 
@@ -269,6 +270,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         )
         return resolved_version, document, metadata
 
+    @beartype
     def _warm_up_cache(
         self,
         resolved_version: int,
@@ -312,6 +314,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         except redis.exceptions.ConnectionError as e:
             raise CachePutError(f'Failed to write AppConfig v{resolved_version} to cache.') from e
 
+    @beartype
     def _fetch_latest_appconfig(self) -> tuple[int, dict[str, Any], dict[str, Any]]:
         """Fetch the latest AppConfig document via the AppConfig Data API
 
@@ -368,6 +371,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         }
         return resolved_version, document, metadata
 
+    @beartype
     def _fetch_appconfig(self, version: int) -> tuple[int, dict[str, Any], dict[str, Any]]:
         """Fetch a specific hosted AppConfig version via the control-plane API
 
