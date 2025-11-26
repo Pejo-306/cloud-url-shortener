@@ -56,6 +56,14 @@ Functions:
     running_locally() -> bool:
         True if lambda is running in local SAM, False otherwise.
 
+    _sam_load_local_appconfig(func) -> Callable[[str], dict]:
+        Load AppConfig from a local AppConfig agent when running under SAM.
+        Decorates `load_config()`.
+
+    cache_appconfig(func) -> Callable[[str], dict]:
+        Transparently cache AppConfig documents via ElastiCache.
+        Decorates `load_config()`.
+
     load_config(lambda_name: str) -> dict
         Load configuration for a given Lambda from AWS AppConfig and
         return it as a Python dictionary. In SAM, load configuration
@@ -213,10 +221,10 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
     # ruff: enable
 
     @functools.wraps(func)
-    def wrapper(lambda_name: str) -> dict:
+    def wrapper(lambda_name: str, *args, **kwargs) -> dict:
         agent_url = __validate_appconfig_url(os.getenv('APPCONFIG_AGENT_URL'))
         if not running_locally() or not agent_url:
-            return func(lambda_name)
+            return func(lambda_name, *args, **kwargs)
 
         profile_name = os.getenv('APPCONFIG_PROFILE_NAME', 'backend-config')
         url = f'{agent_url}/applications/{app_name()}/environments/{app_env()}/configurations/{profile_name}'
@@ -230,7 +238,78 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
     return wrapper
 
 
+def cache_appconfig(func: Callable[[str], dict]) -> Callable[[str], dict]:
+    """Decorator: transparently cache AppConfig documents via ElastiCache
+
+    This decorator wraps the existing `load_config()` implementation and, when
+    possible, serves configuration from Redis-backed AppConfigCacheDAO.
+
+    Behavior:
+        - On normal path:
+            * Construct AppConfigCacheDAO with the configured cache prefix.
+            * Fetch the latest AppConfig document via `dao.latest(pull=True)`.
+            * Extract the per-lambda config for the requested lambda_name.
+            * Return the same structure as the wrapped `load_config()`, i.e.:
+                  {
+                      "<backend>": {
+                          ... backend-specific config ...
+                      }
+                  }
+        - On any cache/AppConfig infra error:
+            * Fall back to the original `load_config()` implementation.
+
+    NOTE:
+        This decorator is intended to be stacked *under* the local AppConfig
+        decorator, e.g.:
+
+            @_sam_load_local_appconfig
+            @cache_appconfig
+            def load_config(lambda_name: str) -> dict:
+                ...
+
+        In local SAM mode, `_sam_load_local_appconfig` short-circuits and the
+        cache layer is never invoked.
+
+    Args:
+        func (Callable[[str], dict]):
+            The original load_config function that fetches AppConfig directly.
+
+    Returns:
+        Callable[[str], dict]:
+            A wrapped function with the same signature and return type, but
+            backed by Redis caching when available.
+
+    Raises:
+        Whatever the underlying load_config() may raise in its fallback path.
+        `CacheMissError`, `CachePutError`, `DataStoreError`, and `ValueError` coming
+        from the cache path are swallowed and cause a fallback to func().
+    """
+
+    @functools.wraps(func)
+    def wrapper(lambda_name: str, *args, **kwargs) -> dict:
+        from cloudshortener.dao.cache import AppConfigCacheDAO
+        from cloudshortener.dao.exceptions import CacheMissError, CachePutError, DataStoreError
+
+        try:
+            # Fetch the latest full AppConfig document (pulling/warming cache on MISS)
+            dao = AppConfigCacheDAO(prefix=app_prefix())
+            document = dao.latest(pull=True)
+
+            # Reproduce the existing load_config() behavior:
+            backend = document['active_backend']
+            lambda_config = document['configs'][lambda_name]
+            return {backend: lambda_config[backend]}
+
+        except (CacheMissError, CachePutError, DataStoreError, ValueError, KeyError):
+            # On any cache / config-structure / env-related issues, fall back
+            # to the original (non-cached) implementation.
+            return func(lambda_name, *args, **kwargs)
+
+    return wrapper
+
+
 @_sam_load_local_appconfig
+@cache_appconfig
 def load_config(lambda_name: str) -> dict:
     """Load configuration for a given Lambda from AWS AppConfig
 

@@ -9,9 +9,11 @@ Test coverage includes:
    - Ensures project_root() correctly reads PROJECT_ROOT from environment variables.
 
 3. Configuration loading behavior
-   - Ensures load_config() correctly returns parsed YAML configuration data.
-   - Validates that filesystem and YAML parsing are safely isolated via monkeypatching.
-   - Ensures load_config() raises FileNotFoundError when YAML configuration files are missing.
+   - Ensures load_config() correctly returns parsed AppConfig configuration data.
+   - Validates that AppConfig fetching is safely isolated via monkeypatching.
+   - Ensures load_config() raises ClientError when AppConfig calls fail.
+   - Ensures cache_appconfig decorator integrates with AppConfigCacheDAO and
+     falls back correctly when the cache path fails.
 """
 
 import os
@@ -24,6 +26,7 @@ import pytest
 import botocore
 
 from cloudshortener.utils import config
+from cloudshortener.dao.exceptions import CacheMissError
 
 
 # -------------------------------
@@ -33,10 +36,51 @@ from cloudshortener.utils import config
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    """Set up environment variables for testing"""
+    """Set up environment variables for testing."""
     monkeypatch.setenv('APPCONFIG_APP_ID', 'app123')
     monkeypatch.setenv('APPCONFIG_ENV_ID', 'env123')
     monkeypatch.setenv('APPCONFIG_PROFILE_ID', 'prof123')
+
+
+@pytest.fixture(autouse=True)
+def _app_prefix(monkeypatch):
+    """Ensure app_prefix() returns a deterministic value for tests."""
+    monkeypatch.setattr(config, 'app_prefix', lambda: 'test-app:test')
+
+
+@pytest.fixture
+def appconfig_payload():
+    """Provide a default AppConfig payload used by multiple tests."""
+    # fmt: off
+    return {
+        'active_backend': 'redis',
+        'configs': {
+            'test_lambda': {
+                'redis': {
+                    'host': 'monkey',
+                    'port': 659595,
+                    'db': 3
+                }
+            }
+        },
+    }
+    # fmt: on
+
+
+@pytest.fixture
+def healthy_cache_dao(appconfig_payload):
+    """Mock an AppConfigCacheDAO instance that returns a valid cached document."""
+    inst = MagicMock()
+    inst.latest.return_value = appconfig_payload
+    return inst
+
+
+@pytest.fixture
+def failing_cache_dao():
+    """Mock an AppConfigCacheDAO instance that always fails with CacheMissError."""
+    inst = MagicMock()
+    inst.latest.side_effect = CacheMissError('cache miss')
+    return inst
 
 
 # -------------------------------
@@ -85,24 +129,20 @@ def test_project_root(monkeypatch):
 # -------------------------------
 
 
-def test_load_config(monkeypatch):
-    """Ensure load_config() loads and returns the expected configuration"""
-    # fmt: off
-    monkey_payload = {
-        'active_backend': 'redis',
-        'configs': {
-            'test_lambda': {
-                'redis': {
-                    'host': 'monkey',
-                    'port': 659595,
-                    'db': 3
-                }
-            }
-        },
-    }
-    # fmt: on
+def test_load_config_uses_fallback_when_cache_misses(monkeypatch, failing_cache_dao, appconfig_payload):
+    """Ensure load_config() falls back to direct AppConfig when cache path fails.
 
-    monkey_bytes = BytesIO(json.dumps(monkey_payload).encode('utf-8'))
+    The AppConfigCacheDAO.latest() call raises CacheMissError, causing the decorator
+    to delegate to the original AppConfig-based implementation, which is then mocked
+    via boto3.client.
+    """
+    # Patch AppConfigCacheDAO to return a failing instance
+    import cloudshortener.dao.cache as cache_module
+
+    monkeypatch.setattr(cache_module, 'AppConfigCacheDAO', MagicMock(return_value=failing_cache_dao))
+
+    # Mock AppConfig Data client (fallback path)
+    monkey_bytes = BytesIO(json.dumps(appconfig_payload).encode('utf-8'))
     mock_appconfig = MagicMock()
     mock_appconfig.start_configuration_session.return_value = {'InitialConfigurationToken': 'monkey_token'}
     mock_appconfig.get_latest_configuration.return_value = {'Configuration': monkey_bytes}
@@ -110,9 +150,16 @@ def test_load_config(monkeypatch):
 
     result = config.load_config('test_lambda')
 
+    # Result should match payload structure
     assert result['redis']['host'] == 'monkey'
     assert result['redis']['port'] == 659595
     assert result['redis']['db'] == 3
+
+    # Cache DAO was used first
+    cache_module.AppConfigCacheDAO.assert_called_once_with(prefix='test-app:test')
+    failing_cache_dao.latest.assert_called_once_with(pull=True)
+
+    # Fallback AppConfig calls were made
     mock_appconfig.start_configuration_session.assert_called_once_with(
         ApplicationIdentifier='app123',
         EnvironmentIdentifier='env123',
@@ -123,9 +170,16 @@ def test_load_config(monkeypatch):
     )
 
 
-def test_missing_appconfig_raises_error(monkeypatch):
-    """Ensure load_config() raises FileNotFoundError when configuration files are missing"""
-    # Mock Path.exists to bypass file existence checks
+def test_missing_appconfig_raises_error(monkeypatch, failing_cache_dao):
+    """Ensure load_config() propagates ClientError when AppConfig returns an error.
+
+    The cache path fails (CacheMissError), and the underlying AppConfig call
+    is simulated to raise ClientError.
+    """
+    import cloudshortener.dao.cache as cache_module
+
+    monkeypatch.setattr(cache_module, 'AppConfigCacheDAO', MagicMock(return_value=failing_cache_dao))
+
     mock_appconfig = MagicMock()
     mock_appconfig.start_configuration_session.side_effect = botocore.exceptions.ClientError(
         {'Error': {'Code': 'ResourceNotFoundException'}}, 'StartConfigurationSession'
@@ -134,3 +188,34 @@ def test_missing_appconfig_raises_error(monkeypatch):
 
     with pytest.raises(botocore.exceptions.ClientError):
         config.load_config('test_lambda')
+
+    cache_module.AppConfigCacheDAO.assert_called_once_with(prefix='test-app:test')
+    failing_cache_dao.latest.assert_called_once_with(pull=True)
+
+
+def test_load_config_uses_cache_when_available(monkeypatch, healthy_cache_dao, appconfig_payload):
+    """Ensure load_config() uses AppConfigCacheDAO when cache is available.
+
+    In this scenario, the cache path succeeds and the underlying AppConfig
+    client must not be called.
+    """
+    import cloudshortener.dao.cache as cache_module
+
+    monkeypatch.setattr(cache_module, 'AppConfigCacheDAO', MagicMock(return_value=healthy_cache_dao))
+
+    # Mock AppConfig Data client but ensure it's never used
+    mock_appconfig = MagicMock()
+    monkeypatch.setattr(config.boto3, 'client', lambda service: mock_appconfig)
+
+    result = config.load_config('test_lambda')
+
+    # Result should come from cached document
+    assert result['redis']['host'] == appconfig_payload['configs']['test_lambda']['redis']['host']
+    assert result['redis']['port'] == appconfig_payload['configs']['test_lambda']['redis']['port']
+    assert result['redis']['db'] == appconfig_payload['configs']['test_lambda']['redis']['db']
+
+    cache_module.AppConfigCacheDAO.assert_called_once_with(prefix='test-app:test')
+    healthy_cache_dao.latest.assert_called_once_with(pull=True)
+
+    mock_appconfig.start_configuration_session.assert_not_called()
+    mock_appconfig.get_latest_configuration.assert_not_called()
