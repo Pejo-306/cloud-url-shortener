@@ -214,7 +214,7 @@ def test_latest_cache_hit_returns_document(dao, redis_client, default_appconfig_
     assert result['configs']['redirect_url']['redis']['port'] == 66379
     assert result['configs']['redirect_url']['redis']['db'] == 24
 
-    redis_client.get.assert_called_once_with('testapp:test:appconfig:latest')
+    redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:latest')
 
 
 def test_latest_cache_miss_with_pull_false_raises(dao, redis_client):
@@ -227,11 +227,13 @@ def test_latest_cache_miss_with_pull_false_raises(dao, redis_client):
 @freeze_time('2025-01-03T00:00:00Z')
 def test_latest_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
     """Ensure latest() fetches from AppConfig and warms cache on MISS with pull=True."""
+    # fmt: off
     expected_calls = [
-        call('testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
-        call('testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
     ]
+    # fmt: on
     redis_client.get.return_value = None
 
     result = dao.latest(pull=True)
@@ -273,7 +275,7 @@ def test_get_version_cache_hit_returns_document(dao, redis_client, default_appco
     assert result['configs']['redirect_url']['redis']['port'] == 66379
     assert result['configs']['redirect_url']['redis']['db'] == 24
 
-    redis_client.get.assert_called_once_with('testapp:test:appconfig:v42')
+    redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:v42')
 
 
 def test_get_version_cache_miss_with_pull_false_raises(dao, redis_client):
@@ -288,10 +290,12 @@ def test_get_version_cache_miss_with_pull_true_fetches_and_writes(dao, redis_cli
     """Ensure get(version) fetches specific version and warms cache on MISS with pull=True."""
     written_appconfig_metadata = default_appconfig_metadata.copy()
     written_appconfig_metadata['version'] = 9
+    # fmt: off
     expected_calls = [
-        call('testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
     ]
+    # fmt: on
     redis_client.get.return_value = None
 
     result = dao.get(9, pull=True)
@@ -330,7 +334,7 @@ def test_metadata_cache_hit_returns_metadata(dao, redis_client, default_appconfi
     assert result['content_type'] == 'application/json'
     assert result['fetched_at'] == '2025-01-03T00:00:00+00:00'
 
-    redis_client.get.assert_called_once_with('testapp:test:appconfig:v42:metadata')
+    redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:v42:metadata')
 
 
 def test_metadata_cache_miss_with_pull_false_raises(dao, redis_client):
@@ -345,10 +349,12 @@ def test_metadata_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client
     """Ensure metadata(version) fetches and warms cache on MISS with pull=True."""
     written_appconfig_metadata = default_appconfig_metadata.copy()
     written_appconfig_metadata['version'] = 9
+    # fmt: off
     expected_calls = [
-        call('testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
     ]
+    # fmt: on
     redis_client.get.return_value = None
 
     result = dao.metadata(9, pull=True)

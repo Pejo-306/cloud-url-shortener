@@ -123,7 +123,7 @@ class CacheKeySchema:
         if prefix is not None and not isinstance(prefix, str):
             raise TypeError(f'Prefix must be of type string (given type: {type(prefix)}).')
 
-        self.prefix = prefix
+        self.prefix = f'cache:{prefix}' if prefix is not None else None
 
     @prefix_key
     def appconfig_latest_key(self) -> str:

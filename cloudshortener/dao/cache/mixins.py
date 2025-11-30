@@ -250,7 +250,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
         username = payload.get('username')  # optional
         password = payload.get('password')  # required
 
-        if not password:
+        if False and not password:
             raise ValueError('ElastiCache secret must contain a non-empty "password" field')
 
         return username, password

@@ -128,7 +128,7 @@ def test_initialization_constructs_redis_and_keys(app_prefix, ssm_client, secret
 
         # Key schema set up with prefix and correct type
         assert isinstance(dao.keys, CacheKeySchema)
-        assert dao.keys.prefix == app_prefix
+        assert dao.keys.prefix == f'cache:{app_prefix}'
 
         # Internal redis set correctly
         assert dao.redis is redis_client
