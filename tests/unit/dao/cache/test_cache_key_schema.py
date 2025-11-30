@@ -89,6 +89,7 @@ def test_no_prefix_by_default(keys):
 # -------------------------------
 
 
+# fmt: off
 @pytest.mark.parametrize(
     'prefix, version, expected_latest, expected_version, expected_meta',
     [
@@ -106,6 +107,7 @@ def test_no_prefix_by_default(keys):
          'appconfig:v5:metadata'),
     ],
 )
+# fmt: on
 def test_prefix_behavior(prefix, version, expected_latest, expected_version, expected_meta):
     """Ensure AppConfig keys are correctly prefixed when a prefix is provided."""
     keys = CacheKeySchema(prefix=prefix)

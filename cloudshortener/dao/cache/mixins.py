@@ -179,9 +179,11 @@ class ElastiCacheClientMixin(RedisClientMixin):
         db_param = os.environ[ELASTICACHE_DB_PARAM_ENV]
         user_param = os.environ.get(ELASTICACHE_USER_PARAM_ENV)  # optional
 
+        # fmt: off
         ssm_client_kwargs = {} if ssm_client is not None and not running_locally() else {
             'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
         }
+        # fmt: on
         ssm = ssm_client or boto3.client('ssm', **ssm_client_kwargs)
 
         try:
@@ -230,9 +232,11 @@ class ElastiCacheClientMixin(RedisClientMixin):
                 If the secret payload is not valid JSON or missing 'password'.
         """
         secret_name = os.environ[ELASTICACHE_SECRET_ENV]
+        # fmt: off
         secrets_client_kwargs = {} if secrets_client is not None and not running_locally() else {
             'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
         }
+        # fmt: on
         sm = secrets_client or boto3.client('secretsmanager', **secrets_client_kwargs)
 
         try:

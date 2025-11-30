@@ -170,10 +170,7 @@ def main(argv: list[str] | None = None) -> None:
         dry_run=args.dry_run,
     )
 
-    print(
-        f"Done. {'Previewed' if args.dry_run else 'Wrote'} "
-        f"{writes} SSM parameters under {base_path} and secret '{secret_name}'."
-    )
+    print(f"Done. {'Previewed' if args.dry_run else 'Wrote'} {writes} SSM parameters under {base_path} and secret '{secret_name}'.")
 
 
 if __name__ == '__main__':

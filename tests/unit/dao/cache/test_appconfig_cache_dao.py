@@ -66,10 +66,11 @@ def _env(monkeypatch):
 # Default AppConfig document and metadata
 # -------------------------------
 
+
 @pytest.fixture
 def default_appconfig_doc():
     return {
-        'active_backend': 'redis', 
+        'active_backend': 'redis',
         'configs': {
             'shorten_url': {
                 'redis': {
@@ -85,7 +86,7 @@ def default_appconfig_doc():
                     'db': 24,
                 }
             },
-        }
+        },
     }
 
 
@@ -117,7 +118,7 @@ def appconfigdata_client(default_appconfig_doc, default_appconfig_metadata):
                 'configuration-version': str(default_appconfig_metadata['version']),
                 'etag': default_appconfig_metadata['etag'],
             },
-        }
+        },
     }
     return client
 
@@ -134,7 +135,7 @@ def appconfig_client(default_appconfig_doc, default_appconfig_metadata):
                 'configuration-version': str(default_appconfig_metadata['version']),
                 'etag': default_appconfig_metadata['etag'],
             },
-        }
+        },
     }
     return client
 

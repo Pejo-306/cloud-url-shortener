@@ -65,6 +65,11 @@ from cloudshortener.dao.cache.mixins import ElastiCacheClientMixin
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
 from cloudshortener.dao.redis.helpers import handle_redis_connection_error
 from cloudshortener.utils.helpers import require_environment
+from cloudshortener.utils.constants import (
+    APPCONFIG_APP_ID_ENV,
+    APPCONFIG_ENV_ID_ENV,
+    APPCONFIG_PROFILE_ID_ENV,
+)
 
 
 class AppConfigCacheDAO(ElastiCacheClientMixin):
@@ -82,7 +87,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             On miss, optionally fetch from AppConfig and populate cache.
 
         get(version: int | str, pull: bool = True) -> dict:
-            Retrieve a specific version of the AppConfig document, or 'latest'. 
+            Retrieve a specific version of the AppConfig document, or 'latest'.
             On miss, optionally fetch from AppConfig and populate cache.
 
         metadata(version: int, pull: bool = True) -> dict:
@@ -315,7 +320,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         except redis.exceptions.ConnectionError as e:
             raise CachePutError(f'Failed to write AppConfig v{resolved_version} to cache.') from e
 
-    @require_environment('APPCONFIG_APP_ID', 'APPCONFIG_ENV_ID', 'APPCONFIG_PROFILE_ID')
+    @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
     @beartype
     def _fetch_latest_appconfig(self) -> tuple[int, dict[str, Any], dict[str, Any]]:
         """Fetch the latest AppConfig document via the AppConfig Data API
@@ -335,10 +340,9 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             botocore.exceptions.BotoCoreError / ClientError:
                 If the AppConfig Data API calls fail.
         """
-        # TODO: add a healper decorator to check for required environment variables
-        app_id = os.environ['APPCONFIG_APP_ID']
-        env_id = os.environ['APPCONFIG_ENV_ID']
-        profile_id = os.environ['APPCONFIG_PROFILE_ID']
+        app_id = os.environ[APPCONFIG_APP_ID_ENV]
+        env_id = os.environ[APPCONFIG_ENV_ID_ENV]
+        profile_id = os.environ[APPCONFIG_PROFILE_ID_ENV]
 
         # Get latest configuration from AppConfig Data API
         client = boto3.client('appconfigdata')
@@ -372,7 +376,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         }
         return resolved_version, document, metadata
 
-    @require_environment('APPCONFIG_APP_ID', 'APPCONFIG_PROFILE_ID')
+    @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
     @beartype
     def _fetch_appconfig(self, version: int) -> tuple[int, dict[str, Any], dict[str, Any]]:
         """Fetch a specific hosted AppConfig version via the control-plane API
@@ -394,8 +398,8 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             botocore.exceptions.BotoCoreError / ClientError:
                 If the AppConfig control-plane API call fails.
         """
-        app_id = os.environ['APPCONFIG_APP_ID']
-        profile_id = os.environ['APPCONFIG_PROFILE_ID']
+        app_id = os.environ[APPCONFIG_APP_ID_ENV]
+        profile_id = os.environ[APPCONFIG_PROFILE_ID_ENV]
 
         # Fetch the specific hosted configuration version from AppConfig control-plane API
         client = boto3.client('appconfig')

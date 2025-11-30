@@ -203,6 +203,6 @@ def test_require_environment_missing_or_empty(monkeypatch, env_setup, missing_na
     def sample_function() -> None:
         pass
 
-    expected_message = f"Missing required environment variables: {', '.join(missing_names)}"
+    expected_message = f'Missing required environment variables: {", ".join(missing_names)}'
     with pytest.raises(KeyError, match=expected_message):
         sample_function()

@@ -92,6 +92,17 @@ from collections.abc import Callable
 import boto3
 
 from cloudshortener.utils.helpers import require_environment
+from cloudshortener.utils.constants import (
+    APP_ENV_ENV,
+    APP_NAME_ENV,
+    PROJECT_ROOT_ENV,
+    AWS_SAM_LOCAL_ENV,
+    APPCONFIG_APP_ID_ENV,
+    APPCONFIG_ENV_ID_ENV,
+    APPCONFIG_PROFILE_ID_ENV,
+    APPCONFIG_AGENT_URL_ENV,
+    APPCONFIG_PROFILE_NAME_ENV,
+)
 
 
 def app_env() -> str:
@@ -106,7 +117,7 @@ def app_env() -> str:
         >>> app_env()
         'dev'
     """
-    return os.environ.get('APP_ENV', 'local').lower()
+    return os.environ.get(APP_ENV_ENV, 'local').lower()
 
 
 def app_name() -> str | None:
@@ -122,7 +133,7 @@ def app_name() -> str | None:
         >>> app_name()
         'cloudshortener'
     """
-    return os.environ.get('APP_NAME')
+    return os.environ.get(APP_NAME_ENV)
 
 
 def project_root() -> Path:
@@ -139,7 +150,7 @@ def project_root() -> Path:
         >>> project_root()
         '/var/tasks/'
     """
-    return Path(os.environ.get('PROJECT_ROOT', os.path.dirname(__file__)))
+    return Path(os.environ.get(PROJECT_ROOT_ENV, os.path.dirname(__file__)))
 
 
 def app_prefix() -> str | None:
@@ -172,8 +183,8 @@ def running_locally() -> bool:
         >>> running_locally()
         False
     """
-    env = os.getenv('APP_ENV', '').lower()
-    return env == 'local' or os.getenv('AWS_SAM_LOCAL') == 'true'
+    env = os.getenv(APP_ENV_ENV, '').lower()
+    return env == 'local' or os.getenv(AWS_SAM_LOCAL_ENV) == 'true'
 
 
 def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], dict]:  # pragma: no cover
@@ -224,11 +235,11 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
 
     @functools.wraps(func)
     def wrapper(lambda_name: str, *args, **kwargs) -> dict:
-        agent_url = __validate_appconfig_url(os.getenv('APPCONFIG_AGENT_URL'))
+        agent_url = __validate_appconfig_url(os.getenv(APPCONFIG_AGENT_URL_ENV))
         if not running_locally() or not agent_url:
             return func(lambda_name, *args, **kwargs)
 
-        profile_name = os.getenv('APPCONFIG_PROFILE_NAME', 'backend-config')
+        profile_name = os.getenv(APPCONFIG_PROFILE_NAME_ENV, 'backend-config')
         url = f'{agent_url}/applications/{app_name()}/environments/{app_env()}/configurations/{profile_name}'
         with urllib.request.urlopen(url, timeout=5) as r:  # noqa: S310
             config = json.load(r)
@@ -312,7 +323,7 @@ def cache_appconfig(func: Callable[[str], dict]) -> Callable[[str], dict]:
 
 @_sam_load_local_appconfig
 @cache_appconfig
-@require_environment('APPCONFIG_APP_ID', 'APPCONFIG_ENV_ID', 'APPCONFIG_PROFILE_ID')
+@require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
 def load_config(lambda_name: str) -> dict:
     """Load configuration for a given Lambda from AWS AppConfig
 
@@ -340,9 +351,9 @@ def load_config(lambda_name: str) -> dict:
 
     # Start an AppConfig data session
     session_token = appconfig.start_configuration_session(
-        ApplicationIdentifier=os.environ['APPCONFIG_APP_ID'],
-        EnvironmentIdentifier=os.environ['APPCONFIG_ENV_ID'],
-        ConfigurationProfileIdentifier=os.environ['APPCONFIG_PROFILE_ID'],
+        ApplicationIdentifier=os.environ[APPCONFIG_APP_ID_ENV],
+        EnvironmentIdentifier=os.environ[APPCONFIG_ENV_ID_ENV],
+        ConfigurationProfileIdentifier=os.environ[APPCONFIG_PROFILE_ID_ENV],
     )['InitialConfigurationToken']
 
     # Fetch the configuration

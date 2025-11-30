@@ -39,7 +39,8 @@ Example:
 import os
 import functools
 from datetime import datetime, UTC
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 
 def base_url(event: dict[str, Any]) -> str:
@@ -124,16 +125,16 @@ def require_environment(*names: str) -> Callable:
         >>> my_function()
         ValueError: Missing required environment variables: 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'
     """
+
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            missing = [
-                name for name in names
-                if not os.environ.get(name)
-            ]
+            missing = [name for name in names if not os.environ.get(name)]
             if missing:
                 missing_list = ', '.join(f"'{name}'" for name in missing)
-                raise KeyError(f"Missing required environment variables: {missing_list}")
+                raise KeyError(f'Missing required environment variables: {missing_list}')
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
