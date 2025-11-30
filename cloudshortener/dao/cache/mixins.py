@@ -26,6 +26,7 @@ Environment variables (paths/names to resolve at runtime):
     - ELASTICACHE_DB_PARAM    : SSM parameter path for Redis DB index
     - ELASTICACHE_USER_PARAM  : SSM parameter path for Redis username (optional)
     - ELASTICACHE_SECRET      : Secrets Manager name for {"username": "...", "password": "..."}
+    - LOCALSTACK_ENDPOINT     : LocalStack endpoint URL for local development
 """
 
 import json
@@ -40,6 +41,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.redis.mixins import RedisClientMixin
 from cloudshortener.utils.config import running_locally
+from cloudshortener.utils.helpers import require_environment
 from cloudshortener.utils.constants import (
     ELASTICACHE_HOST_PARAM_ENV,
     ELASTICACHE_PORT_PARAM_ENV,
@@ -145,12 +147,20 @@ class ElastiCacheClientMixin(RedisClientMixin):
         self.keys = CacheKeySchema(prefix=prefix)
 
     @staticmethod
+    @require_environment(ELASTICACHE_HOST_PARAM_ENV, ELASTICACHE_PORT_PARAM_ENV, ELASTICACHE_DB_PARAM_ENV)
     def _resolve_ssm_params(ssm_client: Optional[BaseClient]) -> tuple[str, int, int, Optional[str]]:
         """Resolve host, port, db, and optional username from SSM Parameter Store.
 
         Reads parameter names from environment variables and fetches their values
         using SSM (or LocalStack in local mode). The port and db values are validated
         and cast to integers.
+
+        Environment:
+            - ELASTICACHE_HOST_PARAM: SSM parameter path for Redis host
+            - ELASTICACHE_PORT_PARAM: SSM parameter path for Redis port
+            - ELASTICACHE_DB_PARAM: SSM parameter path for Redis DB index
+            - ELASTICACHE_USER_PARAM: SSM parameter path for Redis username (optional)
+            - LOCALSTACK_ENDPOINT: LocalStack endpoint URL for local development
 
         Returns:
             Tuple[str, int, int, Optional[str]]:
@@ -164,22 +174,10 @@ class ElastiCacheClientMixin(RedisClientMixin):
             ValueError:
                 If SSM responses are malformed or port/db cannot be cast to int.
         """
-        host_param = os.environ.get(ELASTICACHE_HOST_PARAM_ENV)
-        port_param = os.environ.get(ELASTICACHE_PORT_PARAM_ENV)
-        db_param = os.environ.get(ELASTICACHE_DB_PARAM_ENV)
+        host_param = os.environ[ELASTICACHE_HOST_PARAM_ENV]
+        port_param = os.environ[ELASTICACHE_PORT_PARAM_ENV]
+        db_param = os.environ[ELASTICACHE_DB_PARAM_ENV]
         user_param = os.environ.get(ELASTICACHE_USER_PARAM_ENV)  # optional
-
-        if not host_param or not port_param or not db_param:
-            missing = [
-                k
-                for k, v in [
-                    (ELASTICACHE_HOST_PARAM_ENV, host_param),
-                    (ELASTICACHE_PORT_PARAM_ENV, port_param),
-                    (ELASTICACHE_DB_PARAM_ENV, db_param),
-                ]
-                if not v
-            ]
-            raise KeyError(f'Missing required environment variables: {", ".join(missing)}')
 
         ssm_client_kwargs = {} if ssm_client is not None and not running_locally() else {
             'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
@@ -207,8 +205,13 @@ class ElastiCacheClientMixin(RedisClientMixin):
         return host, port, db, user
 
     @staticmethod
+    @require_environment(ELASTICACHE_SECRET_ENV)
     def _resolve_secret(secrets_client: Optional[BaseClient]) -> tuple[Optional[str], str]:
         """Resolve optional username and required password from Secrets Manager.
+
+        Environment:
+            - ELASTICACHE_SECRET: Secrets Manager name for {"username": "...", "password": "..."}
+            - LOCALSTACK_ENDPOINT: LocalStack endpoint URL for local development
 
         The secret is expected to be a JSON object with fields:
             - "username": optional string (commonly None for ElastiCache token auth)
@@ -226,10 +229,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
             ValueError:
                 If the secret payload is not valid JSON or missing 'password'.
         """
-        secret_name = os.environ.get(ELASTICACHE_SECRET_ENV)
-        if not secret_name:
-            raise KeyError(f'Missing required environment variable: {ELASTICACHE_SECRET_ENV}')
-
+        secret_name = os.environ[ELASTICACHE_SECRET_ENV]
         secrets_client_kwargs = {} if secrets_client is not None and not running_locally() else {
             'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
         }

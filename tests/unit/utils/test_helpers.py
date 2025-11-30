@@ -13,6 +13,10 @@ Test coverage includes:
 3. beginning_of_next_month() computes next month's first moment
    - 3.1. Ensures correct calculation for various dates throughout the year.
    - 3.2. Validates year rollover behavior at December boundaries.
+
+4. require_environment() decorator behavior
+   - 4.1. Ensures decorated functions execute when all env vars are present.
+   - 4.2. Ensures missing or empty env vars raise a descriptive ValueError.
 """
 
 from datetime import datetime, UTC
@@ -20,7 +24,12 @@ from datetime import datetime, UTC
 import pytest
 from freezegun import freeze_time
 
-from cloudshortener.utils.helpers import base_url, get_short_url, beginning_of_next_month
+from cloudshortener.utils.helpers import (
+    base_url,
+    get_short_url,
+    beginning_of_next_month,
+    require_environment,
+)
 
 
 # -------------------------------
@@ -106,6 +115,8 @@ def test_base_url_handles_incomplete_context(event):
 # -------------------------------
 # 2. Get short url string representation
 # -------------------------------
+
+
 @pytest.mark.parametrize(
     'shortcode, domain, stage, expected',
     [
@@ -147,3 +158,51 @@ def test_beginning_of_next_month(frozen_date, expected):
     with freeze_time(frozen_date):
         result = beginning_of_next_month()
         assert result == expected
+
+
+# -------------------------------
+# 4.1. require_environment() happy path
+# -------------------------------
+
+
+def test_require_environment_happy_path(monkeypatch):
+    """4.1. Decorated function executes when all env vars are present."""
+    monkeypatch.setenv('ENV1', 'value1')
+    monkeypatch.setenv('ENV2', 'value2')
+
+    @require_environment('ENV1', 'ENV2')
+    def sample_function(x: int) -> int:
+        return x + 1
+
+    assert sample_function(1) == 2
+
+
+# -------------------------------
+# 4.2. require_environment() missing or empty env vars
+# -------------------------------
+
+
+@pytest.mark.parametrize(
+    'env_setup, missing_names',
+    [
+        ({'ENV1': None, 'ENV2': 'value2'}, ["'ENV1'"]),
+        ({'ENV1': '', 'ENV2': 'value2'}, ["'ENV1'"]),
+        ({'ENV1': None, 'ENV2': None}, ["'ENV1'", "'ENV2'"]),
+        ({'ENV1': '', 'ENV2': ''}, ["'ENV1'", "'ENV2'"]),
+    ],
+)
+def test_require_environment_missing_or_empty(monkeypatch, env_setup, missing_names):
+    """4.2. Missing or empty env vars raise a descriptive ValueError."""
+    for name, value in env_setup.items():
+        if value is None:
+            monkeypatch.delenv(name, raising=False)
+        else:
+            monkeypatch.setenv(name, value)
+
+    @require_environment('ENV1', 'ENV2')
+    def sample_function() -> None:
+        pass
+
+    expected_message = f"Missing required environment variables: {', '.join(missing_names)}"
+    with pytest.raises(KeyError, match=expected_message):
+        sample_function()

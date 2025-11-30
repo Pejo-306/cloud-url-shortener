@@ -7,6 +7,8 @@ Functions:
         Get string representation of short URL for a given shortcode
     beginning_of_next_month() -> datetime
         Compute the first moment of the next calendar month in UTC
+    require_environment(*names: str) -> Callable
+        Decorator: Ensure required environment variables are present
 
 Example:
     Typical usage inside a Lambda handler:
@@ -34,8 +36,10 @@ Example:
         'http://localhost:3000'
 """
 
+import os
+import functools
 from datetime import datetime, UTC
-from typing import Any
+from typing import Any, Callable
 
 
 def base_url(event: dict[str, Any]) -> str:
@@ -100,3 +104,36 @@ def beginning_of_next_month() -> datetime:
     next_year = now.year + (1 if now.month == 12 else 0)
 
     return datetime(next_year, next_month, 1, 0, 0, 0, tzinfo=UTC)
+
+
+def require_environment(*names: str) -> Callable:
+    """Decorator ensuring required environment variables are present.
+
+    Args:
+        *names (str):
+            Names of required environment variables.
+
+    Raises:
+        ValueError:
+            If any required environment variable is missing or empty.
+
+    Example:
+        >>> @require_environment('AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY')
+        ... def my_function():
+        ...     pass
+        >>> my_function()
+        ValueError: Missing required environment variables: 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'
+    """
+    def decorator(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            missing = [
+                name for name in names
+                if not os.environ.get(name)
+            ]
+            if missing:
+                missing_list = ', '.join(f"'{name}'" for name in missing)
+                raise KeyError(f"Missing required environment variables: {missing_list}")
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator

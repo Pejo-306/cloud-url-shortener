@@ -389,12 +389,14 @@ def test_cache_put_error_when_pipeline_execute_fails(dao, redis_client, appconfi
 def test_fetch_latest_env_validation_missing_vars(dao, monkeypatch):
     """Ensure _fetch_latest_appconfig() validates required env vars."""
     monkeypatch.delenv('APPCONFIG_ENV_ID', raising=False)
-    with pytest.raises(ValueError, match='Missing one or more required env vars'):
+    expected_message = "Missing required environment variables: 'APPCONFIG_ENV_ID'"
+    with pytest.raises(KeyError, match=expected_message):
         dao.latest(pull=True)
 
 
 def test_fetch_version_env_validation_missing_vars(dao, monkeypatch):
     """Ensure _fetch_appconfig() validates required env vars."""
     monkeypatch.delenv('APPCONFIG_PROFILE_ID', raising=False)
-    with pytest.raises(ValueError, match='Missing required env vars'):
+    expected_message = "Missing required environment variables: 'APPCONFIG_PROFILE_ID'"
+    with pytest.raises(KeyError, match=expected_message):
         dao.get(42, pull=True)

@@ -91,6 +91,8 @@ from collections.abc import Callable
 
 import boto3
 
+from cloudshortener.utils.helpers import require_environment
+
 
 def app_env() -> str:
     """Return the current application environment by reading 'APP_ENV'
@@ -310,6 +312,7 @@ def cache_appconfig(func: Callable[[str], dict]) -> Callable[[str], dict]:
 
 @_sam_load_local_appconfig
 @cache_appconfig
+@require_environment('APPCONFIG_APP_ID', 'APPCONFIG_ENV_ID', 'APPCONFIG_PROFILE_ID')
 def load_config(lambda_name: str) -> dict:
     """Load configuration for a given Lambda from AWS AppConfig
 
