@@ -48,8 +48,6 @@ NOTE:
     - This DAO intentionally couples cache access with AppConfig fetching to keep the
       interface simple at call sites. If the cache is cold, the DAO can populate it
       by contacting AppConfig (when pull=True).
-
-TODO: add unit tests!
 """
 
 import json
@@ -359,14 +357,23 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         document = json.loads((content or b'').decode('utf-8'))
 
         # Extract the configuration version from the response headers
-        headers = (resp.get('ResponseMetadata') or {}).get('HTTPHeaders') or {}
-        version_str = headers.get('configuration-version') or headers.get('x-amzn-appconfig-configuration-version')
+        # Try multiple possible header names for version information
+        headers = resp.get('ResponseMetadata', {}).get('HTTPHeaders', {})
+        version_str = (
+            headers.get('configuration-version')
+            or headers.get('x-amzn-appconfig-configuration-version')
+            or headers.get('Version-Label')
+            or headers.get('version-label')
+        )
+
+        # If version is not in headers, fetch it from the control-plane API
         if not version_str:
-            raise ValueError('AppConfig Data response missing configuration version header.')
-        try:
-            resolved_version = int(version_str)
-        except (TypeError, ValueError) as e:
-            raise ValueError(f'Invalid configuration-version header: {version_str!r}') from e
+            resolved_version = self._get_latest_version_number()
+        else:
+            try:
+                resolved_version = int(version_str)
+            except (TypeError, ValueError) as e:
+                raise ValueError(f'Invalid configuration-version header: {version_str!r}') from e
 
         metadata = {
             'version': resolved_version,
@@ -375,6 +382,49 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             'fetched_at': datetime.now(UTC).isoformat(),
         }
         return resolved_version, document, metadata
+
+    @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
+    @beartype
+    def _get_latest_version_number(self) -> int:
+        """Get the latest hosted configuration version number from the control-plane API
+
+        This method is used as a fallback when the Data API doesn't return version
+        information in headers.
+
+        Environment:
+            APPCONFIG_APP_ID, APPCONFIG_PROFILE_ID must be set.
+
+        Returns:
+            int: The latest hosted configuration version number.
+
+        Raises:
+            ValueError:
+                If required environment variables are missing or no versions are found.
+            botocore.exceptions.BotoCoreError / ClientError:
+                If the AppConfig control-plane API call fails.
+        """
+        app_id = os.environ[APPCONFIG_APP_ID_ENV]
+        profile_id = os.environ[APPCONFIG_PROFILE_ID_ENV]
+
+        # Use control-plane API to list hosted configuration versions
+        # Get the latest version (first result when sorted descending)
+        client = boto3.client('appconfig')
+        try:
+            response = client.list_hosted_configuration_versions(
+                ApplicationId=app_id,
+                ConfigurationProfileId=profile_id,
+                MaxResults=1,
+            )
+            versions = response.get('Items', [])
+            if not versions:
+                raise ValueError('No hosted configuration versions found for this profile.')
+            # Versions are returned in descending order by default, so first is latest
+            latest_version = versions[0].get('VersionNumber')
+            if latest_version is None:
+                raise ValueError('Latest configuration version missing VersionNumber field.')
+            return int(latest_version)
+        except (KeyError, TypeError, ValueError) as e:
+            raise ValueError(f'Failed to determine latest configuration version: {e}') from e
 
     @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
     @beartype
@@ -415,7 +465,8 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         document = json.loads((content or b'').decode('utf-8'))
 
         # Extract the etag from the response headers
-        etag = (resp.get('ResponseMetadata') or {}).get('HTTPHeaders', {}).get('etag')
+        # etag = (resp.get('ResponseMetadata') or {}).get('HTTPHeaders', {}).get('etag')
+        etag = resp.get('ResponseMetadata', {}).get('HTTPHeaders', {}).get('etag')
         metadata = {
             'version': version,
             'etag': etag,
