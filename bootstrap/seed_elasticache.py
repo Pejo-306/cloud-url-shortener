@@ -20,7 +20,7 @@ CLI usage:
         --app-name cloudshortener --env dev \
         --host redis.example \
         --port 6379 --db 0 \
-        --user app --password 'S3cr3tP@ss' \
+        --user default --password 'bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD' \
         --tags "Owner=Pesho,Service=cloudshortener"
 
     $ python -m bootstrap.seed_elasticache --app-name cloudshortener --env dev \
