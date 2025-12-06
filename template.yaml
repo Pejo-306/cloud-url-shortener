@@ -29,15 +29,32 @@ Parameters:
 
   AppConfigAgentURL:
     Type: String
-    Default: 'n/a'
+    Default: n/a
     NoEcho: true
     Description: AppConfig agent URL for the backend
 
+  LocalstackEndpoint:
+    Type: String
+    Default: http://localhost:4566
+    NoEcho: true
+    Description: Localstack endpoint for the backend
+
+  ElastiCacheNodeType:
+    Type: String
+    Default: cache.t4g.small
+
+  ElastiCacheEngineVersion:
+    Type: String
+    Default: 7.1
+
+  ElastiCachePort:
+    Type: Number
+    Default: 6379
+
 Conditions:
-  IsLocal:
-    Fn::Equals:
-      - !Ref AppEnv
-      - "local"
+  IsLocal: !Equals
+    - !Ref AppEnv
+    - local
 
 Globals:
   Function:
@@ -48,20 +65,41 @@ Globals:
     Runtime: python3.13
     Architectures:
       - arm64
+    VpcConfig:
+      SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+    Tags:
+      App: !Ref AppName
     Environment:
       Variables:
+        # Project variables
         APP_ENV: !Ref AppEnv
         APP_NAME: !Ref AppName
         PROJECT_ROOT: /var/task
+        # Cognito variables
         # TODO: move out cognito user environment variables only to shortenURLbackend
         USER_POOL_ID: !Ref CognitoUserPool
         USER_POOL_CLIENT_ID: !Ref CognitoUserPoolClient
+        # AppConfig variables
         APPCONFIG_APP_ID: !Ref AppConfigApplication
         APPCONFIG_ENV_ID: !Ref AppConfigEnvironment
         APPCONFIG_PROFILE_ID: !Ref BackendConfigProfile
         APPCONFIG_AGENT_URL: !If
           - IsLocal
           - !Ref AppConfigAgentURL
+          - !Ref AWS::NoValue
+        # ElastiCache variables
+        ELASTICACHE_HOST_PARAM: !Sub /${AppName}/${AppEnv}/elasticache/host
+        ELASTICACHE_PORT_PARAM: !Sub /${AppName}/${AppEnv}/elasticache/port
+        ELASTICACHE_DB_PARAM: !Sub /${AppName}/${AppEnv}/elasticache/db
+        ELASTICACHE_USER_PARAM: !Sub /${AppName}/${AppEnv}/elasticache/user
+        ELASTICACHE_SECRET: !Sub ${AppName}/${AppEnv}/elasticache/credentials
+        LOCALSTACK_ENDPOINT: !If
+          - IsLocal
+          - !Ref LocalstackEndpoint
           - !Ref AWS::NoValue
   Api:
     TracingEnabled: true
@@ -71,6 +109,167 @@ Globals:
       AllowOrigin: '''*'''
 
 Resources:
+  ##################################################
+  # VPC & networking
+  ##################################################
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-${AppEnv}-vpc
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  VpcIgwAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-${AppEnv}-public-a
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: VpcIgwAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnetA
+      RouteTableId: !Ref PublicRouteTable
+
+  NatEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEip.AllocationId
+      SubnetId: !Ref PublicSubnetA
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select
+        - 0
+        - !GetAZs ''
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-${AppEnv}-private-a
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select
+        - 1
+        - !GetAZs ''
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-${AppEnv}-private-b
+
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+
+  PrivateDefaultRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateDefaultRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  PrivateSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetA
+      RouteTableId: !Ref PrivateRouteTableA
+
+  PrivateSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnetB
+      RouteTableId: !Ref PrivateRouteTableB
+
+  # ---------------------------
+  # Security groups
+  # ---------------------------
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Lambda egress within VPC
+      VpcId: !Ref Vpc
+      SecurityGroupEgress:
+        - IpProtocol: '-1'
+          CidrIp: 0.0.0.0/0
+
+  ElastiCacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Lambda connectivity to Redis
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: !Ref ElastiCachePort
+          ToPort: !Ref ElastiCachePort
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  # ---------------------------
+  # ElastiCache subnet group
+  # ---------------------------
+  CacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Private subnets for ElastiCache
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+
   ##################################################
   # AppConfig
   ##################################################
@@ -93,8 +292,8 @@ Resources:
       LocationUri: hosted # using AppConfig hosted store
       Type: AWS.Freeform
       # Optional: add a JSON schema validator later
-  
-    # Create a hosted configuration version with inline JSON
+
+      # Create a hosted configuration version with inline JSON
   BackendHostedConfigVersion:
     Type: AWS::AppConfig::HostedConfigurationVersion
     Properties:
@@ -262,6 +461,15 @@ Resources:
                 Action:
                   - xray:PutTraceSegments
                   - xray:PutTelemetryRecords
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeVpcs
                 Resource: "*"
 
   ##################################################
@@ -315,6 +523,28 @@ Resources:
             Method: get
             Auth:
               Authorizer: NONE
+
+  ##################################################
+  # ElastiCache Replication Group
+  ##################################################
+  ElastiCacheReplicationGroup:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      ReplicationGroupDescription: !Sub ${AppName}-${AppEnv} Redis
+      Engine: redis
+      EngineVersion: !Ref ElastiCacheEngineVersion
+      CacheNodeType: !Ref ElastiCacheNodeType
+      AutomaticFailoverEnabled: true
+      MultiAZEnabled: true
+      NumNodeGroups: 1
+      ReplicasPerNodeGroup: 1
+      AtRestEncryptionEnabled: true
+      TransitEncryptionEnabled: true
+      AuthToken: !Sub '{{resolve:secretsmanager:${AppName}/${AppEnv}/elasticache/credentials:SecretString:password}}'
+      CacheSubnetGroupName: !Ref CacheSubnetGroup
+      SecurityGroupIds:
+        - !GetAtt ElastiCacheSecurityGroup.GroupId
+      Port: !Ref ElastiCachePort
 
   ##################################################
   # Application Insights & Monitoring
@@ -455,3 +685,11 @@ Outputs:
   BackendConfigProfileId:
     Description: AppConfig Configuration Profile ID
     Value: !Ref BackendConfigProfile
+
+  ElastiCachePrimaryEndpoint:
+    Description: Redis primary endpoint (host:port)
+    Value: !Sub ${ElastiCacheReplicationGroup.PrimaryEndPoint.Address}:${ElastiCachePort}
+
+  ElastiCacheReaderEndpoint:
+    Description: Redis reader endpoint (host:port)
+    Value: !Sub ${ElastiCacheReplicationGroup.ReaderEndPoint.Address}:${ElastiCachePort}
