@@ -316,7 +316,10 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                     pipe.set(latest_key, document_json)  # duplicate full doc for faster retrieval
                 pipe.execute()
         except redis.exceptions.ConnectionError as e:
-            raise CachePutError(f'Failed to write AppConfig v{resolved_version} to cache.') from e
+            raise CachePutError(
+                f'Failed to write AppConfig v{resolved_version} to cache. '
+                '(hint: you may be using the read-only replica, ensure you are using the master)'
+            ) from e
 
     @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
     @beartype

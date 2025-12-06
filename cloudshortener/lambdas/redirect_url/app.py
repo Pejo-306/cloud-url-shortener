@@ -94,10 +94,6 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         >>> response['headers']['Location']
         'https://example.com/my-page'
     """
-    # TODO: move the prefix creation to a helper function?
-    # TODO: add error handling for invalid short code
-    # TODO: add lambda handling of a short URL already exists in shorten_url
-
     # 0- Get application's config
     try:
         app_config = load_config('redirect_url')

@@ -108,7 +108,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
         ssm_client: Optional[BaseClient] = None,
         secrets_client: Optional[BaseClient] = None,
         redis_decode_responses: bool = True,
-        tls_verify: bool = True,
+        tls_verify: bool = False,
         ca_bundle_path: Optional[str] = None,
     ):
         # Resolve runtime settings from AWS (or LocalStack in local mode)
@@ -128,6 +128,9 @@ class ElastiCacheClientMixin(RedisClientMixin):
             decode_responses=redis_decode_responses,
         )
 
+        # TODO: add feature flags to enable using elasticache locally
+        # => if False and running_locally(), use elasticache with TLS
+        # => if True and running_locally(), use local Redis without TLS
         if running_locally():
             # Local Redis typically runs without TLS
             client_kwargs.update(ssl=False)
@@ -250,6 +253,8 @@ class ElastiCacheClientMixin(RedisClientMixin):
         username = payload.get('username')  # optional
         password = payload.get('password')  # required
 
+        # TODO: add feature flags to enable using elasticache locally
+        # then patch this monkeypatch out
         if False and not password:
             raise ValueError('ElastiCache secret must contain a non-empty "password" field')
 

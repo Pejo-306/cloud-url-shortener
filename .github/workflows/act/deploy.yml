@@ -93,7 +93,7 @@ jobs:
       - name: Deploy SAM stack (from local SAM)
         if: ${{ env.ACT == 'true' }}
         run: |
-          echo "Running locally via act → skipping --role-arn"
+          echo "Running locally via act"
           sam deploy \
             --no-confirm-changeset \
             --resolve-s3 \
