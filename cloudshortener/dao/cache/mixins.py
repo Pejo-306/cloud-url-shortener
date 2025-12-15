@@ -183,9 +183,9 @@ class ElastiCacheClientMixin(RedisClientMixin):
         user_param = os.environ.get(ELASTICACHE_USER_PARAM_ENV)  # optional
 
         # fmt: off
-        ssm_client_kwargs = {} if ssm_client is not None and not running_locally() else {
+        ssm_client_kwargs = {
             'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
-        }
+        } if running_locally() else {}
         # fmt: on
         ssm = ssm_client or boto3.client('ssm', **ssm_client_kwargs)
 
@@ -236,9 +236,9 @@ class ElastiCacheClientMixin(RedisClientMixin):
         """
         secret_name = os.environ[ELASTICACHE_SECRET_ENV]
         # fmt: off
-        secrets_client_kwargs = {} if secrets_client is not None and not running_locally() else {
+        secrets_client_kwargs = {
             'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
-        }
+        } if running_locally() else {}
         # fmt: on
         sm = secrets_client or boto3.client('secretsmanager', **secrets_client_kwargs)
 

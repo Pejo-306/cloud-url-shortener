@@ -10,10 +10,10 @@ This CLI follows this procedure to publish configuration parameters:
 - Step 5: Upsert parameters into AWS Systems Manager Parameter Store
 
 CLI usage:
-    $ python -m bootstrap.seed_ssm_parameters --app-name cloudshortener --root config --env-allow dev prod
-    $ python -m bootstrap.seed_ssm_parameters --app-name cloudshortener --dry-run
-    $ python -m bootstrap.seed_ssm_parameters --app-name cloudshortener --tags "Owner=Pesho,Service=cloudshortener"
-    $ python -m bootstrap.seed_ssm_parameters --app-name cloudshortener --aws-profile my-profile
+    $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --root config --env-allow dev prod
+    $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --dry-run
+    $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --tags "Owner=Pesho,Service=cloudshortener"
+    $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --aws-profile my-profile
 
 AWS credentials/region:
     - Use --aws-profile to select a profile from ~/.aws/{credentials,config}.
