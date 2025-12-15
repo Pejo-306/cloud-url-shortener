@@ -58,7 +58,7 @@ Conditions:
 
 Globals:
   Function:
-    Timeout: 3
+    Timeout: 30
     Tracing: Active
     LoggingConfig:
       LogFormat: JSON
@@ -293,7 +293,7 @@ Resources:
       Type: AWS.Freeform
       # Optional: add a JSON schema validator later
 
-      # Create a hosted configuration version with inline JSON
+  # Create a hosted configuration version with inline JSON
   BackendHostedConfigVersion:
     Type: AWS::AppConfig::HostedConfigurationVersion
     Properties:
@@ -303,6 +303,7 @@ Resources:
       # Keep placeholders literal; do NOT wrap with !Sub
       Content: !Sub |
         {
+          "version": 3,
           "active_backend": "redis",
           "configs": {
             "shorten_url": {
@@ -442,7 +443,9 @@ Resources:
                 Action:
                   - appconfig:StartConfigurationSession
                   - appconfig:GetLatestConfiguration
-                Resource: '*'
+                  - appconfig:ListHostedConfigurationVersions
+                  - appconfig:GetHostedConfigurationVersion
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - ssm:GetParameter*
