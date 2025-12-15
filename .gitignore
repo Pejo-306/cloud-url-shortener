@@ -313,6 +313,11 @@ __marimo__/
 # used only for documentation purposes
 bootstrap/.iam
 
+# Configuration parameters & secrets for dev/qa/prod environments
+config/**/dev.yaml
+config/**/qa.yaml
+config/**/prod.yaml
+
 # =====================================
 # Localstack
 # =====================================

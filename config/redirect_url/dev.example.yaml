@@ -1,0 +1,10 @@
+params:
+  redis:
+    host: <your-redis-host>
+    port: <your-redis-port>
+    db: 0
+
+secrets:
+  redis:
+    username: default
+    password: <your-password>
