@@ -1,4 +1,4 @@
-# Cloud-based URL Shortener
+# `cloudshortener`: Cloud-based URL Shortener
 
 URL shortening service using AWS Lambda Functions as compute and Redis Cloud as
 a backend database.
