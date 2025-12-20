@@ -1,130 +1,468 @@
-# url-shortener
+# Cloud-based URL Shortener
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+URL shortening service using AWS Lambda Functions as compute and Redis Cloud as
+a backend database.
 
-- hello_world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+## Table of Contents
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+- [Background](#background)
+- [System Design](#system-design)
+- [Local Deployment](#local-deployment)
+- [Cloud Deployment](#cloud-deployment)
+- [Takeaways](#takeaways)
+- [License](#license)
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+## Background
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+Before taking a position as a Software Engineer @ Redis, I wanted to practice system's design.
+What other better way is there to get good at designing systems, other than building systems?
 
-## Deploy the sample application
+That's how this cloud URL shortening service began. A 3-week functioning MVP with
+2 lambdas, a Redis and a barebones frontend has evolved into a complex system.
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
+I am continuously working on this project to a) add new skills to my repertoire,
+b) encounter and solve systems problems along the way. The better I get at solving
+software systems problems in this project, the better I get at designing systems.
 
-To use the SAM CLI, you need the following tools.
+## System Design
 
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* [Python 3 installed](https://www.python.org/downloads/)
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
+This section details the intial system design + current high level system overview.
 
-To build and deploy your application for the first time, run the following in your shell:
+### Target
+
+Design a URL shortening service
+
+### Functional requirements
+
+- App shortens a `long URL` into `short code`
+- Accessing `short URL` will redirect with a `302` to `long URL`
+- Redirect endpoint is *public*. User must sign up to access shortening endpoint.
+- [BONUS] User can access analytics endpoint
+
+### Non-functional requirements
+
+- A user can create up to 20 short links per month (user quota)
+- A short link can be accessed up to 10000 times per month (link hit quota)
+- Redirect latency must be fast (preferably < 1s)
+- Shorten latency is acceptable (up to 10s)
+- Data retention: 1 year
+- Daily Active Users (DAU): 100M
+- Read:Write ratio - 100:1
+- High availability => use fully managed compute & database services
+
+### Back-of-the-napkin calculations
+
+- \# of links / year = {Daily Active Users (DAU)} * 365 ~= 36 bil. links / year
+- Assume each entry is about 500 bytes
+- Database Capacity = {size of each entry} * {\# of links / year} = 500 bytes * 36 bil links = 18 tril. bytes = 18 TBs
+
+### API design
+
+`GET /{shortCode}` - Redirect to `long URL`
+- Response code: `302`
+- Response Headers: 
+
+```json
+{
+  "Location": "http://example.com"
+}
+```
+
+`POST /v1/shorten` - Shorten `long URL`
+- Request body:
+
+```json
+{
+  "target_url": "http://example.com"
+}
+```
+
+- Response code: `200`
+- Response body:
+
+```json
+{
+  "short_url": "https://cloudshortener.com/GTY012",
+  "shortcode": "GTY012"
+}
+```
+
+### Data schema
+
+For a backend data store we choose an in-memory Redis database (reasons below). Key schema:
+
+- `links:counter` - global integer counter used to generate unique shortcodes
+- `links:{shortcode}:url` - long URL for {shortcode}
+- `links:{shortcode}:hits:{YYYY-MM}` - leftover link hits for month {YYYY-MM}
+- `users:{user_id}:quota:{YYYY-MM}` - leftover link shortening quota for month {YYYY-MM}
+
+### System diagram
+
+**TODO**: The system diagram is autogenerated by AWS toolkit and does NOT show
+the Redis Cloud backend database. Add a better diagram later.
+
+![AWS Infrastructure](docs/assets/png/aws-infrastructure.png)
+
+- `RedirectUrlFunction`: AWS lambda function which redirects `short URL` to `long URL`
+- `ShortenUrlFunction`: AWS lambda function which shortens `long URL` to `short URL`
+- Redis Cloud database (not shown): backend database 
+- `ApiGateway`: entrypoint which routes traffic to lambda functions
+- Amazon Cognito: AWS-managed user authentication & authorization. Used to authorize API access to `ShortenUrlFunction`
+- Parameter Store and Secrets (not shown): Hold application parameters & secrets
+- AppConfig: Resources to deploy config files (with parameters & secrets) used by the app
+- Frontend: Frontend app is deployed in `FrontendBucket` and distributed via CloudFront resources
+- Cache layer: ElastiCache replication group to cache AppConfig & TODO: others
+- Networking:
+  * VPC
+  * 2 private subnets (one per AZ)
+  * 1 public subnet to expose publically accessible resources
+  * Route table which maps all incoming traffic to public subnet
+  * `LambdaSecurityGroup`: security group for Lambdas
+  * `ElastiCacheSecurityGroup`: security group for ElastiCache. Accessible only by lambdas in the same VPC
+
+### Deep dives
+
+#### How many characters do we use to represent shortcodes?
+
+A single character in a URL can be a lowercase letter, uppercase letter, or digit.
+The English alphabet has 26 lowercase letters. That also means there's 26 uppercase letters. And the digits 0-9 are 10 in total.
+
+Therefore, a single character can be one of `26 + 26 + 10 = 62` possible symbols.
+
+At any given point in time, our database must be able to hold up to 36 bil. links.
+
+Therefore, we need at minimum `ceil[log(base 62) of 36 bil.]` URL characters to
+represent all possible links we can hold.
+
+That's a **minimum of 6 characters**, which would mean we can store `62^6 ~= 56 bil.` links.
+
+We choose to use **7 characters** with `62^7 ~= 3.5 tril.` combinations because we might 
+use a hash or hash-like function when generating shorcodes. So we want to minimize 
+the possibility of collissions. Also, if we choose to expand our retention period,
+we can now store up to 97 years of links (`3.5 tril / 36 bil.`) in our data store.
+
+#### What function do we use to generate shortcodes?
+
+Multiple options are available and were evaluated:
+
+a) Use a standard hash function
+
+Hash functions may be fast and convinient, but they introduce the possibility of
+collisions. Since we have overcompensated with `3.5 tril.` possible shorcode 
+combinations, we'd like to avoid collisions altogether.
+
+b) UUID
+
+Relies on randomness but the generated value is too long. It would be over-engineering
+the solution.
+
+c) Sequence number (chosen solution)
+
+We save a global counter and increment it every single time we generate a new
+link. Then, we just use this counter to represent the link.
+
+This method ensures 1:1 uniqueness so we don't have to deal with collisions.
+
+On the other hand, using `0000032` or `000A11B` introduces a possible security risk
+of revealing our internal application workings. That's why we instead map
+the counter value to a salted hash, then digest that hash into 7 characters:
+
+`counter -> divmod(salted hash + hash, 62^7) -> "".join(ALPHABET[for character in 7 characters])`
+
+So we get a globally unique, non-collision, 7-digit shortcode which can be generated
+fast with a FAST hashing algorithm.
+
+What happens once the `counter` value surpasses `62^7` - Wouldn't tha cause collisions?
+
+Technically yes. But since we only need to hold a very small `36 bil` subset of
+the space `62^7` in our database at any given time, those initial shortcodes with
+counter values from `0` to `36 bil` would long have been freed up (about 97 years ago).
+So we can safely reuse them. The `counter` "wraps" back around the available space.
+
+#### How do we retain links for up to a year in our database?
+
+Since we're using Redis as our backend data store, we can set the TTL on
+`links:{shortcode}:url` keys to 1 year and allow the database to evict it.
+
+#### How do we enforce user quotas?
+
+We create a key `users:{user_id}:quota:{YYYY-MM}` with an integer value of 0
+and TTL of 1 month. The value of `{YYYY-MM}` is the current year and month, e.g.
+`2025-12`.
+
+Once we trigger `ShortenUrlFunction`, we first retrieve and check if the value is
+equal to 20. If yes, the function responds with a `429` response, limitting the user
+from creating more links for the month.
+
+Each time `ShortenUrlFunction` creates a link, the value is incremented by 1 via:
+
+```
+INCR users:{user_id}:quota:{YYYY-MM}
+```
+
+Once next month rolls around, the link creating quota is "reset" since we are now
+using the next `{YYYY-MM}` calendar month, e.g. `2026-01`. So the process 
+above repeats. The old calendar month's key `2025-12` expires.
+
+#### How do we enforce link hit quotas?
+
+We create a key `links:{shortcode}:hits:{YYYY-MM}` with an integer value of 10000
+and a TTL of 1 month. The value of `{YYYY-MM}` is the current year and month, e.g.
+`2025-12`.
+
+Once we trigger `RedirectUrlFunction`, we first retrieve and check if the value is
+less than 0. If yes, the function responds with a `429` response, limitting access
+to this short link.
+
+Each time `RedirectUrlFunction` redirects, it decrements the value by 1 via:
+
+```
+DECR links:{shortcode}:hits:{YYYY-MM}
+```
+
+Once next month rolls around, the link hits quota is "reset" since we are now
+using the next `{YYYY-MM}` calendar month, e.g. `2026-01`. So the process 
+above repeats. The old calendar month's key `2025-12` expires.
+
+## Local Deployment
+
+In local deployment, this project uses SAM and Docker to run AWS Lambda Functions in
+docker containers. There's also a [docker compose](docker-compose.yml) which
+creates:
+- a Redis database
+- [Redis Insight](https://redis.io/insight/)
+- Localstack (store AWS parameters and secrets locally)
+- AWS AppConfig Agent (get AppConfig deployments locally)
+
+**NOTE**: Localstack is not used in fully local deployment. It's needed for hybrid
+deployment (see below).
+
+### Prerequisites
+
+- [Python](https://www.python.org/) 3.13+
+- [Docker](https://www.docker.com/) v 29.1+ and [Docker Compose](https://docs.docker.com/compose/) v2.40+
+- [SAM](https://aws.amazon.com/serverless/sam/)
+
+### Setup
+
+Deploy Docker Compose stack:
+
+```bash
+docker compose up
+```
+
+**NOTE**: The Docker Compose stack uses the following ports on your machine:
+- **Redis** on port **6379**
+- **Redis Insight** on port **5540**
+- **Localstack** on ports **4566** and **4571**
+- **AppConfig Agent** on port **2772**
+
+If your machine is already using any of the listed ports, either a) stop other
+services using these ports or b) edit [docker-compose.yml](docker-compose.yml)
+and switch out the ports.
+
+### Build the SAM app
 
 ```bash
 sam build --use-container
-sam deploy --guided
 ```
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
-
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
-
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
-
-## Use the SAM CLI to build and test locally
-
-Build your application with the `sam build --use-container` command.
+### Invoke functions via an API
 
 ```bash
-url-shortener$ sam build --use-container
+sam local start-api
 ```
 
-The SAM CLI installs dependencies defined in `hello_world/requirements.txt`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+Then, you can access the following two endpoints:
+- POST [localhost:3000/v1/shorten](http://localhost:3000/v1/shorten)
+- GET  [localhost:3000/{shortcode}](http://localhost:3000/Gh71TC0)
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+You can use a tool like [curl](https://curl.se/) or [Postman](https://www.postman.com/) 
+to interact with the API. Check [events](events/) directory for sample JSON 
+events you can send to both lambdas.
 
-Run functions locally and invoke them with the `sam local invoke` command.
+### Invoke functions via SAM
+
+Invoke `ShortenURLFunction`:
 
 ```bash
-url-shortener$ sam local invoke HelloWorldFunction --event events/event.json
+sam local invoke ShortenUrlFunction \
+  --event events/shorten_url/event.json \
+  --env-vars env.local.json \
+  --use-container \
+  --docker-network cloud-url-shortener_default
 ```
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+Invoke `RedirectUrlFunction`:
 
 ```bash
-url-shortener$ sam local start-api
-url-shortener$ curl http://localhost:3000/
+sam local invoke RedirectUrlFunction \
+  --event events/redirect_url/event.json \
+  --env-vars env.local.json \
+  --use-container \
+  --docker-network cloud-url-shortener_default
 ```
 
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
+## Cloud Deployment
 
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
+In cloud deployment, an AWS CloudFormation stack is used to create and manage
+all AWS resources.
 
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
+### Prerequisites
 
-## Fetch, tail, and filter Lambda function logs
+- [AWS Free Tier account](https://aws.amazon.com/free/) (paid one also works)
+- [Redis Cloud free database](https://redis.io/try-free/)
+- [act](https://github.com/nektos/act) and/or [GitHub](https://github.com/) repo with [GitHub actions](https://github.com/features/actions)
 
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
+### Setup
 
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
+1- Deploy OIDC stack (allows GitHub actions and `act` to deploy the stack in AWS):
 
 ```bash
-url-shortener$ sam logs -n HelloWorldFunction --stack-name "url-shortener" --tail
+python -m bootstrap.bootstrap_oidc up \
+    --stack-name cloudshortener-bootstrap \
+    --github-org <your GitHub username> \
+    --repo cloud-url-shortener \
+    --aws-profile <your AWS profile name with credentials>
 ```
 
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
+2- Create a free Redis database after registering at [Redis Cloud](https://redis.io/try-free/)
 
-## Tests
-
-Tests are defined in the `tests` folder in this project. Use PIP to install the test dependencies and run tests.
+3- Create dev environment configuration files by editting and renaming the files:
+- [config/shorten_url/dev.example.yaml](config/shorten_url/dev.example.yaml) -> config/shorten_url/dev.yaml
+- [config/redirect_url/dev.example.yaml](config/redirect_url/dev.example.yaml) -> config/redirect_url/dev.yaml
 
 ```bash
-url-shortener$ pip install -r tests/requirements.txt --user
-# unit test
-url-shortener$ python -m pytest tests/unit -v
-# integration test, requiring deploying the stack first.
-# Create the env variable AWS_SAM_STACK_NAME with the name of the stack we are testing
-url-shortener$ AWS_SAM_STACK_NAME="url-shortener" python -m pytest tests/integration -v
+cd config/shorten_url/
+cp dev.example.yaml dev.yaml
+vim dev.yaml  # edit the values with your Redis parameters / secrets and save the file
 ```
-
-## Cleanup
-
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
 
 ```bash
-sam delete --stack-name "url-shortener"
+cd config/redirect_url/
+cp dev.example.yaml dev.yaml
+vim dev.yaml  # edit the values with your Redis parameters / secrets and save the file
 ```
 
-## Resources
+**NOTE:** dev.yaml / staging.yaml / prod.yaml are files used to bootstrap different
+project environments. They are all in *.gitignore*, so your secrets won't be committed
+and leaked.
 
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
+4- Seed project's SSM parameters & secrets:
 
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
+```bash
+python -m bootstrap.seed_ssm_params \
+    --app-name cloudshortener \
+    --root config \
+    --env-allow dev \
+    --aws-profile <your AWS profile name with credentials>
+
+python -m bootstrap.seed_secrets \
+    --app-name cloudshortener \
+    --root config \
+    --env-allow dev \
+    --aws-profile <your AWS profile name with credentials>
+```
+
+5- Generate a password for ElastiCache cache in the stack and bootstrap it:
+
+!! This step must be executed BEFORE stack deployment.
+
+```bash
+python -m bootstrap.seed_elasticache \
+    --secrets-only \
+    --app-name cloudshortener --env dev \
+    --user default \
+    --password '<your ElastiCache password>' \
+    --aws-profile <your AWS profile name with credentials>
+```
+
+**NOTE:** The ElastiCache password must be 32-128 printable ASCII characters, no
+spaces, no */*, *"*, *@* characters with at least one uppercase letter & one digit.
+Otherwise, the stack deployment will fail. Example password: `bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD`.
+
+6- Deploy SAM stack
+
+a) via local act
+
+```bash
+act create -W .github/workflows/act/deploy.yml -e .github/events/create_release.json -j deploy
+```
+
+b) via GitHub action (create a `release-X.X.X` branch from `main`)
+
+7- Seed ElastiCache parameters
+
+!! This step must be executed AFTER successful stack deployment.
+
+```bash
+python -m bootstrap.seed_elasticache \
+    --ssm-only \
+    --app-name cloudshortener --env dev \
+    --host <ElastiCache master endpoint> \
+    --port 6379 \
+    --db 0 \
+    --user default \
+    --aws-profile <your AWS profile name with credentials>
+```
+
+### Access the app
+
+Visit the `CognitoHostedUIUrl` in your browser which you can find in the stack's outputs:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name cloudshortener-dev \
+  --query "Stacks[0].Outputs" \
+  --output table \
+  --aws-profile <your AWS profile name with credentials>
+```
+
+Happy shortening!
+
+## Takeaways
+
+#### 1) Why monoliths exist
+
+This app started out as two barebones lambdas and a simple Redis database. Now
+it's grown to such a big infrastructure and codebase for what it's doing, even I -
+the creator - find it hard to navigate my own codebase.
+
+It's because the initial goal was to get this app out FAST - get a working MVP
+demo in 3 weeks. Not much thought was put into the maintainability and growth
+beyond the initial system design.
+
+It's both a success and failure - I got the MVP up and running in 3 weeks, but
+not without making long-term maintainability tradeoffs.
+
+That's why this project grew into one big monolith. It's also why I believe being
+good at system's design is all about - having the ability to forsee and solve
+downstream problems preemptively AND still starting fast. Having the sense to
+weight in technical and non-technical tradeoffs both now and in the long-term.
+
+PS: I should build a microservices app next.
+
+#### 2) Building MVPs is easy. Building for scale is hard.
+
+It's easy to make a small project work for myself. There's only one person I'm
+serving - me.
+
+Building a project which serves a group at scale is where it gets hard. Even
+thought my system design has accouted for scale, the actual app (in it's current
+state) can't handle the large scale it is designed for.
+
+#### 3) Flat Pythonic code is just great
+
+There's a self-adopted convention I follow with my codebase which keeps my code
+structure relatively flat and easy to navigate for myself.
+
+Unfortunately, I'm the only one who knows this self-taught convention.
+
+It would be much better if I enforced a design decision, a standard on my
+codebase before starting to code.
+
+Enforced standards are predictable. Conventions are not very predictable.
+
+## License
+
+This project is distributed under the [MIT license](LICENSE).

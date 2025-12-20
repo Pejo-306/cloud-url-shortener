@@ -85,6 +85,10 @@ Returns:
 Raises:
     ValueError: For invalid or missing inputs.
     botocore.exceptions.BotoCoreError / ClientError: For AWS API failures.
+
+NOTE: The ElastiCache password must be 32-128 printable ASCII characters, no
+      spaces, no */*, *"*, *@* characters with at least one uppercase letter & one digit.
+      Otherwise, the stack deployment will fail. Example password: `bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD`.
 """
 
 from __future__ import annotations
