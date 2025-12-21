@@ -13,7 +13,7 @@ Design a cloud-based URL shortener service.
 The system is designed as a learning exercise in large-scale system design,
 with an emphasis on real-world constraints and trade-offs.
 
-Additionally, I chose to use AWS Lamba Functions, Python, and Redis with the
+Additionally, I chose to use AWS Lambda Functions, Python, and Redis with the
 intention of learning these technologies. These technical decisions were not driven
 from actual architectural decisions.
 
@@ -29,7 +29,7 @@ from actual architectural decisions.
 
 ### FR-3: Authentication
 - URL shortening is accessible only to authenticated users.
-- URL redirection is publically accessible globally.
+- URL redirection is publicly accessible globally.
 
 ### FR-4: User Quotas
 - Each authenticated user may create up to 20 short URLs per calendar month.
@@ -64,7 +64,7 @@ from actual architectural decisions.
 - After the retention period, data may be automatically expired or archived.
 
 ### NFR-5: Consistency
-- Redirect operation must always return the currect long URL once a shortcode is created.
+- Redirect operation must always return the correct long URL once a shortcode is created.
 - Strong consistency across regions is **NOT required**.
 - Eventual consistency is acceptable where it improves scalability or availability.
 
@@ -111,6 +111,6 @@ The following are explicitly out of scope unless stated otherwise:
 
 ## 7. Assumptions and Risks
 
-- Traffic patters are assumed highly skewed towards reads.
+- Traffic patterns are assumed highly skewed towards reads.
 - Redis eviction and TTL-based expiration are assumed to be sufficient for retention.
 - Quota enforcement is best-effort and may allow brief overruns under race conditions.

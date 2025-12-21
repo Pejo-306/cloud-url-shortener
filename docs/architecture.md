@@ -16,7 +16,7 @@ The system exposes:
 - An **authenticated write interface** for creating short URLs
 
 The architecture is designed to favor:
-- Fast read performace
+- Fast read performance
 - Easy horizontal scalability
 - Minimal operational overhead
 
@@ -42,7 +42,7 @@ A stateless compute component responsible for resolving shortcodes.
 Responsibilities:
 - Accept public redirect requests
 - Resolve shortcodes to long URLs
-- Enforce link hit access limits
+- Enforce link hit access limits (see [ADR-009](/docs/decisions/ADR-009-link-hit-quota-enforcement.md))
 - Issue HTTP redirects
 
 This component lies on the **critical latency path** and is optimized for read
@@ -54,16 +54,16 @@ A stateless compute component responsible for creating new short URLs.
 
 Responsibilities:
 - Accept authenticated requests
-- Generate unique shortcodes
+- Generate unique shortcodes (see [ADR-004](/docs/decisions/ADR-004-shortcode-generation.md))
 - Enforce 1:1 mapping between shortcode and long URL
 - Persist link mappings
-- Enforce user-level quotas
+- Enforce user-level quotas (see [ADR-008](/docs/decisions/ADR-008-user-quota-enforcement.md))
 
 Latency is less critical for this component compared to the redirect service.
 
 ### 2.4 Data Store
 
-A centralized data store to persist link mappings, metadata, etc.
+A centralized data store to persist link mappings, metadata, etc. See [ADR-001](/docs/decisions/ADR-001-primary-datastore.md) and [ADR-003](/docs/decisions/ADR-003-data-durability.md) for details.
 
 Responsibilities:
 - Store shortcode-to-URL mappings
@@ -71,12 +71,12 @@ Responsibilities:
 - Track link access limits
 - Enforce data expiration via retention policies
 
-The data store is access by both read and write paths and represents the primary
+The data store is accessed by both read and write paths and represents the primary
 stateful dependency in the system.
 
 ### 2.5 Configuration and Secrets Management
 
-Used to supply runtime configuration and secrets to compute components.
+Used to supply runtime configuration and secrets to compute components. See [ADR-006](/docs/decisions/ADR-006-configuration-management.md) for details.
 
 Responsibilities:
 - Provide environment-specific configuration
@@ -85,8 +85,8 @@ Responsibilities:
 
 ### 2.6 Authentication Providers
 
-An authentication provider is used to authenticate users acessing protected 
-endpoints.
+An authentication provider is used to authenticate users accessing protected 
+endpoints. See [ADR-010](/docs/decisions/ADR-010-authentication-model.md) for details.
 
 Responsibilities:
 - User identity management
@@ -95,7 +95,7 @@ Responsibilities:
 
 ### 2.7 Caching Layer
 
-A high-speed cache is used reduce lambda execution time by caching HOT values.
+A high-speed cache is used to reduce lambda execution time by caching HOT values. See [ADR-007](/docs/decisions/ADR-007-caching-strategy.md) for details.
 
 Responsibilities:
 - Cache application configurations for fast access
@@ -137,8 +137,7 @@ The architecture is designed such that:
 - Authentication failures do not affect public redirect access
 - Individual compute instances may fail without state loss
 
-Failure handling and recovery strategies are documented in seperate decision
-records and operational documentation.
+Failure handling and recovery strategies are documented in [ADR-011](/docs/decisions/ADR-011-failure-handling-and-degradation.md) and operational documentation.
 
 ## 6. External Dependencies
 
@@ -164,4 +163,4 @@ These may be introduced in future iterations.
 
 - [requirements.md](/docs/requirements.md) defines the constraints this architecture satisfies
 - [decisions/](/docs/decisions/) contains rationale for key design choices
-- Operational an deployment details are documented elsewhere
+- Operational and deployment details are documented elsewhere

@@ -57,7 +57,7 @@ starting ADRs are documented retroactively.
 ## Conventions
 
 - Documents favor clarity and intent over exhaustiveness
-- Diagrams, if present, are illustrative, not authorative
+- Diagrams, if present, are illustrative, not authoritative
 - This documentation evolves with the system and may reflect trade-offs that are no longer optimal
 
 ## Audience
