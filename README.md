@@ -10,6 +10,7 @@ a backend database.
 - [Local Deployment](#local-deployment)
 - [Cloud Deployment](#cloud-deployment)
 - [Takeaways](#takeaways)
+- [A NOTE on arm64 containers](#a-note-on-arm64-containers)
 - [License](#license)
 
 ## Background
@@ -410,6 +411,29 @@ aws cloudformation describe-stacks \
 ```
 
 Happy shortening!
+
+## A NOTE on arm64 containers
+
+What happens if you get some error related to unsupported `arm64` architecture?
+
+In [template.yaml](template.yaml) you might notice that the Lambda runtimes are
+in `arm64` containers. It's because I'm developing on a Mac which is why native
+`x86_64` didn't work for me well.
+
+If you are developing on `x86_64` architecture (e.g. a Linux distribution), you
+can switch out the architecture inside [template.yaml](template.yaml):
+
+```yaml
+Globals:
+  Function:
+    Timeout: 30
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+    Runtime: python3.13
+    Architectures:
+      - x86_64  # <-- switch this from `arm64` to `x86_64`
+```
 
 ## Takeaways
 
