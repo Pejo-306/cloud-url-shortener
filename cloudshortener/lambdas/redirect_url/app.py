@@ -77,13 +77,13 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             message: server experienced an internal error
 
     Args:
-        event (Dict[str, Any]):
+        event (dict[str, Any]):
             API Gateway event payload containing the shortcode path parameter.
         context (Any):
             AWS Lambda runtime context object (not used directly).
 
     Returns:
-        Dict[str, Any]:
+        dict[str, Any]:
             API Gateway-compatible response including statusCode, headers, and body.
 
     Example:

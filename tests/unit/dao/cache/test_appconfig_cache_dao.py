@@ -407,3 +407,45 @@ def test_fetch_version_env_validation_missing_vars(dao, monkeypatch):
     expected_message = "Missing required environment variables: 'APPCONFIG_PROFILE_ID'"
     with pytest.raises(KeyError, match=expected_message):
         dao.get(42, pull=True)
+
+
+# -------------------------------
+# 6. Force pull
+# -------------------------------
+
+
+@freeze_time('2025-01-03T00:00:00Z')
+def test_force_pull_latest(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
+    """Ensure force=True always fetches the latest AppConfig document and caches it."""
+    # Simulate cache HIT that should be ignored
+    redis_client.get.return_value = json.dumps({"stale": "data"})
+
+    # fmt: off
+    expected_calls = [
+        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+    ]
+    # fmt: on
+
+    result = dao.latest(force=True)
+
+    # Returned document must be the freshly fetched one, not cached
+    assert isinstance(result, dict)
+    assert result == default_appconfig_doc
+    assert result['active_backend'] == 'redis'
+    assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
+    assert result['configs']['shorten_url']['redis']['port'] == 96379
+    assert result['configs']['shorten_url']['redis']['db'] == 42
+    assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
+    assert result['configs']['redirect_url']['redis']['port'] == 66379
+    assert result['configs']['redirect_url']['redis']['db'] == 24
+
+    # Verify no cache reads were attempted
+    redis_client.get.assert_not_called()
+
+    # Verify warm-up writes: v{n}, v{n}:metadata, and latest
+    pipe = redis_client._pipe
+    assert pipe.set.call_count == 3
+    pipe.set.assert_has_calls(expected_calls)
+    pipe.execute.assert_called_once()

@@ -303,7 +303,7 @@ Resources:
       # Keep placeholders literal; do NOT wrap with !Sub
       Content: !Sub |
         {
-          "version": 3,
+          "version": 2,
           "active_backend": "redis",
           "configs": {
             "shorten_url": {
@@ -422,6 +422,37 @@ Resources:
         AddDefaultAuthorizerToCorsPreflight: false
 
   ##################################################
+  # EventBridge: AppConfig Deployment -> Cache Warmer
+  ##################################################
+  AppConfigDeploymentRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Trigger cache warm-up on AppConfig deployment
+      EventPattern:
+        source:
+          - aws.appconfig
+        detail-type:
+          - AppConfig Deployment Complete
+        detail:
+          applicationId:
+            - !Ref AppConfigApplication
+          environmentId:
+            - !Ref AppConfigEnvironment
+          configurationProfileId:
+            - !Ref BackendConfigProfile
+      Targets:
+        - Arn: !GetAtt WarmAppConfigCacheFunction.Arn
+          Id: WarmAppConfigCacheTarget
+
+  WarmAppConfigCacheInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref WarmAppConfigCacheFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AppConfigDeploymentRule.Arn
+
+  ##################################################
   # Lambda: Common IAM Role
   ##################################################
   LambdaFunctionRole:
@@ -439,6 +470,11 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
+              - Effect: Allow
+                Action:
+                  - appconfigdata:StartConfigurationSession
+                  - appconfigdata:GetLatestConfiguration
+                Resource: "*"
               - Effect: Allow
                 Action:
                   - appconfig:StartConfigurationSession
@@ -486,12 +522,12 @@ Resources:
       BuildProperties:
         Include:
           - cloudshortener/**
-          - config/shorten_url/**
     Properties:
       FunctionName: shorten-url-function
       CodeUri: .
       Handler: cloudshortener.lambdas.shorten_url.app.lambda_handler
       Role: !GetAtt LambdaFunctionRole.Arn
+      Description: Shorten long URLs to short codes
       Events:
         ShortenUrlApi:
           Type: Api
@@ -511,12 +547,12 @@ Resources:
       BuildProperties:
         Include:
           - cloudshortener/**
-          - config/redirect_url/**
     Properties:
       FunctionName: redirect-url-function
       CodeUri: .
       Handler: cloudshortener.lambdas.redirect_url.app.lambda_handler
       Role: !GetAtt LambdaFunctionRole.Arn
+      Description: Redirect short URLs to target URLs
       Events:
         RedirectUrlApi:
           Type: Api
@@ -526,6 +562,23 @@ Resources:
             Method: get
             Auth:
               Authorizer: NONE
+
+  ##################################################
+  # Lambda: Warm AppConfig Cache
+  ##################################################
+  WarmAppConfigCacheFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        Include:
+          - cloudshortener/**
+    Properties:
+      FunctionName: warm-appconfig-cache-function
+      CodeUri: .
+      Handler: cloudshortener.lambdas.warm_appconfig_cache.app.lambda_handler
+      Role: !GetAtt LambdaFunctionRole.Arn
+      Description: Proactively warm AppConfig cache in ElastiCache on deployment
 
   ##################################################
   # ElastiCache Replication Group
@@ -653,9 +706,17 @@ Outputs:
     Description: S3 bucket name, hosting frontend application
     Value: !Ref FrontendBucket
 
+  ShortenUrlFunctionArn:
+    Description: ARN of the Shorten URL Lambda Function
+    Value: !GetAtt ShortenUrlFunction.Arn
+
   RedirectUrlFunctionArn:
     Description: ARN of the Redirect URL Lambda Function
     Value: !GetAtt RedirectUrlFunction.Arn
+
+  WarmAppConfigCacheFunctionArn:
+    Description: ARN of the Warm AppConfig Cache Lambda Function
+    Value: !GetAtt WarmAppConfigCacheFunction.Arn
 
   UserPoolId:
     Description: Cognito User Pool ID

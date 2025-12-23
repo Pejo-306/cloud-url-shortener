@@ -1,0 +1,20 @@
+{
+  "version": "0",
+  "id": "8b6c7c44-9d7c-4a9e-a9d2-7d1bfae2b312",
+  "detail-type": "AppConfig Deployment Complete",
+  "source": "aws.appconfig",
+  "account": "123456789012",
+  "time": "2025-01-03T12:00:00Z",
+  "region": "eu-central-1",
+  "resources": [
+    "arn:aws:appconfig:eu-central-1:123456789012:application/abc123"
+  ],
+  "detail": {
+    "application": "abc123",
+    "environment": "dev456",
+    "configurationProfile": "backend-config",
+    "deploymentNumber": 42,
+    "deploymentStrategy": "AppConfig.AllAtOnce",
+    "state": "COMPLETE"
+  }
+}

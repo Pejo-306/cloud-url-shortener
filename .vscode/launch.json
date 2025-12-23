@@ -106,6 +106,63 @@
                 "containerBuild": true,
                 "dockerNetwork": "cloud-url-shortener_default"
             }
+        },
+        {
+            "type": "aws-sam",
+            "request": "direct-invoke",
+            "name": "cloud-url-shortener:WarmAppConfigCacheFunction",
+            "invokeTarget": {
+                "target": "template",
+                "templatePath": "${workspaceFolder}/template.yaml",
+                "logicalId": "WarmAppConfigCacheFunction"
+            },
+            "aws": {
+                "credentials": "profile:personal-dev",
+                "region": "eu-central-1"
+            },
+            "lambda": {
+                "payload": {
+                    "json": {
+                        "version": 0,
+                        "id": "8b6c7c44-9d7c-4a9e-a9d2-7d1bfae2b312",
+                        "detail-type": "AppConfig Deployment Complete",
+                        "source": "aws.appconfig",
+                        "account": "123456789012",
+                        "time": "2025-01-03T12:00:00Z",
+                        "region": "eu-central-1",
+                        "resources": [
+                            "arn:aws:appconfig:eu-central-1:123456789012:application/abc123"
+                        ],
+                        "detail": {
+                            "application": "abc123",
+                            "environment": "dev456",
+                            "configurationProfile": "backend-config",
+                            "deploymentNumber": 42,
+                            "deploymentStrategy": "AppConfig.AllAtOnce",
+                            "state": "COMPLETE"
+                        }
+                    }
+                },
+                "environmentVariables": {
+                    "APP_ENV": "local",
+                    "APP_NAME": "cloudshortener",
+                    "PROJECT_ROOT": "/var/task/",
+                    "ELASTICACHE_HOST_PARAM": "/cloudshortener/local/elasticache/host",
+                    "ELASTICACHE_PORT_PARAM": "/cloudshortener/local/elasticache/port",
+                    "ELASTICACHE_DB_PARAM": "/cloudshortener/local/elasticache/db",
+                    "ELASTICACHE_USER_PARAM": "/cloudshortener/local/elasticache/user",
+                    "ELASTICACHE_SECRET": "cloudshortener/local/elasticache/credentials",
+                    "LOCALSTACK_ENDPOINT": "http://localstack:4566",
+                    "APPCONFIG_APP_ID": "vb5yqcg",
+                    "APPCONFIG_ENV_ID": "zrn4p4o",
+                    "APPCONFIG_PROFILE_ID": "tdfzch1"
+                },
+                "runtime": "python3.13"
+            },
+            "sam": {
+                "containerBuild": true,
+                "dockerNetwork": "cloud-url-shortener_default"
+            }
         }
     ]
 }

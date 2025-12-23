@@ -99,13 +99,13 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             message: indicate the server experieced an internal error
 
     Args:
-        event (Dict[str, Any]):
+        event (dict[str, Any]):
             API Gateway event payload in Lambda Proxy format.
         context (Any):
             AWS Lambda context object containing runtime information.
 
     Returns:
-        Dict[str, Any]:
+        dict[str, Any]:
             JSON-serializable response following API Gateway Lambda Proxy
             output format. Includes status code, headers, and response body.
 

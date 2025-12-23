@@ -261,13 +261,10 @@ def main(argv: list[str] | None = None) -> None:
         print(f"Done. {action} secret '{secret_name}'.")
     elif ssm_only:
         action = 'Previewed' if args.dry_run else 'Wrote'
-        print(f"Done. {action} {writes} SSM parameters under {base_path}.")
+        print(f'Done. {action} {writes} SSM parameters under {base_path}.')
     else:
         action = 'Previewed' if args.dry_run else 'Wrote'
-        print(
-            f"Done. {action} {writes} SSM parameters under {base_path} "
-            f"and secret '{secret_name}'."
-        )
+        print(f"Done. {action} {writes} SSM parameters under {base_path} and secret '{secret_name}'.")
 
 
 if __name__ == '__main__':

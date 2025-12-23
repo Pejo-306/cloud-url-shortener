@@ -44,6 +44,11 @@ Example:
         >>> cached_v12 = dao.get(12, pull=False)
         >>> cached_meta_v12 = dao.metadata(12, pull=False)
 
+        # Force pull the latest document from AppConfig and cache it
+        >>> forced_latest = dao.latest(force=True)
+        >>> forced_latest == doc
+        True
+
 NOTE:
     - This DAO intentionally couples cache access with AppConfig fetching to keep the
       interface simple at call sites. If the cache is cold, the DAO can populate it
@@ -80,15 +85,15 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             Key schema helper for generating namespaced AppConfig cache keys.
 
     Methods:
-        latest(pull: bool = True) -> dict:
+        latest(pull: bool = True, force: bool = False) -> dict:
             Retrieve the latest AppConfig document.
             On miss, optionally fetch from AppConfig and populate cache.
 
-        get(version: int | str, pull: bool = True) -> dict:
+        get(version: int | str, pull: bool = True, force: bool = False) -> dict:
             Retrieve a specific version of the AppConfig document, or 'latest'.
             On miss, optionally fetch from AppConfig and populate cache.
 
-        metadata(version: int, pull: bool = True) -> dict:
+        metadata(version: int, pull: bool = True, force: bool = False) -> dict:
             Retrieve metadata for a specific AppConfig version.
             On miss, optionally fetch from AppConfig and populate cache.
 
@@ -101,7 +106,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
     @handle_redis_connection_error
     @beartype
-    def latest(self, pull: bool = True) -> dict[str, Any]:
+    def latest(self, pull: bool = True, force: bool = False) -> dict[str, Any]:
         """Retrieve the latest AppConfig document
 
         This method stores the full JSON document under the '<prefix>:appconfig:latest'
@@ -112,6 +117,9 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                 If True, fetch the 'latest' document from AppConfig and cache on miss.
                 If False, raise CacheMissError on miss.
                 Defaults to True.
+            force (bool):
+                If True, always fetch the 'latest' document from AppConfig and cache.
+                Defaults to False.
 
         Returns:
             dict[str, Any]: The AppConfig JSON document.
@@ -126,11 +134,11 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             DataStoreError:
                 If a Redis connectivity issue occurs (handled by decorator).
         """
-        return self.get('latest', pull=pull)
+        return self.get('latest', pull=pull, force=force)
 
     @handle_redis_connection_error
     @beartype
-    def get(self, version: int | str, pull: bool = True) -> dict[str, Any]:
+    def get(self, version: int | str, pull: bool = True, force: bool = False) -> dict[str, Any]:
         """Retrieve a versioned (or latest) AppConfig document
 
         Steps:
@@ -147,6 +155,9 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                 If True, fetch from AppConfig and cache on miss.
                 If False, raise CacheMissError on miss.
                 Defaults to True.
+            force (bool):
+                If True, always fetch the document from AppConfig and cache.
+                Defaults to False.
 
         Returns:
             dict[str, Any]: The AppConfig JSON document.
@@ -161,6 +172,11 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             DataStoreError:
                 If a Redis connectivity issue occurs (handled by decorator).
         """
+        # FORCE PULL: always fetch the document from AppConfig and cache
+        if force:
+            _, document, _ = self._pull_appconfig(version)
+            return document
+
         if version == 'latest':
             key = self.keys.appconfig_latest_key()
         else:
@@ -182,7 +198,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
     @handle_redis_connection_error
     @beartype
-    def metadata(self, version: int, pull: bool = True) -> dict[str, Any]:
+    def metadata(self, version: int, pull: bool = True, force: bool = False) -> dict[str, Any]:
         """Retrieve metadata for a specific AppConfig version
 
         Steps:
@@ -198,6 +214,9 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                 If True, fetch from AppConfig and cache on miss.
                 If False, raise CacheMissError on miss.
                 Defaults to True.
+            force (bool):
+                If True, always fetch the metadata from AppConfig and cache.
+                Defaults to False.
 
         Returns:
             dict[str, Any]:
@@ -219,6 +238,11 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             DataStoreError:
                 If a Redis connectivity issue occurs (handled by decorator).
         """
+        # FORCE PULL: always fetch the metadata from AppConfig and cache
+        if force:
+            _, _, metadata = self._pull_appconfig(version)
+            return metadata
+
         key = self.keys.appconfig_metadata_key(int(version))
         appconfig_metadata_blob = self.redis.get(key)
 
