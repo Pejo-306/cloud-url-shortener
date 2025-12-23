@@ -50,10 +50,11 @@ The infrastructure stack **owns and manages**:
 
 ### Lambda Functions
 
-| Function | Purpose | Auth |
-|--------|--------|------|
-| `shorten-url-function` | Create short URLs | Cognito-protected |
-| `redirect-url-function` | Resolve and redirect short URLs | Public |
+| Function | Purpose | Auth | Trigger |
+|--------|--------|------|---------|
+| `shorten-url-function` | Create short URLs | Cognito-protected | API Gateway |
+| `redirect-url-function` | Resolve and redirect short URLs | Public | API Gateway |
+| `warm-appconfig-cache-function` | Proactively warm AppConfig cache | N/A | EventBridge |
 
 Common configuration:
 - Runtime: Python 3.13 (arm64)
@@ -73,7 +74,11 @@ Common configuration:
 - Explicitly unauthenticated route:
   - `GET /{shortcode}`
 
-API Gateway is the **only ingress point** to backend Lambdas.
+API Gateway is the **only ingress point** for user-facing Lambda functions.
+
+## EventBridge
+
+- **AppConfigDeploymentRule**: trigger AppConfig cache warm up on successful deployment
 
 ## Authentication (Cognito)
 
@@ -148,6 +153,7 @@ Grants access to:
 - CloudWatch Logs
 - AWS X-Ray
 - VPC networking (ENI management)
+- ElastiCache (Redis access for caching)
 
 This role is **runtime-only** and does not include provisioning permissions.
 

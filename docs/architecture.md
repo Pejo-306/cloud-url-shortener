@@ -100,6 +100,10 @@ A high-speed cache is used to reduce lambda execution time by caching HOT values
 Responsibilities:
 - Cache application configurations for fast access
 
+The caching layer implements a two-phase strategy:
+- **Phase 1**: Lazy, on-demand caching during Lambda execution
+- **Phase 2**: Event-driven cache warming
+
 ## 3. Request Flows
 
 ### 3.1 Redirect Flow (Read)

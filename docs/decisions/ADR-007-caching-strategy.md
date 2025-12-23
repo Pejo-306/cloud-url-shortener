@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (Phase 1 implemented, Phase 2 planned)
+Accepted (Phase 1 and Phase 2 implemented)
 
 ## Date
 
@@ -39,7 +39,7 @@ Adopt a **two-phase caching strategy** that balances simplicity, safety, and
 performance:
 
 - **Phase 1 (Implemented)**: *Lazy, on-demand caching during Lambda execution*
-- **Phase 2 (Planned)**: *Event-driven, proactive cache warming*
+- **Phase 2 (Implemented)**: *Event-driven, proactive cache warming*
 
 Caching is treated strictly as a **performance optimization**, never as a source
 of truth.
@@ -90,7 +90,7 @@ This approach:
 
 It represents the safest possible caching strategy for an MVP system.
 
-## Phase 2: Event-Driven Cache Warming (Planned)
+## Phase 2: Event-Driven Cache Warming (Implemented)
 
 ### Description
 
@@ -108,18 +108,18 @@ Upon trigger, the function:
 
 ### Goals
 
-Phase 2 caching aims to:
-- Reduce cache-miss latency on the first request after configuration changes
-- Minimize exposure to stale configuration
-- Decouple configuration freshness from request traffic patterns
+Phase 2 caching achieves:
+- Reduced cache-miss latency on the first request after configuration changes
+- Minimized exposure to stale configuration
+- Decoupled configuration freshness from request traffic patterns
 
 This phase does **NOT** replace TTL-based expiration and does **NOT** eliminate
 the need for lazy caching.
 
 ### Constraints
 
-- Proactive cache warming must be **best-effort**
-- Failure to warm cache must not affect request handling
+- Proactive cache warming is **best-effort**
+- Failure to warm cache does not affect request handling
 - The authoritative source remains AppConfig and parameter stores
 
 Phase 2 is an optimization layered on top of Phase 1, not a dependency.
