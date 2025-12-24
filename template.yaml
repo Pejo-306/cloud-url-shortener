@@ -303,7 +303,7 @@ Resources:
       # Keep placeholders literal; do NOT wrap with !Sub
       Content: !Sub |
         {
-          "version": 2,
+          "build": 3,
           "active_backend": "redis",
           "configs": {
             "shorten_url": {
@@ -335,8 +335,20 @@ Resources:
       EnvironmentId: !Ref AppConfigEnvironment
       ConfigurationProfileId: !Ref BackendConfigProfile
       ConfigurationVersion: !GetAtt BackendHostedConfigVersion.VersionNumber
-      DeploymentStrategyId: AppConfig.AllAtOnce
+      DeploymentStrategyId: !Ref AppConfigFastDeploymentStrategy
       Description: Deploy backend config
+  
+  # All-at-once deployment with 1 minute bake time
+  AppConfigFastDeploymentStrategy:
+    Type: AWS::AppConfig::DeploymentStrategy
+    Properties:
+      Name: cloudshortener.FastDeployment
+      Description: All-at-once deployment with 1 minute bake time
+      DeploymentDurationInMinutes: 0
+      GrowthType: LINEAR
+      GrowthFactor: 100
+      FinalBakeTimeInMinutes: 1
+      ReplicateTo: NONE
 
   ##################################################
   # Cognito User Pool + Client
