@@ -67,8 +67,8 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     try:
         # Force pull the latest AppConfig document and cache it
         dao = AppConfigCacheDAO(prefix=app_prefix())
-        document = dao.latest(force=True)
+        version = dao.version(force=True)
     except (CacheMissError, CachePutError, DataStoreError) as error:
         return response_error(error=error)
     else:
-        return response_success(appconfig_version=document['version'])
+        return response_success(appconfig_version=version)

@@ -139,6 +139,19 @@ class CacheKeySchema:
         return 'appconfig:latest'
 
     @prefix_key
+    def appconfig_latest_metadata_key(self) -> str:
+        """Generate the cache key for the AppConfig latest version metadata.
+
+        Returns:
+            str: A cache key string pointing to the latest AppConfig version metadata, e.g. "appconfig:latest:metadata".
+
+        Example:
+            >>> CacheKeySchema().appconfig_latest_metadata_key()
+            'appconfig:latest:metadata'
+        """
+        return 'appconfig:latest:metadata'
+
+    @prefix_key
     def appconfig_version_key(self, version: int) -> str:
         """Generate the cache key for a specific AppConfig version blob.
 

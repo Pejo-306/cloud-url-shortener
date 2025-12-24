@@ -21,11 +21,19 @@ Test coverage includes:
    - Raises CacheMissError on MISS with pull=False
    - Fetches specific version metadata and warms cache on MISS with pull=True
 
-4. Cache write failures
+4. Latest version retrieval
+   - Returns cached version on HIT
+   - Raises CacheMissError on MISS with pull=False
+   - Fetches latest version from AppConfig and warms cache on MISS with pull=True
+
+5. Cache write failures
    - Raises CachePutError if Redis write fails during warm-up
 
-5. Environment validation
+6. Environment validation
    - Raises ValueError when required AppConfig env vars are missing for fetches
+
+7. Force pull
+   - Always fetches the latest AppConfig document and caches it
 """
 
 import json
@@ -232,6 +240,7 @@ def test_latest_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, 
         call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
         call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
         call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
     ]
     # fmt: on
     redis_client.get.return_value = None
@@ -248,9 +257,9 @@ def test_latest_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, 
     assert result['configs']['redirect_url']['redis']['port'] == 66379
     assert result['configs']['redirect_url']['redis']['db'] == 24
 
-    # Verify warm-up writes: v{n}, v{n}:metadata, and latest
+    # Verify warm-up writes: v{n}, v{n}:metadata, latest, latest:metadata
     pipe = redis_client._pipe
-    assert pipe.set.call_count == 3
+    assert pipe.set.call_count == 4
     pipe.set.assert_has_calls(expected_calls)
     pipe.execute.assert_called_once()
 
@@ -374,7 +383,52 @@ def test_metadata_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client
 
 
 # -------------------------------
-# 4. Cache write failures
+# 4. Latest version retrieval
+# -------------------------------
+
+
+def test_version_cache_hit_returns_version(dao, redis_client, default_appconfig_metadata):
+    """Ensure version() returns cached version on HIT."""
+    redis_client.get.return_value = json.dumps(default_appconfig_metadata)
+
+    result = dao.version(pull=False)
+    assert result == 42
+
+    redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:latest:metadata')
+
+
+def test_version_cache_miss_with_pull_false_raises(dao, redis_client):
+    """Ensure version() raises CacheMissError on MISS when pull=False."""
+    redis_client.get.return_value = None
+    with pytest.raises(CacheMissError, match='latest'):
+        dao.version(pull=False)
+
+
+@freeze_time('2025-01-03T00:00:00Z')
+def test_version_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
+    """Ensure version() fetches latest version from AppConfig on cache MISS."""
+    # fmt: off
+    expected_calls = [
+        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+    ]
+    # fmt: on
+    redis_client.get.return_value = None
+
+    result = dao.version(pull=True)
+    assert result == 42
+
+    # Verify warm-up writes: v{n}, v{n}:metadata, latest, latest:metadata
+    pipe = redis_client._pipe
+    assert pipe.set.call_count == 4
+    pipe.set.assert_has_calls(expected_calls)
+    pipe.execute.assert_called_once()
+
+
+# -------------------------------
+# 5. Cache write failures
 # -------------------------------
 
 
@@ -389,7 +443,7 @@ def test_cache_put_error_when_pipeline_execute_fails(dao, redis_client, appconfi
 
 
 # -------------------------------
-# 5. Environment validation
+# 6. Environment validation
 # -------------------------------
 
 
@@ -410,7 +464,7 @@ def test_fetch_version_env_validation_missing_vars(dao, monkeypatch):
 
 
 # -------------------------------
-# 6. Force pull
+# 7. Force pull
 # -------------------------------
 
 
@@ -418,13 +472,14 @@ def test_fetch_version_env_validation_missing_vars(dao, monkeypatch):
 def test_force_pull_latest(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
     """Ensure force=True always fetches the latest AppConfig document and caches it."""
     # Simulate cache HIT that should be ignored
-    redis_client.get.return_value = json.dumps({"stale": "data"})
+    redis_client.get.return_value = json.dumps({'stale': 'data'})
 
     # fmt: off
     expected_calls = [
         call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
         call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
         call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
     ]
     # fmt: on
 
@@ -444,8 +499,8 @@ def test_force_pull_latest(dao, redis_client, default_appconfig_doc, default_app
     # Verify no cache reads were attempted
     redis_client.get.assert_not_called()
 
-    # Verify warm-up writes: v{n}, v{n}:metadata, and latest
+    # Verify warm-up writes: v{n}, v{n}:metadata, latest, latest:metadata
     pipe = redis_client._pipe
-    assert pipe.set.call_count == 3
+    assert pipe.set.call_count == 4
     pipe.set.assert_has_calls(expected_calls)
     pipe.execute.assert_called_once()

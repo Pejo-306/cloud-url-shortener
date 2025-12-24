@@ -8,6 +8,7 @@ Responsibilities:
     - On cache-miss (and when configured), fetch from AppConfig and populate cache
     - Maintain three key types (no TTL applied):
         * <prefix>:appconfig:latest            -> latest document JSON (string)
+        * <prefix>:appconfig:latest:metadata   -> latest metadata JSON (string)
         * <prefix>:appconfig:v{n}              -> versioned document JSON (string)
         * <prefix>:appconfig:v{n}:metadata     -> versioned metadata JSON (string)
 
@@ -38,6 +39,11 @@ Example:
         >>> meta = dao.metadata(12, pull=True)
         >>> meta  # doctest: +ELLIPSIS
         {'version': 12, 'etag': 'W/"...etag..."', 'content_type': 'application/json', 'fetched_at': '2025-...Z'}
+
+        # Retrieve the latest version of the AppConfig document
+        >>> version = dao.version(pull=True)
+        >>> version
+        12
 
         # Access the same values from cache (Cache HITs) without reaching AppConfig:
         >>> cached_latest = dao.latest(pull=False)
@@ -89,6 +95,10 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             Retrieve the latest AppConfig document.
             On miss, optionally fetch from AppConfig and populate cache.
 
+        version(pull: bool = True, force: bool = False) -> int:
+            Retrieve the latest version of the AppConfig document.
+            On miss, optionally fetch from AppConfig and populate cache.
+
         get(version: int | str, pull: bool = True, force: bool = False) -> dict:
             Retrieve a specific version of the AppConfig document, or 'latest'.
             On miss, optionally fetch from AppConfig and populate cache.
@@ -135,6 +145,35 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                 If a Redis connectivity issue occurs (handled by decorator).
         """
         return self.get('latest', pull=pull, force=force)
+
+    @handle_redis_connection_error
+    @beartype
+    def version(self, pull: bool = True, force: bool = False) -> int:
+        """Retrieve the latest version of the AppConfig document
+
+        Args:
+            pull (bool):
+                If True, fetch the latest version from AppConfig and cache on miss.
+                If False, raise CacheMissError on miss.
+                Defaults to True.
+            force (bool):
+                If True, always fetch the latest version from AppConfig and cache.
+                Defaults to False.
+
+        Returns:
+            int: The latest version of the AppConfig document.
+
+        Raises:
+            CacheMissError:
+                If the latest version is not cached and pull is False.
+            CachePutError:
+                If the latest version cannot be written to the cache after fetch.
+            ValueError:
+                If environment variables required for AppConfig are missing.
+            DataStoreError:
+                If a Redis connectivity issue occurs (handled by decorator).
+        """
+        return self.metadata('latest', pull=pull, force=force)['version']
 
     @handle_redis_connection_error
     @beartype
@@ -198,11 +237,12 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
     @handle_redis_connection_error
     @beartype
-    def metadata(self, version: int, pull: bool = True, force: bool = False) -> dict[str, Any]:
+    def metadata(self, version: int | str, pull: bool = True, force: bool = False) -> dict[str, Any]:
         """Retrieve metadata for a specific AppConfig version
 
         Steps:
-            - Try "<prefix>:appconfig:v{version}:metadata".
+            - If version == 'latest', try "<prefix>:appconfig:latest:metadata".
+              Else try "<prefix>:appconfig:v{version}:metadata".
             - On CACHE HIT, load appconfig metadata as deserialized JSON object (Python dictionary)
             - On CACHE MISS, raise CacheMissError if pull=False. Otherwise, fetch
               the metadata from AppConfig (which also warms the cache as a side effect)
@@ -243,7 +283,10 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             _, _, metadata = self._pull_appconfig(version)
             return metadata
 
-        key = self.keys.appconfig_metadata_key(int(version))
+        if version == 'latest':
+            key = self.keys.appconfig_latest_metadata_key()
+        else:
+            key = self.keys.appconfig_metadata_key(int(version))
         appconfig_metadata_blob = self.redis.get(key)
 
         # CACHE HIT: load appconfig metadata as deserialized JSON object (Python dictionary)
@@ -255,7 +298,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         if not pull:
             raise CacheMissError(f'AppConfig v{version} metadata not found in cache and pull=False.')
 
-        _, _, metadata = self._pull_appconfig(int(version))
+        _, _, metadata = self._pull_appconfig(version)
         return metadata
 
     @beartype
@@ -328,6 +371,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         content_key = self.keys.appconfig_version_key(resolved_version)
         meta_key = self.keys.appconfig_metadata_key(resolved_version)
         latest_key = self.keys.appconfig_latest_key()
+        latest_meta_key = self.keys.appconfig_latest_metadata_key()
 
         document_json = json.dumps(document, separators=(',', ':'), ensure_ascii=False)
         metadata_json = json.dumps(metadata, separators=(',', ':'), ensure_ascii=False)
@@ -338,6 +382,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                 pipe.set(meta_key, metadata_json)
                 if latest:
                     pipe.set(latest_key, document_json)  # duplicate full doc for faster retrieval
+                    pipe.set(latest_meta_key, metadata_json)  # duplicate metadata for faster retrieval
                 pipe.execute()
         except redis.exceptions.ConnectionError as e:
             raise CachePutError(

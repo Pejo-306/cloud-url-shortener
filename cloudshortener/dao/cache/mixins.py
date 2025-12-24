@@ -36,7 +36,6 @@ from typing import Optional
 import boto3
 import redis
 from botocore.client import BaseClient
-from botocore.exceptions import BotoCoreError, ClientError
 
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.redis.mixins import RedisClientMixin
@@ -196,8 +195,6 @@ class ElastiCacheClientMixin(RedisClientMixin):
             user = None
             if user_param:
                 user = ssm.get_parameter(Name=user_param)['Parameter']['Value']
-        except (BotoCoreError, ClientError):
-            raise
         except KeyError as e:
             raise ValueError('Malformed SSM get_parameter response') from e
 
@@ -245,8 +242,6 @@ class ElastiCacheClientMixin(RedisClientMixin):
         try:
             raw = sm.get_secret_value(SecretId=secret_name).get('SecretString')
             payload = json.loads(raw or '{}')
-        except (BotoCoreError, ClientError):
-            raise
         except json.JSONDecodeError as e:
             raise ValueError('Invalid JSON in ElastiCache secret payload') from e
 

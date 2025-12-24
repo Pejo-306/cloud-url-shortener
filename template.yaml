@@ -439,19 +439,24 @@ Resources:
   AppConfigDeploymentRule:
     Type: AWS::Events::Rule
     Properties:
-      Description: Trigger cache warm-up on AppConfig deployment
+      Description: Trigger cache warm-up on AppConfig deployment complete
       EventPattern:
         source:
           - aws.appconfig
         detail-type:
-          - AppConfig Deployment Complete
+          - On Deployment Complete
         detail:
-          applicationId:
-            - !Ref AppConfigApplication
-          environmentId:
-            - !Ref AppConfigEnvironment
-          configurationProfileId:
-            - !Ref BackendConfigProfile
+          Type:
+            - OnDeploymentComplete
+          Application:
+            Id:
+              - !Ref AppConfigApplication
+          Environment:
+            Id:
+              - !Ref AppConfigEnvironment
+          ConfigurationProfile:
+            Id:
+              - !Ref BackendConfigProfile
       Targets:
         - Arn: !GetAtt WarmAppConfigCacheFunction.Arn
           Id: WarmAppConfigCacheTarget
@@ -463,6 +468,28 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt AppConfigDeploymentRule.Arn
+  
+  AppConfigEventBridgeExtension:
+    Type: AWS::AppConfig::Extension
+    Properties:
+      Name: AppConfig-EventBridge
+      Description: Send AppConfig deployment events to EventBridge default bus
+      Actions:
+        ON_DEPLOYMENT_START:
+          - Name: SendToEventBridge
+            Uri: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+        ON_DEPLOYMENT_COMPLETE:
+          - Name: SendToEventBridge
+            Uri: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+        ON_DEPLOYMENT_ROLLED_BACK:
+          - Name: SendToEventBridge
+            Uri: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+
+  AppConfigEventBridgeExtensionAssociation:
+    Type: AWS::AppConfig::ExtensionAssociation
+    Properties:
+      ExtensionIdentifier: !Ref AppConfigEventBridgeExtension
+      ResourceIdentifier: !Sub arn:${AWS::Partition}:appconfig:${AWS::Region}:${AWS::AccountId}:application/${AppConfigApplication}
 
   ##################################################
   # Lambda: Common IAM Role

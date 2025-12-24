@@ -19,5 +19,6 @@ Examples:
 | Key Pattern | Redis Type | Description | Written By | Read By | Notes |
 |------------|------------|-------------|------------|---------|-------|
 | `appconfig:v1` | `string` | Cached AppConfig configuration payload (versioned) | backend lambdas | backend lambdas | Canonical cached config |
-| `appconfig:latest` | `string` | Pointer to the latest AppConfig version key | backend lambdas | backend lambdas | Allows version indirection |
+| `appconfig:latest` | `string` | Latest AppConfig configuration payload | backend lambdas | backend lambdas | Duplicate of latest version for fast access |
+| `appconfig:latest:metadata` | `string` | Metadata for latest AppConfig payload | backend lambdas | backend lambdas | Duplicate of latest version metadata for fast access |
 | `appconfig:v1:metadata` | `string` | Metadata for cached AppConfig payload | backend lambdas | backend lambdas | Used for cache validation |
