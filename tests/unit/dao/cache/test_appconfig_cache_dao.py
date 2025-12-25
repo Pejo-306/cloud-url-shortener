@@ -49,6 +49,10 @@ from cloudshortener.dao.cache.appconfig_cache_dao import AppConfigCacheDAO
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
 
 
+# Manually defined here to ensure changing the constant breaks the tests
+COOL_TTL = 7 * 24 * 60 * 60  # 7 days * 24 hours * 60 minutes * 60 seconds = 7 days
+
+
 # -------------------------------
 # Autouse environment
 # -------------------------------
@@ -199,6 +203,7 @@ def dao(redis_client, app_prefix):
     _dao = object.__new__(AppConfigCacheDAO)  # bypass mixin/network init
     _dao.redis = redis_client
     _dao.keys = CacheKeySchema(prefix=app_prefix)
+    _dao.ttl = COOL_TTL
     return _dao
 
 
@@ -237,10 +242,10 @@ def test_latest_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, 
     """Ensure latest() fetches from AppConfig and warms cache on MISS with pull=True."""
     # fmt: off
     expected_calls = [
-        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
     ]
     # fmt: on
     redis_client.get.return_value = None
@@ -301,8 +306,8 @@ def test_get_version_cache_miss_with_pull_true_fetches_and_writes(dao, redis_cli
     written_appconfig_metadata['version'] = 9
     # fmt: off
     expected_calls = [
-        call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
     ]
     # fmt: on
     redis_client.get.return_value = None
@@ -360,8 +365,8 @@ def test_metadata_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client
     written_appconfig_metadata['version'] = 9
     # fmt: off
     expected_calls = [
-        call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
     ]
     # fmt: on
     redis_client.get.return_value = None
@@ -409,10 +414,10 @@ def test_version_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client,
     """Ensure version() fetches latest version from AppConfig on cache MISS."""
     # fmt: off
     expected_calls = [
-        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
     ]
     # fmt: on
     redis_client.get.return_value = None
@@ -476,10 +481,10 @@ def test_force_pull_latest(dao, redis_client, default_appconfig_doc, default_app
 
     # fmt: off
     expected_calls = [
-        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False)),
-        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False)),
+        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
     ]
     # fmt: on
 

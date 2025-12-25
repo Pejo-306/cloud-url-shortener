@@ -69,8 +69,10 @@ from typing import Any
 import boto3
 import redis
 from beartype import beartype
+from botocore.client import BaseClient
 
 from cloudshortener.dao.cache.mixins import ElastiCacheClientMixin
+from cloudshortener.dao.cache.constants import COOL_TTL
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
 from cloudshortener.dao.redis.helpers import handle_redis_connection_error
 from cloudshortener.utils.helpers import require_environment
@@ -89,6 +91,10 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             Redis client used to communicate with the ElastiCache/Redis datastore.
         keys (CacheKeySchema):
             Key schema helper for generating namespaced AppConfig cache keys.
+        ttl (int):
+            The TTL in seconds for the cache entry.
+            Defaults to COOL_TTL.
+            None means no TTL is applied.
 
     Methods:
         latest(pull: bool = True, force: bool = False) -> dict:
@@ -113,6 +119,26 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         >>> dao.get(10)           # dict
         >>> dao.metadata(10)      # dict
     """
+
+    def __init__(
+        self,
+        prefix: str | None = None,
+        ssm_client: BaseClient | None = None,
+        secrets_client: BaseClient | None = None,
+        redis_decode_responses: bool = True,
+        tls_verify: bool = False,
+        ca_bundle_path: str | None = None,
+        ttl: int | None = COOL_TTL,
+    ):
+        super().__init__(
+            prefix=prefix,
+            ssm_client=ssm_client,
+            secrets_client=secrets_client,
+            redis_decode_responses=redis_decode_responses,
+            tls_verify=tls_verify,
+            ca_bundle_path=ca_bundle_path,
+        )
+        self.ttl = ttl
 
     @handle_redis_connection_error
     @beartype
@@ -360,6 +386,10 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                 Metadata for the document (version, etag, content_type, fetched_at).
             latest (bool):
                 If True, also set '<prefix>:appconfig:latest' to the same document.
+            ttl (int):
+                The TTL in seconds for the cache entry.
+                Defaults to COOL_TTL.
+                None means no TTL is applied.
 
         Returns:
             None
@@ -378,11 +408,11 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
         try:
             with self.redis.pipeline(transaction=True) as pipe:
-                pipe.set(content_key, document_json)
-                pipe.set(meta_key, metadata_json)
+                pipe.set(content_key, document_json, ex=self.ttl)
+                pipe.set(meta_key, metadata_json, ex=self.ttl)
                 if latest:
-                    pipe.set(latest_key, document_json)  # duplicate full doc for faster retrieval
-                    pipe.set(latest_meta_key, metadata_json)  # duplicate metadata for faster retrieval
+                    pipe.set(latest_key, document_json, ex=self.ttl)  # duplicate full doc for faster retrieval
+                    pipe.set(latest_meta_key, metadata_json, ex=self.ttl)  # duplicate metadata for faster retrieval
                 pipe.execute()
         except redis.exceptions.ConnectionError as e:
             raise CachePutError(
