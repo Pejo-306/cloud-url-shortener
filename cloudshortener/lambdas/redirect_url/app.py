@@ -61,7 +61,7 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
     This Lambda handler follows this procedure to redirect URLs:
     - Step 1: Extract shortcode from request path
-    - Step 2: Initialize DAO subclass
+    - Step 2: Hit the link and check if quota is exceeded
     - Step 3: Get short URL record from database
     - Step 4: Redirect client to target URL
 
@@ -105,10 +105,11 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     if shortcode is None:
         return response_400(message="missing 'shortcode' in path", error_code='MISSING_SHORTCODE')
 
-    # 2- Create DAO class to access short URL records
+    # Create DAO class to access short URL records
     redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
 
+    # 2- Hit the link and check if quota is exceeded
     try:
         leftover_hits = short_url_dao.hit(shortcode=shortcode)
     except ShortURLNotFoundError:
@@ -124,12 +125,13 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 message=f'Monthly hit quota exceeded for link. Try again after {reset_date}.',
             )
 
-    # 4- Get short_url record from database
+    # 3- Get short_url record from database
     try:
         short_url = short_url_dao.get(shortcode=shortcode)
-    except ShortURLNotFoundError:
+    except ShortURLNotFoundError:  # pragma: no cover
         return response_400(message=f"short url {get_short_url(shortcode, event)} doesn't exist", error_code='SHORT_URL_NOT_FOUND')
     else:
         target_url = short_url.target
 
+    # 4- Redirect client to target URL
     return response_302(location=target_url)

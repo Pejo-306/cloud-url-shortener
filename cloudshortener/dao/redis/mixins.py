@@ -132,6 +132,6 @@ class RedisClientMixin:
                 raise DataStoreError(
                     f"Can't connect to Redis at {redis_host}:{redis_port}/{redis_db}. Check the provided configuration paramters."
                 ) from e
-            return False
+            return False  # pragma: no cover
         else:
             return True
