@@ -2,7 +2,7 @@
 
 This test suite verifies the correctness, consistency, and robustness
 of the generate_shortcode() helper function that generates deterministic,
-base62-safe short hashes using the Hashids algorithm.
+base62-safe short hashes using a multiplicative permutation strategy.
 
 Test coverage includes:
 
@@ -36,7 +36,13 @@ Test coverage includes:
      to detect accidental future changes.
 
 9. Performance sanity
-    - The function executes efficiently for a large number of iterations.
+   - The function executes efficiently for a large number of iterations.
+
+10. Non-sequential output
+    - Sequential counters must not produce visually similar shortcodes.
+
+11. Multiplicative factor validation
+    - Non-coprime multiplicative factors must be rejected.
 """
 
 import string
@@ -54,10 +60,10 @@ from cloudshortener.utils import generate_shortcode
 
 def test_shorten_url_returns_string():
     """Ensure generate_shortcode() returns a string of the expected length."""
-    result = generate_shortcode(123, salt='unit_test_salt', length=7)
+    result = generate_shortcode(123, salt='unit_test_salt', length=7, mult=1315423911)
     assert isinstance(result, str)
     assert len(result) == 7
-    assert result == 'XrJQsJI'
+    assert result == '0ilAMe2'
 
 
 # -------------------------------
@@ -70,8 +76,8 @@ def test_shorten_url_is_deterministic():
     result1 = generate_shortcode(123, salt='unit_test_salt')
     result2 = generate_shortcode(123, salt='unit_test_salt')
     assert result1 == result2
-    assert result1 == 'XrJQsJI'
-    assert result2 == 'XrJQsJI'
+    assert result1 == '0ilAMe2'
+    assert result2 == '0ilAMe2'
 
 
 # -------------------------------
@@ -84,8 +90,8 @@ def test_shorten_url_diff_salts_produce_diff_hashes():
     result1 = generate_shortcode(123, salt='unit_test_saltA')
     result2 = generate_shortcode(123, salt='unit_test_saltB')
     assert result1 != result2
-    assert result1 == 'Nr5bkci'
-    assert result2 == 'q7femOj'
+    assert result1 == 'QiGVDHC'
+    assert result2 == 'tXQYGjD'
 
 
 # -------------------------------
@@ -109,9 +115,9 @@ def test_shorten_url_wraps_around_for_big_counter_values():
     assert len(result1) == 7
     assert len(result2) == 7
     assert len(result3) == 7
-    assert result1 == 'Gh71WPT'
-    assert result2 == 'Gh71WPT'
-    assert result3 == 'Gh71WPT'
+    assert result1 == 'ibCJIAD'
+    assert result2 == 'ibCJIAD'
+    assert result3 == 'ibCJIAD'
 
 
 # -------------------------------
@@ -177,7 +183,7 @@ def test_shorten_url_respects_length():
 
 def test_known_output_regression():
     """Ensure stable output for known inputs (detect logic drift)."""
-    expected = 'Gh71WPT'
+    expected = 'ibCJIAD'
     assert generate_shortcode(12345, salt='my_secret', length=7) == expected
 
 
@@ -199,3 +205,50 @@ def test_shorten_url_performance(iterations):
         generate_shortcode(i, salt='perf_salt')
     duration = time.perf_counter() - start
     assert duration < 1.0  # Must complete within 1 second for given iterations
+
+
+# -------------------------------
+# 10. Non-sequential output
+# -------------------------------
+
+
+@pytest.mark.parametrize(
+    'counter1, counter2',
+    [
+        (0, 1),
+        (1, 2),
+        (123, 124),
+        (9999, 10000),
+        (62**3, 62**3 + 1),
+    ],
+)
+def test_shorten_url_not_sequential(counter1, counter2):
+    """Sequential counters must not produce visually similar shortcodes."""
+    result1 = generate_shortcode(counter1, salt='seq_test')
+    result2 = generate_shortcode(counter2, salt='seq_test')
+
+    # Ensure the majority of the prefix differs (strong scrambling signal)
+    assert result1[:6] != result2[:6]
+
+
+# -------------------------------
+# 11. Invalid multiplicative factor
+# -------------------------------
+
+
+# fmt: off
+@pytest.mark.parametrize(
+    'mult',
+    [
+        62,                 # divisible by BASE
+        2,                  # divisible by 2
+        31,                 # divisible by 31
+        62 * 31,            # multiple shared factors
+        62**2,              # power of BASE
+    ],
+)
+# fmt: on
+def test_non_coprime_mult_raises_error(mult):
+    """Non-coprime multiplicative factors must raise ValueError."""
+    with pytest.raises(ValueError):
+        generate_shortcode(123, salt='unit_test_salt', length=7, mult=mult)

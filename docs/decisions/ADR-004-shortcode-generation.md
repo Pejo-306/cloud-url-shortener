@@ -8,6 +8,10 @@ Accepted (Retroactively documented)
 
 2025-12-21
 
+## Revision History
+
+- 2025-12-25: Updated to use multiplicative permutation instead of simple addition for better sequential scrambling
+
 ## Context
 
 The `cloudshortener` system must generate **short, URL-safe identifiers**
@@ -30,13 +34,12 @@ Additionally:
 Use a **counter-based, deterministic shortening algorithm** with the following properties:
 
 - A **globally unique numeric counter** is used as the source of uniqueness
-- The counter value is **salted and hashed** to obscure sequential patterns
+- The counter value is **permuted using a multiplicative transformation** combined with a **secret salt** to obscure sequential patterns
 - The resulting value is **encoded into a fixed-length Base62 string**
 - Output length is fixed (7 characters) to ensure predictable URL size
 - Old shortcodes expire, allowing safe reuse of the output space over time
 
-The algorithm is deterministic, fast, and collision-free within the system’s
-operational assumptions.
+The algorithm uses a **multiplicative permutation** (affine transformation) to ensure that sequential counters produce completely unrelated-looking shortcodes while maintaining a 1:1 bijective mapping. The algorithm is deterministic, fast, and collision-free within the system's operational assumptions.
 
 ## Rationale
 
@@ -50,19 +53,27 @@ A counter provides:
 Unlike random or probabilistic approaches, a counter eliminates the need for
 collision retries or existence checks during generation.
 
-### Why Hashing and Salting Are Applied
+### Why Multiplicative Permutation and Salting Are Applied
 
 Using a raw counter directly would:
 - Reveal internal system state
 - Allow enumeration of URLs
 - Create predictable shortcodes
 
-To mitigate this, the counter is:
-- Combined with a **secret salt**
-- Passed through a fast, non-cryptographic hash
+A simple additive salt (counter + salt_hash) was initially used, but this approach had a limitation: sequential counters would produce shortcodes that were visually similar, with only minor differences (often just the last character). This could still reveal sequential patterns.
+
+To better mitigate this, the counter is now:
+- **Multiplied by a coprime factor** to create a multiplicative permutation
+- **Combined with a secret salt** (additive component) via an affine transformation
+- Passed through a fast, non-cryptographic hash (xxhash) for the salt
 - Wrapped into a bounded numeric space
 
-This preserves uniqueness while obscuring sequence information.
+The affine transformation `(counter * mult + salt_hash) mod (BASE^length)` where `mult` is coprime with `BASE^length` ensures:
+- **1:1 bijective mapping**: Each counter maps to exactly one permuted value
+- **Complete scrambling**: Sequential counters produce completely different shortcodes
+- **Deterministic output**: Same inputs always produce the same output
+
+This preserves uniqueness while completely obscuring sequential patterns.
 
 ### Why Fixed-Length Base62 Encoding
 
@@ -106,8 +117,8 @@ At any point in time, each active shortcode maps to exactly one long URL.
 ## Algorithm Overview (Pseudocode)
 
 The shortcode generation algorithm is based on a **monotonically increasing
-counter**, combined with a **secret salt**, and encoded into a fixed-length
-Base62 representation.
+counter**, combined with a **secret salt** via a **multiplicative permutation**,
+and encoded into a fixed-length Base62 representation.
 
 The algorithm can be described as follows:
 
@@ -116,15 +127,17 @@ INPUT:
 counter        // globally unique integer
 salt           // secret string
 length         // fixed shortcode length (e.g. 7)
+mult           // multiplicative factor (must be coprime with BASE^length)
 alphabet       // Base62 character set [a–zA–Z0–9]
 
 PROCESS:
-hash_salt = HASH(salt)
-salted_value = (counter + hash_salt) mod (BASE^length)
+modulo_space = BASE^length
+hash_salt = HASH(salt) mod modulo_space
+permuted = (counter * mult + hash_salt) mod modulo_space
 
-shortcode = “”
+shortcode = ""
 for i from 0 to length - 1:
-digit = (salted_value / BASE^i) mod BASE
+digit = (permuted / BASE^i) mod BASE
 shortcode = alphabet[digit] + shortcode
 
 if length(shortcode) < length:
@@ -136,14 +149,23 @@ shortcode
 
 ### Properties
 
-- **Deterministic**: same `(counter, salt)` always produces the same shortcode
+- **Deterministic**: same `(counter, salt, mult)` always produces the same shortcode
 - **Fixed-length**: output length is constant
 - **URL-safe**: Base62 alphabet only
-- **Non-sequential**: obscures internal counter values
+- **Non-sequential**: sequential counters produce completely unrelated shortcodes
+- **Bijective**: 1:1 mapping between counter space and output space (when `counter < BASE^length`)
 - **O(1)** time complexity
 
-The counter guarantees uniqueness at generation time, while hashing and encoding
-ensure compactness and opacity.
+The counter guarantees uniqueness at generation time, while the multiplicative permutation and encoding ensure compactness and complete opacity of sequential patterns.
+
+### Multiplicative Factor Requirements
+
+The multiplicative factor `mult` must be **coprime** with `BASE^length` (i.e., `gcd(mult, BASE^length) == 1`) to ensure the affine transformation is bijective. This guarantees that:
+- Each counter value maps to a unique permuted value
+- The mapping is reversible (though not needed in practice)
+- No collisions occur within the counter space `[0, BASE^length)`
+
+The default value `1315423911` is chosen to be coprime with `62^7` and provides good scrambling properties.
 
 ## Alternatives Considered
 
@@ -210,6 +232,7 @@ This strategy does **not** affect the critical redirect (read) latency path.
 - Requires careful counter management
 - Depends on retention-based expiration to safely reuse space
 - Salt rotation must be handled carefully to avoid breaking determinism
+- Multiplicative factor must be validated to ensure coprimality with the modulo space
 
 ## Impact
 
