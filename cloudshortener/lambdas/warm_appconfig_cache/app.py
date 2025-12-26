@@ -1,25 +1,30 @@
 import json
+import logging
 from typing import Any
 
 from cloudshortener.dao.cache import AppConfigCacheDAO
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError, DataStoreError, DAOError
 from cloudshortener.utils.config import app_prefix
+from cloudshortener.lambdas.warm_appconfig_cache.constants import SUCCESS, ERROR
 
 
-def response_success(*, appconfig_version: int) -> dict[str, Any]:
+logger = logging.getLogger(__name__)
+
+
+def response_success(*, appconfig_version: int) -> dict:
     return json.dumps(
         {
-            'status': 'success',
+            'status': SUCCESS,
             'appconfig_version': int(appconfig_version),
             'message': f'Successfully warmed cache with AppConfig version {appconfig_version}',
         }
     )
 
 
-def response_error(*, error: DAOError | Exception) -> dict[str, Any]:
+def response_error(*, error: DAOError | Exception) -> dict:
     return json.dumps(
         {
-            'status': 'error',
+            'status': ERROR,
             'message': 'Failed to warm up cache with latest AppConfig',
             'reason': str(error),
             'error': error.__class__.__name__,
@@ -27,7 +32,7 @@ def response_error(*, error: DAOError | Exception) -> dict[str, Any]:
     )
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def lambda_handler(event: dict, context: Any) -> dict:
     """Warm ElastiCache with newest AppConfig deployment document
 
     This Lambda handler follows this procedure to shorten URLs:
@@ -46,13 +51,13 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             error: <error class name> (e.g. CacheMissError, CachePutError, DataStoreError)
 
     Args:
-        event (dict[str, Any]):
+        event (dict):
             EventBridge event payload.
-        context (Any):
+        context (LambdaContext):
             AWS Lambda context object containing runtime information.
 
     Returns:
-        dict[str, Any]:
+        dict:
             JSON-serializable response in Lambda Proxy format.
 
     TOOD: Example:
@@ -69,6 +74,15 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         dao = AppConfigCacheDAO(prefix=app_prefix())
         version = dao.version(force=True)
     except (CacheMissError, CachePutError, DataStoreError) as error:
+        logger.exception(
+            'Failed to warm up cache with latest AppConfig.',
+            extra={'event': ERROR, 'reason': str(error), 'error': error.__class__.__name__},
+        )
         return response_error(error=error)
     else:
+        logger.info(
+            'Successfully warmed cache with AppConfig version %s.',
+            version,
+            extra={'event': SUCCESS, 'appconfig_version': version},
+        )
         return response_success(appconfig_version=version)

@@ -1,5 +1,5 @@
 {
-    "version": 42,
+    "build": 42,
     "active_backend": "redis",
     "configs": {
         "shorten_url": {

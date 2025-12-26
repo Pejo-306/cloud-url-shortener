@@ -22,6 +22,17 @@ Parameters:
     Default: cloudshortener
     Description: Application name
 
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+      - CRITICAL
+    Description: Logging level
+
   FrontendBucketName:
     Type: String
     Default: cloudshortener-frontend
@@ -79,6 +90,7 @@ Globals:
         APP_ENV: !Ref AppEnv
         APP_NAME: !Ref AppName
         PROJECT_ROOT: /var/task
+        LOG_LEVEL: !Ref LogLevel
         # Cognito variables
         # TODO: move out cognito user environment variables only to shortenURLbackend
         USER_POOL_ID: !Ref CognitoUserPool

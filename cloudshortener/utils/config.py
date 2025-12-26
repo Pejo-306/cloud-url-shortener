@@ -86,6 +86,7 @@ import os
 import json
 import functools
 import urllib
+import logging
 from pathlib import Path
 from collections.abc import Callable
 
@@ -103,6 +104,9 @@ from cloudshortener.utils.constants import (
     APPCONFIG_AGENT_URL_ENV,
     APPCONFIG_PROFILE_NAME_ENV,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 def app_env() -> str:
@@ -241,11 +245,14 @@ def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], di
 
         profile_name = os.getenv(APPCONFIG_PROFILE_NAME_ENV, 'backend-config')
         url = f'{agent_url}/applications/{app_name()}/environments/{app_env()}/configurations/{profile_name}'
+
+        logger.debug('Trying to load AppConfig from local agent.', extra={'agentUrl': url, 'lambdaName': lambda_name})
         with urllib.request.urlopen(url, timeout=5) as r:  # noqa: S310
             config = json.load(r)
 
         backend = config['active_backend']
         data = {backend: config['configs'][lambda_name][backend]}
+        logger.debug('Loaded AppConfig from local agent.', extra={'lambdaName': lambda_name, 'build': config['build']})
         return data
 
     return wrapper
@@ -303,20 +310,25 @@ def cache_appconfig(func: Callable[[str], dict]) -> Callable[[str], dict]:
         from cloudshortener.dao.cache import AppConfigCacheDAO
         from cloudshortener.dao.exceptions import CacheMissError, CachePutError, DataStoreError
 
+        logger.debug('Trying to load AppConfig from cache.', extra={'lambdaName': lambda_name})
+
         try:
             # Fetch the latest full AppConfig document (pulling/warming cache on MISS)
             dao = AppConfigCacheDAO(prefix=app_prefix())
             document = dao.latest(pull=True)
 
-            # Reproduce the existing load_config() behavior:
-            backend = document['active_backend']
-            lambda_config = document['configs'][lambda_name]
-            return {backend: lambda_config[backend]}
-
         except (CacheMissError, CachePutError, DataStoreError, ValueError, KeyError):
             # On any cache / config-structure / env-related issues, fall back
             # to the original (non-cached) implementation.
             return func(lambda_name, *args, **kwargs)
+
+        else:
+            # Reproduce the existing load_config() behavior:
+            backend = document['active_backend']
+            lambda_config = document['configs'][lambda_name]
+
+            logger.debug('Loaded AppConfig from cache.', extra={'lambdaName': lambda_name, 'build': document['build']})
+            return {backend: lambda_config[backend]}
 
     return wrapper
 
@@ -347,6 +359,8 @@ def load_config(lambda_name: str) -> dict:
         >>> app_config['redis']['host']
         'redis-15501.host.docker.internal'
     """
+    logger.debug('Trying to load AppConfig from AWS AppConfig.', extra={'lambdaName': lambda_name})
+
     appconfig = boto3.client('appconfigdata')
 
     # Start an AppConfig data session
@@ -366,4 +380,5 @@ def load_config(lambda_name: str) -> dict:
     # TODO: change the way I receive and interpret the config in my lambda handler
     #       so I don't strictly confine this configuration to my data store backend
     data = {backend: config['configs'][lambda_name][backend]}
+    logger.debug('Loaded AppConfig from AWS AppConfig.', extra={'lambdaName': lambda_name, 'build': config['build']})
     return data

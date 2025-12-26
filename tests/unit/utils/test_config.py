@@ -53,6 +53,7 @@ def appconfig_payload():
     """Provide a default AppConfig payload used by multiple tests."""
     # fmt: off
     return {
+        'build': 42,
         'active_backend': 'redis',
         'configs': {
             'test_lambda': {

@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime, UTC
 from typing import Any
 
@@ -6,9 +7,18 @@ from cloudshortener.dao.redis import ShortURLRedisDAO
 from cloudshortener.dao.exceptions import ShortURLNotFoundError
 from cloudshortener.utils import load_config, get_short_url, app_prefix
 from cloudshortener.utils.helpers import beginning_of_next_month
+from cloudshortener.lambdas.redirect_url.constants import (
+    MISSING_SHORTCODE,
+    SHORT_URL_NOT_FOUND,
+    LINK_QUOTA_EXCEEDED,
+    REDIRECT_SUCCESS,
+)
 
 
-def response_500(message: str | None = None) -> dict[str, Any]:
+logger = logging.getLogger(__name__)
+
+
+def response_500(message: str | None = None) -> dict:
     base = 'Internal Server Error'
     body = {'message': base if not message else f'{base} ({message})'}
     return {
@@ -17,7 +27,7 @@ def response_500(message: str | None = None) -> dict[str, Any]:
     }
 
 
-def response_400(message: str | None = None, error_code: str | None = None) -> dict[str, Any]:
+def response_400(message: str | None = None, error_code: str | None = None) -> dict:
     base = 'Bad Request'
     body = {'message': base if not message else f'{base} ({message})'}
     if error_code:
@@ -28,7 +38,7 @@ def response_400(message: str | None = None, error_code: str | None = None) -> d
     }
 
 
-def response_429(*, retry_after: int, message: str | None = None, error_code: str | None = None) -> dict[str, Any]:
+def response_429(*, retry_after: int, message: str | None = None, error_code: str | None = None) -> dict:
     body = {'message': message or 'Too Many Requests'}
     if error_code:
         body['errorCode'] = error_code
@@ -42,7 +52,7 @@ def response_429(*, retry_after: int, message: str | None = None, error_code: st
     }
 
 
-def response_302(*, location: str) -> dict[str, Any]:
+def response_302(*, location: str) -> dict:
     return {
         'statusCode': 302,
         'headers': {
@@ -56,7 +66,7 @@ def response_302(*, location: str) -> dict[str, Any]:
     }
 
 
-def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
+def lambda_handler(event: dict, context: Any) -> dict:
     """Handle incoming API Gateway requests to redirect URLs
 
     This Lambda handler follows this procedure to redirect URLs:
@@ -77,13 +87,13 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             message: server experienced an internal error
 
     Args:
-        event (dict[str, Any]):
+        event (dict):
             API Gateway event payload containing the shortcode path parameter.
-        context (Any):
+        context (LambdaContext):
             AWS Lambda runtime context object (not used directly).
 
     Returns:
-        dict[str, Any]:
+        dict:
             API Gateway-compatible response including statusCode, headers, and body.
 
     Example:
@@ -98,40 +108,77 @@ def lambda_handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     try:
         app_config = load_config('redirect_url')
     except FileNotFoundError:
+        logger.exception('Failed to load AppConfig for redirect URL function. Responding with 500.')
         return response_500()
+    else:
+        logger.debug('Assuming Redis as the backend database for short URLs')
+        redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
 
     # 1- Extract shortcode from request's path
     shortcode = event.get('pathParameters', {}).get('shortcode')
     if shortcode is None:
-        return response_400(message="missing 'shortcode' in path", error_code='MISSING_SHORTCODE')
+        logger.info(
+            'Missing "shortcode" in path. Responding with 400.',
+            extra={'event': MISSING_SHORTCODE},
+        )
+        return response_400(message="missing 'shortcode' in path", error_code=MISSING_SHORTCODE)
+    logger.debug('Client requested short URL %s.', get_short_url(shortcode, event))
 
     # Create DAO class to access short URL records
-    redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
 
     # 2- Hit the link and check if quota is exceeded
     try:
         leftover_hits = short_url_dao.hit(shortcode=shortcode)
     except ShortURLNotFoundError:
-        return response_400(message=f"short url {get_short_url(shortcode, event)} doesn't exist", error_code='SHORT_URL_NOT_FOUND')
+        logger.info(
+            'Short URL record not found in database. Responding with 400.',
+            extra={'shortcode': shortcode, 'event': SHORT_URL_NOT_FOUND},
+        )
+        return response_400(message=f"short url {get_short_url(shortcode, event)} doesn't exist", error_code=SHORT_URL_NOT_FOUND)
     else:
+        logger.debug('Short URL record (shortcode: %s) found in database.', shortcode)
+
         if leftover_hits < 0:
+            logger.info(
+                'Monthly hit quota exceeded for link. Responding with 429.',
+                extra={'shortcode': shortcode, 'event': LINK_QUOTA_EXCEEDED},
+            )
+
             reset_dt = beginning_of_next_month()
             reset_date = reset_dt.strftime('%Y-%m-%dT%H:%M:%SZ')
             ttl_to_reset = int((reset_dt - datetime.now(UTC)).total_seconds())
             return response_429(
                 retry_after=ttl_to_reset,
-                error_code='LINK_QUOTA_EXCEEDED',
+                error_code=LINK_QUOTA_EXCEEDED,
                 message=f'Monthly hit quota exceeded for link. Try again after {reset_date}.',
+            )
+        else:
+            logger.debug(
+                'Leftover monthly hits: %s.',
+                leftover_hits,
+                extra={'shortcode': shortcode, 'leftover_hits': leftover_hits},
             )
 
     # 3- Get short_url record from database
     try:
         short_url = short_url_dao.get(shortcode=shortcode)
     except ShortURLNotFoundError:  # pragma: no cover
-        return response_400(message=f"short url {get_short_url(shortcode, event)} doesn't exist", error_code='SHORT_URL_NOT_FOUND')
+        logger.info(
+            'Short URL record not found in database. Responding with 400.',
+            extra={
+                'shortcode': shortcode,
+                'event': SHORT_URL_NOT_FOUND,
+                'reason': 'Possible race condition encountered (short URL record just expired)',
+            },
+        )
+        return response_400(message=f"short url {get_short_url(shortcode, event)} doesn't exist", error_code=SHORT_URL_NOT_FOUND)
     else:
         target_url = short_url.target
 
     # 4- Redirect client to target URL
+    logger.info(
+        'Redirecting client to target URL. Responding with 302.',
+        extra={'shortcode': shortcode, 'event': REDIRECT_SUCCESS},
+    )
     return response_302(location=target_url)
