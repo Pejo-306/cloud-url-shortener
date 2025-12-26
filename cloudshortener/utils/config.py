@@ -53,9 +53,6 @@ Functions:
         Return the absolute path to the project root directory, using
         `PROJECT_ROOT` when available.
 
-    running_locally() -> bool:
-        True if lambda is running in local SAM, False otherwise.
-
     _sam_load_local_appconfig(func) -> Callable[[str], dict]:
         Load AppConfig from a local AppConfig agent when running under SAM.
         Decorates `load_config()`.
@@ -93,11 +90,11 @@ from collections.abc import Callable
 import boto3
 
 from cloudshortener.utils.helpers import require_environment
+from cloudshortener.utils.runtime import running_locally
 from cloudshortener.utils.constants import (
     APP_ENV_ENV,
     APP_NAME_ENV,
     PROJECT_ROOT_ENV,
-    AWS_SAM_LOCAL_ENV,
     APPCONFIG_APP_ID_ENV,
     APPCONFIG_ENV_ID_ENV,
     APPCONFIG_PROFILE_ID_ENV,
@@ -171,24 +168,6 @@ def app_prefix() -> str | None:
         'cloudshortener:local'
     """
     return None if app_name() is None else f'{app_name()}:{app_env()}'
-
-
-def running_locally() -> bool:
-    """Check if the lambda is running locally via sam local invoke
-
-    Returns:
-        bool: True if running locally, False otherwise.
-
-    Example:
-        >>> os.environ['APP_ENV'] = 'local'
-        >>> running_locally()
-        True
-        >>> os.environ['APP_ENV'] = 'dev'
-        >>> running_locally()
-        False
-    """
-    env = os.getenv(APP_ENV_ENV, '').lower()
-    return env == 'local' or os.getenv(AWS_SAM_LOCAL_ENV) == 'true'
 
 
 def _sam_load_local_appconfig(func: Callable[[str], dict]) -> Callable[[str], dict]:  # pragma: no cover
