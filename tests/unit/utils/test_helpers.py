@@ -19,6 +19,7 @@ Test coverage includes:
    - 4.2. Ensures missing or empty env vars raise a descriptive ValueError.
 """
 
+import json
 from datetime import datetime, UTC
 
 import pytest
@@ -29,6 +30,7 @@ from cloudshortener.utils.helpers import (
     get_short_url,
     beginning_of_next_month,
     require_environment,
+    guarantee_500_response,
 )
 
 
@@ -206,3 +208,37 @@ def test_require_environment_missing_or_empty(monkeypatch, env_setup, missing_na
     expected_message = f'Missing required environment variables: {", ".join(missing_names)}'
     with pytest.raises(KeyError, match=expected_message):
         sample_function()
+
+
+# -------------------------------
+# 5. guarantee_500_response() behavior
+# -------------------------------
+
+
+def test_guarantee_500_response(monkeypatch):
+    """5.1. Faulty lambda handler returns 500 response when not running locally."""
+    monkeypatch.setattr('cloudshortener.utils.helpers.running_locally', lambda: False)
+
+    @guarantee_500_response
+    def faulty_lambda_handler(event, context):
+        raise RuntimeError('boom')
+
+    response = faulty_lambda_handler({}, None)
+    body = json.loads(response['body'])
+
+    assert response['statusCode'] == 500
+    assert isinstance(body, dict)
+    assert body['message'] == 'Internal Server Error'
+    assert body['error_code'] == 'UNKNOWN_INTERNAL_SERVER_ERROR'
+
+
+def test_guarantee_500_response_reraises_when_running_locally(monkeypatch):
+    """5.2. Faulty lambda handler reraises the original exception when running locally."""
+    monkeypatch.setattr('cloudshortener.utils.helpers.running_locally', lambda: True)
+
+    @guarantee_500_response
+    def faulty_lambda_handler(event, context):
+        raise RuntimeError('boom')
+
+    with pytest.raises(RuntimeError, match='boom'):
+        faulty_lambda_handler({}, None)

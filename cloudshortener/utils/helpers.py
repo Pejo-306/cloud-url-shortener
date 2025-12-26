@@ -38,9 +38,17 @@ Example:
 
 import os
 import functools
+import logging
+import json
 from datetime import datetime, UTC
 from typing import Any
 from collections.abc import Callable
+
+from cloudshortener.utils.runtime import running_locally
+from cloudshortener.utils.constants import UNKNOWN_INTERNAL_SERVER_ERROR
+
+
+logger = logging.getLogger(__name__)
 
 
 def base_url(event: dict[str, Any]) -> str:
@@ -138,3 +146,50 @@ def require_environment(*names: str) -> Callable:
         return wrapper
 
     return decorator
+
+
+def guarantee_500_response(func: Callable) -> Callable:
+    """Decorator: Guarantee a 500 HTTP response in case of unhandled exception
+
+    NOTE: if the lambda is running locally, the exception is reraised. It's expected
+          to be handled by a developer.
+
+    Args:
+        func (Callable): lambda handler
+
+    Returns:
+        Callable: decorated lambda handler with guaranteed 500 HTTP response
+
+    Example:
+        >>> @guarantee_500_response
+        ... def lambda_handler(event, context):
+        ...     raise Exception('test')
+        >>> lambda_handler(event, context)
+        {'statusCode': 500, 'body': '{"message": "Internal Server Error", "error_code": "UNKNOWN_INTERNAL_SERVER_ERROR"}'}
+    """
+
+    def _response_500() -> dict:
+        body = {
+            'message': 'Internal Server Error',
+            'error_code': UNKNOWN_INTERNAL_SERVER_ERROR,
+        }
+        return {
+            'statusCode': 500,
+            'body': json.dumps(body),
+        }
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as error:
+            extra = {'error': error.__class__.__name__, 'reason': str(error)}
+
+            if running_locally():
+                logger.exception('Unknown internal server error. Reraising exception.', extra=extra)
+                raise error
+
+            logger.exception('Unknown internal server error. Responding with 500.', extra=extra)
+            return _response_500()
+
+    return wrapper

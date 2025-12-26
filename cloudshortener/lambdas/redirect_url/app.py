@@ -6,7 +6,7 @@ from typing import Any
 from cloudshortener.dao.redis import ShortURLRedisDAO
 from cloudshortener.dao.exceptions import ShortURLNotFoundError
 from cloudshortener.utils import load_config, get_short_url, app_prefix
-from cloudshortener.utils.helpers import beginning_of_next_month
+from cloudshortener.utils.helpers import beginning_of_next_month, guarantee_500_response
 from cloudshortener.lambdas.redirect_url.constants import (
     MISSING_SHORTCODE,
     SHORT_URL_NOT_FOUND,
@@ -66,6 +66,7 @@ def response_302(*, location: str) -> dict:
     }
 
 
+@guarantee_500_response
 def lambda_handler(event: dict, context: Any) -> dict:
     """Handle incoming API Gateway requests to redirect URLs
 

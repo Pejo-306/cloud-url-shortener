@@ -5,7 +5,7 @@ from typing import Any
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO, UserRedisDAO
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
-from cloudshortener.utils import generate_shortcode, load_config, get_short_url, app_prefix
+from cloudshortener.utils import generate_shortcode, load_config, get_short_url, app_prefix, guarantee_500_response
 from cloudshortener.utils.constants import DEFAULT_LINK_GENERATION_QUOTA
 from cloudshortener.lambdas.shorten_url.constants import (
     MISSING_USER_ID,
@@ -83,6 +83,7 @@ def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota:
     }
 
 
+@guarantee_500_response
 def lambda_handler(event: dict, context: Any) -> dict:
     """Handle incoming API Gateway requests to shorten URLs
 
