@@ -19,7 +19,7 @@ Test coverage includes:
    - Ensures missing or unreadable config files raise HTTP 500 responses.
 
 5. Short URL already exists
-   - Ensure lambda wont overwrite an existing short URL and raise HTTP 500.
+   - Ensure lambda wont overwrite an existing short URL and raise HTTP 409.
 
 6. Monthly user quota hit
    - Ensure lambda won't create a short URL if the user has hit their quota.
@@ -214,6 +214,7 @@ def test_lambda_handler_with_invalid_json(bad_request_400, context):
 
     assert response['statusCode'] == 400
     assert body['message'] == 'Bad Request (invalid JSON body)'
+    assert body['errorCode'] == 'INVALID_JSON'
 
 
 # -------------------------------
@@ -228,6 +229,7 @@ def test_lambda_handler_with_missing_target_url(bad_request_400_no_target_url, c
 
     assert response['statusCode'] == 400
     assert body['message'] == "Bad Request (missing 'target_url' in JSON body)"
+    assert body['errorCode'] == 'MISSING_TARGET_URL'
 
 
 # -------------------------------
@@ -252,14 +254,15 @@ def test_lambda_handler_with_invalid_configuration_file(apigw_event, context):
 
 
 def test_lambda_handler_with_existing_short_url(successful_event_200, context, short_url_dao):
-    """Ensure lambda wont overwrite an existing short URL and raise HTTP 500."""
+    """Ensure lambda wont overwrite an existing short URL and raise HTTP 409."""
     short_url_dao.insert.side_effect = ShortURLAlreadyExistsError()
 
     response = app.lambda_handler(successful_event_200, context)
     body = json.loads(response['body'])
 
-    assert response['statusCode'] == 500
-    assert body['message'] == 'Internal Server Error (short URL already exists)'
+    assert response['statusCode'] == 409
+    assert body['message'] == 'Conflict (short URL already exists)'
+    assert body['errorCode'] == 'SHORT_URL_ALREADY_EXISTS'
 
 
 # -------------------------------
@@ -277,6 +280,7 @@ def test_lambda_handler_with_quota_reached(monkeypatch, successful_event_200, co
 
     assert response['statusCode'] == 429
     assert body['message'] == 'Too Many Link Generation Requests (monthly quota reached)'
+    assert body['errorCode'] == 'LINK_QUOTA_EXCEEDED'
 
 
 # -------------------------------
@@ -290,3 +294,4 @@ def test_lambda_handler_with_unauthorized_access_attempt(successful_event_200, c
 
     assert response['statusCode'] == 401
     assert body['message'] == "Unauthorized (missing 'sub' in JWT claims)"
+    assert body['errorCode'] == 'MISSING_USER_ID'

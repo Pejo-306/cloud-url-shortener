@@ -61,6 +61,17 @@ def response_429(message: str | None = None, error_code: str | None = None) -> d
     }
 
 
+def response_409(message: str | None = None, error_code: str | None = None) -> dict:
+    base = 'Conflict'
+    body = {'message': base if not message else f'{base} ({message})'}
+    if error_code:
+        body['errorCode'] = error_code
+    return {
+        'statusCode': 409,
+        'body': json.dumps(body)
+    }
+
+
 def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota: int) -> dict:
     return {
         'statusCode': 200,
@@ -105,6 +116,8 @@ def lambda_handler(event: dict, context: Any) -> dict:
             message: indicate cause of bad request (invalid JSON or missing target_url)
         401: Unathorized
             message: indicate missing Cognito user_id
+        409: Conflict
+            message: indicate short URL already exists
         429: Too many link generation requests
             message: monthly user quota hit
         500: Internal server error
@@ -181,15 +194,14 @@ def lambda_handler(event: dict, context: Any) -> dict:
         short_url_dao.insert(short_url=short_url)
     except ShortURLAlreadyExistsError:
         logger.exception(
-            'Short URL already exists. Responding with 500.',
+            'Short URL already exists. Responding with 409.',
             extra={
                 'event': SHORT_URL_ALREADY_EXISTS,
                 'shortcode': shortcode,
                 'reason': 'Possible race condition encountered',
             },
         )
-        # TODO: return 409 instead of 500
-        return response_500(message='short URL already exists')
+        return response_409(message='short URL already exists', error_code=SHORT_URL_ALREADY_EXISTS)
     else:
         user_dao.increment_quota(user_id=user_id)
         short_url_string = get_short_url(shortcode, event)
