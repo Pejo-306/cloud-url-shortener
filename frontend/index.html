@@ -1,45 +1,13 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CloudShortener</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 700px; margin: 60px auto; }
-    h1 { color: #000; margin: 0 0 24px; }
-    .row { display: flex; gap: 8px; margin-bottom: 12px; }
-    input[type="url"] { flex: 1; padding: 10px; font-size: 1rem; }
-    button { padding: 10px 14px; background:#000; color:#fff; border:0; cursor:pointer; }
-    #result { display:none; margin-top: 16px; background:#f4f4f4; padding:12px; border-radius:6px; }
-    a { word-break: break-all; }
-  </style>
-</head>
-<body>
-  <h1>CloudShortener</h1>
-
-  <div class="row">
-    <input id="longUrl" type="url" placeholder="Enter a long URL (https://…)" />
-    <button id="shortenBtn">Shorten</button>
-  </div>
-
-  <div id="result">
-    <div>Short URL:</div>
-    <a id="shortUrl" href="#" target="_blank" rel="noopener noreferrer"></a>
-    <div style="margin-top:10px;">
-      <button id="openBtn">Open in new tab</button>
-    </div>
-  </div>
-
-  <!-- NOTE: app.js expects window.ENV.API_BASE_URL to be defined (we'll set it via stack Output for now) -->
-  <script>
-    window.ENV = {
-      API_BASE_URL: "https://ab3xligcpb.execute-api.eu-central-1.amazonaws.com/dev/",
-      COGNITO_DOMAIN: "cloudshortener-dev.auth.eu-central-1.amazoncognito.com",
-      COGNITO_CLIENT_ID: "3qs3474ggdjst7tgd6iba81e23",
-      REDIRECT_URI: "https://d58e6brw0v7ug.cloudfront.net/" // must match Callback URL
-    };
-  </script>
-  <script src="app.js"></script>
-</body>
+<!DOCTYPE html>
+<html lang="">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="icon" href="/favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vite App</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>
-
