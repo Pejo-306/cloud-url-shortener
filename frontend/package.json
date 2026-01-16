@@ -11,7 +11,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "json-server": "json-server --watch data/db.json --port 3001 --routes data/routes.json --middlewares data/middleware.cjs"
   },
   "dependencies": {
     "vue": "^3.5.26"
@@ -23,7 +24,7 @@
     "eslint": "^9.39.2",
     "eslint-plugin-vue": "~10.6.2",
     "globals": "^17.0.0",
-    "json-server": "^1.0.0-beta.3",
+    "json-server": "^0.17.4",
     "prettier": "3.7.4",
     "vite": "^7.3.0",
     "vite-plugin-vue-devtools": "^8.0.5"

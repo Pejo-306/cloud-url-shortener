@@ -1,0 +1,29 @@
+{
+  "shorten": {
+    "message": "Successfully shortened https://redis.io to http://short.url/GTY012A",
+    "targetUrl": "https://redis.io",
+    "shortUrl": "http://short.url/GTY012A",
+    "shortcode": "GTY012A",
+    "remainingQuota": 15
+  },
+  "shorten-400": {
+    "message": "Bad Request",
+    "errorCode": "INVALID_JSON"
+  },
+  "shorten-401": {
+    "message": "Unauthorized",
+    "errorCode": "MISSING_USER_ID"
+  },
+  "shorten-409": {
+    "message": "Conflict",
+    "errorCode": "SHORT_URL_ALREADY_EXISTS"
+  },
+  "shorten-429": {
+    "message": "Too Many Requests",
+    "errorCode": "LINK_QUOTA_EXCEEDED"
+  },
+  "shorten-500": {
+    "message": "Internal Server Error",
+    "errorCode": "UNKNOWN_INTERNAL_SERVER_ERROR"
+  }
+}

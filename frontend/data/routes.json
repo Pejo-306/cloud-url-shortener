@@ -1,0 +1,8 @@
+{
+  "/v1/shorten": "/shorten",
+  "/v1/shorten/400": "/shorten-400",
+  "/v1/shorten/401": "/shorten-401",
+  "/v1/shorten/409": "/shorten-409",
+  "/v1/shorten/429": "/shorten-429",
+  "/v1/shorten/500": "/shorten-500"
+}
