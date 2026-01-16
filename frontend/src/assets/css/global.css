@@ -1,0 +1,86 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500;600&family=Poppins:wght@500;600&display=swap');
+
+:root {
+  font-size: 16px;
+  --text-strong: #1f2933;
+  --text: #6b7280;
+  --surface: #fdfdfd;
+  --surface-soft: #f3f5f8;
+  --border-subtle: rgba(17, 24, 39, 0.06);
+  --shadow-soft: 0 20px 60px rgba(15, 23, 42, 0.08);
+  --link: #1d4ed8;
+  --link-hover: #1e40af;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Noto Sans',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: var(--text);
+  background: linear-gradient(180deg, #eef2f6 0%, #e9edf2 100%);
+  line-height: 1.5;
+  font-size: var(--text-base);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family:
+    'Poppins',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+p {
+  color: inherit;
+}
+
+a {
+  color: var(--link);
+  text-decoration: none;
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-size: 0 2px;
+  background-repeat: no-repeat;
+  transition:
+    color 0.2s ease,
+    background-size 0.25s ease;
+}
+
+a:hover {
+  color: var(--link-hover);
+  background-size: 100% 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,9 +1,9 @@
 <script setup>
-import Home from '@/views/Home.vue'
+import Shortener from '@/components/Shortener.vue'
 </script>
 
 <template>
-  <Home />
+  <Shortener />
 </template>
 
 <style scoped></style>

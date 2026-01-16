@@ -1,0 +1,17 @@
+{
+  "backend": {
+    "host": "http://localhost:3001",
+    "endpoints": {
+      "shorten": "/v1/shorten"
+    },
+    "_type": "json-server"
+  },
+  "flags": {
+    "isUsingJsonServer": true,
+    "disableCaching": false
+  },
+  "hints": {
+    "enterValidUrl": "Please enter a valid URL (e.g. https://example.com)",
+    "timeout": 3000
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "backend": {
+    "host": null,
+    "endpoints": {
+      "shorten": "/v1/shorten"
+    },
+    "_type": "aws-lambda"
+  },
+  "flags": {
+    "isUsingJsonServer": false,
+    "disableCaching": false
+  },
+  "hints": {
+    "enterValidUrl": "Please enter a valid URL (e.g. https://example.com)",
+    "timeout": 3000
+  }
+}

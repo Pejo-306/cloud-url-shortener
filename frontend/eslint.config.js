@@ -10,6 +10,27 @@ export default defineConfig([
     files: ['**/*.{vue,js,mjs,jsx}'],
   },
 
+  {
+    name: 'app/cjs-files',
+    files: ['**/*.cjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
+
+  {
+    name: 'app/vite-config',
+    files: ['vite.config.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
+
   globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**']),
 
   {
@@ -22,6 +43,13 @@ export default defineConfig([
 
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
+
+  {
+    rules: {
+      'vue/multi-word-component-names': 'off',
+      'no-useless-escape': 'off',
+    },
+  },
 
   skipFormatting,
 ])
