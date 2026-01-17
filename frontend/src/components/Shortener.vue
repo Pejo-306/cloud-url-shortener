@@ -2,15 +2,17 @@
 import { computed, ref } from 'vue'
 
 import config from '@/config'
-import shorten from '@/composables/shortenUrl'
 import validateUrl from '@/helpers/validateUrl'
 import sleep from '@/helpers/sleep'
 import { formatMessage } from '@/helpers/htmlUtils'
+import shorten from '@/composables/shortenUrl'
+import LoadingScreen from '@/components/LoadingScreen.vue'
 
 const showStatus = ref(false)
 const showResult = ref(false)
 const showHint = ref(false)
 const showLoading = ref(false)
+const disableInput = ref(false)
 const targetUrl = ref('')
 const hint = ref('')
 const { shortUrl, message, errorCode, details, load } = shorten(
@@ -19,6 +21,15 @@ const { shortUrl, message, errorCode, details, load } = shorten(
 )
 
 const formattedMessage = computed(() => formatMessage(message.value))
+const loadingStatus = computed(() => {
+  if (disableInput.value) {
+    return 'loading'
+  }
+  if (errorCode.value) {
+    return 'fail'
+  }
+  return 'success'
+})
 
 const shortenUrl = () => {
   /**
@@ -38,20 +49,26 @@ const shortenUrl = () => {
   }
 
   // TODO: show loading modal while waiting
+  errorCode.value = null
+  disableInput.value = true
   showLoading.value = true
   // TODO: remove sleep after implementing actual backend
-  sleep(1000).then(() => {
+  sleep(3000).then(() => {
     load(targetUrl.value)
       .then(() => {
-        showLoading.value = false
+        disableInput.value = false
         showResult.value = true
         showStatus.value = true
       })
       .catch(() => {
-        showLoading.value = false
+        disableInput.value = false
         showStatus.value = true
       })
   })
+}
+
+const hideLoading = () => {
+  showLoading.value = false
 }
 </script>
 
@@ -61,8 +78,8 @@ const shortenUrl = () => {
     <div class="input-stack">
       <div class="input-shell">
         <div class="input-row">
-          <input v-model="targetUrl" type="url" placeholder="Your URL" :disabled="showLoading" />
-          <button class="submit" @click="shortenUrl" :disabled="showLoading">↑</button>
+          <input v-model="targetUrl" type="url" placeholder="Your URL" :disabled="disableInput" />
+          <button class="submit" @click="shortenUrl" :disabled="disableInput">↑</button>
         </div>
       </div>
       <transition name="stack-slide" mode="out-in">
@@ -85,6 +102,12 @@ const shortenUrl = () => {
         <p class="quota">Remaining quota: {{ details.remainingQuota }}</p>
       </div>
     </transition>
+    <LoadingScreen
+      v-if="showLoading"
+      :disableInput="disableInput"
+      :status="loadingStatus"
+      @close="hideLoading"
+    />
   </section>
 </template>
 
