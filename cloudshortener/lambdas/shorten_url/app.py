@@ -92,11 +92,11 @@ def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota:
         'body': json.dumps(
             {
                 'message': f'Successfully shortened {target_url} to {short_url}',
-                'target_url': target_url,
-                'short_url': short_url,
+                'targetUrl': target_url,
+                'shortUrl': short_url,
                 'shortcode': shortcode,
-                'user_quota': user_quota,
-                'new user_quota': user_quota + 1,
+                'userQuota': user_quota,
+                'remainingQuota': DEFAULT_LINK_GENERATION_QUOTA - user_quota,
             }
         ),
     }
@@ -185,10 +185,10 @@ def lambda_handler(event: dict, context: Any) -> dict:
         logger.info('Invalid JSON in request body. Responding with 400.', extra={'event': INVALID_JSON})
         return response_400(message='invalid JSON body', error_code=INVALID_JSON)
 
-    target_url = request_body.get('target_url')
+    target_url = request_body.get('target_url') or request_body.get('targetUrl')
     if not target_url:
-        logger.info("Missing 'target_url' in JSON body. Responding with 400.", extra={'event': MISSING_TARGET_URL})
-        return response_400(message="missing 'target_url' in JSON body", error_code=MISSING_TARGET_URL)
+        logger.info("Missing 'target_url' or 'targetUrl' in JSON body. Responding with 400.", extra={'event': MISSING_TARGET_URL})
+        return response_400(message="missing 'target_url' or 'targetUrl' in JSON body", error_code=MISSING_TARGET_URL)
 
     # 4- Generate shortcode for the new link
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
@@ -211,7 +211,7 @@ def lambda_handler(event: dict, context: Any) -> dict:
         )
         return response_409(message='short URL already exists', error_code=SHORT_URL_ALREADY_EXISTS)
     else:
-        user_dao.increment_quota(user_id=user_id)
+        new_user_quota = user_dao.increment_quota(user_id=user_id)
         short_url_string = get_short_url(shortcode, event)
 
     # 6- Return successful response to user
@@ -220,5 +220,5 @@ def lambda_handler(event: dict, context: Any) -> dict:
         target_url=target_url,
         short_url=short_url_string,
         shortcode=shortcode,
-        user_quota=user_quota,
+        user_quota=new_user_quota,
     )

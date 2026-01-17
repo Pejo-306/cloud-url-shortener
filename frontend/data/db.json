@@ -4,6 +4,7 @@
     "targetUrl": "https://redis.io",
     "shortUrl": "http://short.url/GTY012A",
     "shortcode": "GTY012A",
+    "userQuota": 15,
     "remainingQuota": 15
   },
   "shorten-400": {

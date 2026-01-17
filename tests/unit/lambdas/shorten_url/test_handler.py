@@ -188,9 +188,11 @@ def test_lambda_handler(successful_event_200, context, short_url_dao, user_dao):
     # Assert successful response payload
     assert response['statusCode'] == 200
     assert body['message'] == f'Successfully shortened {target_url} to https://testhost:1000/abc123'
-    assert body['target_url'] == target_url
-    assert body['short_url'] == 'https://testhost:1000/abc123'
+    assert body['targetUrl'] == target_url
+    assert body['shortUrl'] == 'https://testhost:1000/abc123'
     assert body['shortcode'] == 'abc123'
+    assert body['userQuota'] == 11
+    assert body['remainingQuota'] == 9
 
     # Assert ShortURLBaseDAO operations were called correctly
     short_url = ShortURLModel(target=target_url, shortcode='abc123')
@@ -223,12 +225,12 @@ def test_lambda_handler_with_invalid_json(bad_request_400, context):
 
 
 def test_lambda_handler_with_missing_target_url(bad_request_400_no_target_url, context):
-    """Ensure missing 'target_url' in JSON body returns HTTP 400."""
+    """Ensure missing 'target_url' or 'targetUrl' in JSON body returns HTTP 400."""
     response = app.lambda_handler(bad_request_400_no_target_url, context)
     body = json.loads(response['body'])
 
     assert response['statusCode'] == 400
-    assert body['message'] == "Bad Request (missing 'target_url' in JSON body)"
+    assert body['message'] == "Bad Request (missing 'target_url' or 'targetUrl' in JSON body)"
     assert body['errorCode'] == 'MISSING_TARGET_URL'
 
 
