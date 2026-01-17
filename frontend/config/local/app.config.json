@@ -1,13 +1,13 @@
 {
   "backend": {
-    "host": "http://localhost:3001",
+    "host": "http://localhost:3000",
     "endpoints": {
       "shorten": "/v1/shorten"
     },
-    "_type": "json-server"
+    "_type": "sam-local-api"
   },
   "flags": {
-    "isUsingJsonServer": true,
+    "isUsingJsonServer": false,
     "disableCaching": false
   },
   "hints": {

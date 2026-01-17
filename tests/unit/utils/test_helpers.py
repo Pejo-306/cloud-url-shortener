@@ -88,6 +88,25 @@ def test_base_url_with_custom_domain(domain, stage, expected):
 # -------------------------------
 
 
+@pytest.mark.parametrize(
+    'domain, expected',
+    [
+        ('localhost:3000', 'http://localhost:3000'),
+        ('127.0.0.1:3000', 'http://127.0.0.1:3000'),
+    ],
+)
+def test_base_url_with_local_domain(domain, expected):
+    """Ensure base_url() uses http for local SAM domains."""
+    event = {
+        'requestContext': {
+            'domainName': domain,
+            'stage': 'local',
+        }
+    }
+    result = base_url(event)
+    assert result == expected
+
+
 def test_base_url_local_fallback():
     """Ensure base_url() returns localhost URL when no domain is provided."""
     event = {}

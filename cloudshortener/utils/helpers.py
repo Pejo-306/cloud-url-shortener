@@ -32,6 +32,15 @@ Example:
         >>> base_url(event)
         'https://petarnikolov.com'
 
+        >>> event = {
+        ...     "requestContext": {
+        ...         "domainName": "localhost:3000",
+        ...         "stage": "local"
+        ...     }
+        ... }
+        >>> base_url(event)
+        'http://localhost:3000'
+
         >>> base_url({})
         'http://localhost:3000'
 """
@@ -56,9 +65,10 @@ def base_url(event: dict[str, Any]) -> str:
 
     Return the public base URL for the current Lambda invocation.
 
-    Works seamlessly with both custom and default AWS API Gateway domains.
-    If a custom domain is configured, the stage name is omitted.
-    If using the default AWS execute-api domain, the stage name is included.
+    Works seamlessly with custom domains, default AWS API Gateway domains,
+    and local SAM domains. Custom domains omit stage names and use HTTPS.
+    Default execute-api domains include the stage name. Local SAM domains
+    use HTTP.
 
     Args:
         event (dict): API Gateway event object passed to Lambda handler
@@ -67,20 +77,24 @@ def base_url(event: dict[str, Any]) -> str:
         str: Base URL, e.g.:
              - "https://petarnikolov.com"
              - "https://abc123.execute-api.us-east-1.amazonaws.com/Prod"
+             - "http://localhost:3000"
     """
     request_context = event.get('requestContext', {})
     domain = request_context.get('domainName', '')
     stage = request_context.get('stage', '')
 
-    if domain and 'execute-api' not in domain:
-        # If the domain is a custom domain (no execute-api), skip stage
+    if domain:
+        if 'execute-api' in domain:
+            # AWS default domains include the stage
+            return f'https://{domain}/{stage}'
+
+        # Custom domains use https; local SAM domains use http
+        if domain.startswith(('localhost', '127.0.0.1')):
+            return f'http://{domain}'
         return f'https://{domain}'
-    elif domain:
-        # Otherwise include the stage (for AWS default domains)
-        return f'https://{domain}/{stage}'
-    else:
-        # Fallback: local invocation (SAM CLI, tests, etc.)
-        return 'http://localhost:3000'
+
+    # Fallback: local invocation (SAM CLI, tests, etc.)
+    return 'http://localhost:3000'
 
 
 def get_short_url(shortcode: str, event: dict[str, Any]) -> str:

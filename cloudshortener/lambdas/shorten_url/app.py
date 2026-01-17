@@ -5,7 +5,14 @@ from typing import Any
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO, UserRedisDAO
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
-from cloudshortener.utils import generate_shortcode, load_config, get_short_url, app_prefix, guarantee_500_response
+from cloudshortener.utils import (
+    generate_shortcode,
+    load_config,
+    get_short_url,
+    app_prefix,
+    guarantee_500_response,
+    get_user_id,
+)
 from cloudshortener.utils.constants import DEFAULT_LINK_GENERATION_QUOTA
 from cloudshortener.lambdas.shorten_url.constants import (
     MISSING_USER_ID,
@@ -19,6 +26,7 @@ from cloudshortener.lambdas.shorten_url.constants import (
 logger = logging.getLogger(__name__)
 
 
+# fmt: off
 def response_500(message: str | None = None) -> dict:
     base = 'Internal Server Error'
     body = {'message': base if not message else f'{base} ({message})'}
@@ -92,6 +100,7 @@ def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota:
             }
         ),
     }
+# fmt: on
 
 
 @guarantee_500_response
@@ -153,8 +162,7 @@ def lambda_handler(event: dict, context: Any) -> dict:
         redis_config = {f'redis_{k}': v for k, v in app_config['redis'].items()}
 
     # 1- Extract user id from Cognito
-    claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
-    user_id = claims.get('sub')
+    user_id = get_user_id(event)
     if user_id is None:
         logger.info(
             'Unknown user id. Responding with 401.',

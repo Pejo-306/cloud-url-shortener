@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "lint": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
-    "json-server": "json-server --watch data/db.json --port 3001 --routes data/routes.json --middlewares data/middleware.cjs"
+    "json-server": "json-server --watch data/db.json --port 3000 --routes data/routes.json --middlewares data/middleware.cjs"
   },
   "dependencies": {
     "vue": "^3.5.26"

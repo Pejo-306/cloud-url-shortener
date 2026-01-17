@@ -262,7 +262,11 @@ sam build --use-container
 ### Invoke functions via an API
 
 ```bash
-sam local start-api
+export APPCONFIG_AGENT_URL="http://host.docker.internal:2772"
+export LOCALSTACK_ENDPOINT="http://localstack:4566"
+sam local start-api \
+  --docker-network cloud-url-shortener_default \
+  --env-vars env.local.json
 ```
 
 Then, you can access the following two endpoints:
