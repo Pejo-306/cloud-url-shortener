@@ -13,5 +13,26 @@
   "hints": {
     "enterValidUrl": "Please enter a valid URL (e.g. https://example.com)",
     "timeout": 3000
+  },
+  "aws": {
+    "cognito": {
+      "userPoolId": "eu-central-1_w0YmR0P8Y",
+      "clientId": "l896tehucdobc1frcfg2772og"
+    }
+  },
+  "auth": {
+    "passwordPolicy": {
+      "minLength": 6,
+      "requireUppercase": false,
+      "requireLowercase": false,
+      "requireNumbers": false,
+      "requireSymbols": false
+    },
+    "errorMessages": {
+      "loginFailed": "Login failed. Please try again.",
+      "invalidEmail": "Invalid email address. Please try again.",
+      "invalidPassword": "Invalid password. Please try again.",
+      "passwordTooShort": "Password must be at least 6 characters long."
+    }
   }
 }

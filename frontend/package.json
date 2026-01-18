@@ -29,6 +29,7 @@
     "json-server": "^0.17.4",
     "prettier": "3.7.4",
     "vite": "^7.3.0",
+    "vite-plugin-node-polyfills": "^0.25.0",
     "vite-plugin-vue-devtools": "^8.0.5"
   }
 }

@@ -1,12 +1,32 @@
 <script setup>
+import { ref } from 'vue'
 import Modal from '@/components/Modal.vue'
+
+import { resetPassword } from '@/helpers/auth'
+
+const isLoading = ref(false)
+
+const handleResetPassword = (event) => {
+  event.preventDefault()
+  const email = event.target.email.value
+  const password = event.target.password.value
+  const passwordConfirm = event.target.passwordConfirm.value
+  // TODO: validate email and password
+  // TODO: validate password confirmation
+  isLoading.value = true
+  resetPassword(email, password)
+  isLoading.value = false
+  // TODO: handle reset password response
+  // TODO: mark as authenticated, redirect router to home
+}
 </script>
 
 <template>
-  <Modal>
+  <Modal :is-loading="isLoading">
     <div class="auth-modal">
       <h3>Change your password</h3>
-      <form class="auth-form">
+      <form class="auth-form" @submit="handleResetPassword">
+        <fieldset :disabled="isLoading">
         <div>
           <label for="email">Email</label>
           <input type="email" id="email" name="email" required />
@@ -40,6 +60,7 @@ import Modal from '@/components/Modal.vue'
           <button type="submit">Reset Password</button>
         </div>
         <p class="auth-secondary-link">New? <router-link to="/register">Sign up</router-link></p>
+        </fieldset>
       </form>
     </div>
   </Modal>

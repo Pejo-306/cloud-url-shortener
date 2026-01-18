@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 
 import config from '@/config'
-import validateUrl from '@/helpers/validateUrl'
+import { validateUrl } from '@/helpers/validations'
 import sleep from '@/helpers/sleep'
 import { formatMessage } from '@/helpers/htmlUtils'
 import shorten from '@/composables/shortenUrl'
