@@ -8,12 +8,14 @@ import RegistrationForm from '@/components/auth/RegistrationForm.vue'
 import ConfirmRegistrationForm from '@/components/auth/ConfirmRegistrationForm.vue'
 import ResendConfirmationCodeForm from '@/components/auth/ResendConfirmationCodeForm.vue'
 import PasswordResetForm from '@/components/auth/PasswordResetForm.vue'
+import ConfirmPasswordResetForm from '@/components/auth/ConfirmPasswordResetForm.vue'
 
 const routes = [
   { path: '/', components: { default: Home } },
   { path: '/login', components: { default: Home, modal: LoginForm } },
   { path: '/register', components: { default: Home, modal: RegistrationForm } },
   { path: '/password-reset', components: { default: Home, modal: PasswordResetForm } },
+  { path: '/confirm-password-reset', components: { default: Home, modal: ConfirmPasswordResetForm } },
   { path: '/confirm-registration', components: { default: Home, modal: ConfirmRegistrationForm } },
   { path: '/resend-confirmation-code', components: { default: Home, modal: ResendConfirmationCodeForm } },
 ]
@@ -24,7 +26,14 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const authFlows = ['/login', '/register', '/password-reset', '/confirm-registration', '/resend-confirmation-code']
+  const authFlows = [
+    '/login',
+    '/register',
+    '/password-reset',
+    '/confirm-password-reset',
+    '/confirm-registration',
+    '/resend-confirmation-code',
+  ]
 
   if (isAuthenticated()) {
     if (authFlows.includes(to.path)) {

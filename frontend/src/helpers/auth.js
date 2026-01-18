@@ -98,8 +98,26 @@ export const resendConfirmationCode = (email) => {
   })
 }
 
-export const resetPassword = (email, newPassword) => {
-  console.log('resetPassword triggered with: ', email, newPassword)
+export const requestPasswordReset = (email) => {
+  return new Promise((resolve, reject) => {
+    const user = new CognitoUser({ Username: email, Pool: userPool })
+
+    user.forgotPassword({
+      onSuccess: (result) => resolve(result),
+      onFailure: (err) => reject(err),
+    })
+  })
+}
+
+export const confirmPasswordReset = (email, code, newPassword) => {
+  return new Promise((resolve, reject) => {
+    const user = new CognitoUser({ Username: email, Pool: userPool })
+
+    user.confirmPassword(code, newPassword, {
+      onSuccess: (result) => resolve(result),
+      onFailure: (err) => reject(err),
+    })
+  })
 }
 
 export const logout = () => {
