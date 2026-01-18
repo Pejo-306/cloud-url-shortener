@@ -31,3 +31,10 @@ export const validatePassword = (password) => {
   }
   return { valid: true, message: null }
 }
+
+export const validatePasswordConfirmation = (password, passwordConfirm) => {
+  if (password !== passwordConfirm) {
+    return { valid: false, message: config.auth.errorMessages.passwordConfirmationMismatch }
+  }
+  return { valid: true, message: null }
+}

@@ -32,7 +32,9 @@
       "loginFailed": "Login failed. Please try again.",
       "invalidEmail": "Invalid email address. Please try again.",
       "invalidPassword": "Invalid password. Please try again.",
-      "passwordTooShort": "Password must be at least 6 characters long."
+      "passwordTooShort": "Password must be at least 6 characters long.",
+      "passwordConfirmationMismatch": "Password confirmation does not match. Please try again.",
+      "confirmRegistrationFailed": "Confirmation failed. Please try again."
     }
   }
 }

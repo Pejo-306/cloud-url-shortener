@@ -1,4 +1,4 @@
-import { CognitoUserPool, CognitoUser, AuthenticationDetails } from 'amazon-cognito-identity-js'
+import { CognitoUserPool, CognitoUser, AuthenticationDetails, CognitoUserAttribute } from 'amazon-cognito-identity-js'
 
 import config from '@/config'
 
@@ -64,7 +64,38 @@ export const login = (email, password) => {
 }
 
 export const register = (email, password) => {
-  console.log('register triggered with: ', email, password)
+  return new Promise((resolve, reject) => {
+    const attributes = [
+      new CognitoUserAttribute({ Name: 'email', Value: email }),
+    ]
+
+    userPool.signUp(email, password, attributes, null, (err, result) => {
+      if (err) return reject(err)
+      resolve(result)
+    })
+  })
+}
+
+export const confirmRegistration = (email, code) => {
+  return new Promise((resolve, reject) => {
+    const user = new CognitoUser({ Username: email, Pool: userPool })
+
+    user.confirmRegistration(code, true, (err, result) => {
+      if (err) return reject(err)
+      resolve(result)
+    })
+  })
+}
+
+export const resendConfirmationCode = (email) => {
+  return new Promise((resolve, reject) => {
+    const user = new CognitoUser({ Username: email, Pool: userPool })
+
+    user.resendConfirmationCode((err, result) => {
+      if (err) return reject(err)
+      resolve(result)
+    })
+  })
 }
 
 export const resetPassword = (email, newPassword) => {
