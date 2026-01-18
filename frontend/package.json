@@ -15,7 +15,9 @@
     "json-server": "json-server --watch data/db.json --port 3000 --routes data/routes.json --middlewares data/middleware.cjs"
   },
   "dependencies": {
-    "vue": "^3.5.26"
+    "amazon-cognito-identity-js": "^6.3.16",
+    "vue": "^3.5.26",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

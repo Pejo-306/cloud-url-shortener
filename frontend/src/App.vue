@@ -1,9 +1,8 @@
-<script setup>
-import Home from '@/views/Home.vue'
-</script>
+<script setup></script>
 
 <template>
-  <Home />
+  <router-view />
+  <router-view name="modal" />
 </template>
 
 <style scoped></style>

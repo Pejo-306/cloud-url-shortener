@@ -38,8 +38,8 @@ const parrotSrc = ref(pickParrot())
 </script>
 
 <template>
-  <teleport to="#modals">
-    <Modal :disableInput="disableInput">
+  <Modal>
+    <div class="loading-card">
       <div class="loading-modal">
         <div class="loading-shell" :class="statusClass">
           <div class="status-mark" aria-hidden="true">
@@ -76,12 +76,10 @@ const parrotSrc = ref(pickParrot())
         <div class="loading-gif">
           <img :src="parrotSrc" alt="Dancing party parrot" />
         </div>
-        <button v-if="!disableInput" class="end-party" @click="closeModal">
-          End Party :(
-        </button>
+        <button v-if="!disableInput" class="end-party" @click="closeModal">End Party :(</button>
       </div>
-    </Modal>
-  </teleport>
+    </div>
+  </Modal>
 </template>
 
 <style scoped>
@@ -90,11 +88,11 @@ const parrotSrc = ref(pickParrot())
   backdrop-filter: blur(10px);
 }
 
-:deep(.modal) {
-  width: min(420px, 92vw);
+.loading-card {
+  width: 100%;
   min-height: 440px;
   background: radial-gradient(circle at top, rgba(20, 30, 45, 0.9), #0b0f14 65%);
-  border-radius: 18px;
+  border-radius: 10px;
   padding: 24px;
   margin: 7vh auto 0;
   display: flex;
