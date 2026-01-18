@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { isAuthenticated } from '@/helpers/auth'
+import { isAuthenticated, logout } from '@/helpers/auth'
 
 import Home from '@/views/Home.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
@@ -13,6 +13,7 @@ import ConfirmPasswordResetForm from '@/components/auth/ConfirmPasswordResetForm
 const routes = [
   { path: '/', components: { default: Home } },
   { path: '/login', components: { default: Home, modal: LoginForm } },
+  { path: '/logout', redirect: () => { logout(); return '/' } },
   { path: '/register', components: { default: Home, modal: RegistrationForm } },
   { path: '/password-reset', components: { default: Home, modal: PasswordResetForm } },
   { path: '/confirm-password-reset', components: { default: Home, modal: ConfirmPasswordResetForm } },

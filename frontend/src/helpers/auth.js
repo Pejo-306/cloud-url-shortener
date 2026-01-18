@@ -13,8 +13,6 @@ export const isAuthenticated = () => {
   const refreshToken = localStorage.getItem('session.refreshToken')
   const expiresAt = Number(localStorage.getItem('session.expiresAt'))
 
-  clearSession()
-
   if (Date.now() >= expiresAt) {
     clearSession()
     return false
@@ -121,5 +119,5 @@ export const confirmPasswordReset = (email, code, newPassword) => {
 }
 
 export const logout = () => {
-  console.log('logout triggered')
+  clearSession()
 }
