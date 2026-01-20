@@ -1,16 +1,30 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 import Modal from '@/components/Modal.vue'
 
 import config from '@/config'
 import { confirmPasswordReset } from '@/helpers/auth'
-import { validateEmail, validatePassword, validatePasswordConfirmation } from '@/helpers/validations'
+import {
+  validateEmail,
+  validatePassword,
+  validatePasswordConfirmation,
+} from '@/helpers/validations'
 
+const email = ref('')
 const router = useRouter()
+const route = useRoute()
 const errorMessage = ref('')
 const isLoading = ref(false)
+
+// Populate email field from query parameter
+onMounted(() => {
+  const emailParam = route.query.email
+  if (emailParam) {
+    email.value = decodeURIComponent(emailParam)
+  }
+})
 
 const handleConfirmPasswordReset = (event) => {
   event.preventDefault()
@@ -24,9 +38,15 @@ const handleConfirmPasswordReset = (event) => {
   const passwordValidation = validatePassword(password)
   const passwordConfirmationValidation = validatePasswordConfirmation(password, passwordConfirm)
 
-  if (!emailValidation.valid || !passwordValidation.valid || !passwordConfirmationValidation.valid) {
+  if (
+    !emailValidation.valid ||
+    !passwordValidation.valid ||
+    !passwordConfirmationValidation.valid
+  ) {
     errorMessage.value =
-      emailValidation.message || passwordValidation.message || passwordConfirmationValidation.message
+      emailValidation.message ||
+      passwordValidation.message ||
+      passwordConfirmationValidation.message
     return
   }
 
@@ -35,7 +55,7 @@ const handleConfirmPasswordReset = (event) => {
 
   confirmPasswordReset(email, code, password)
     .then(() => {
-      router.push('/login')
+      router.push({ name: 'login', query: { email: encodeURIComponent(email) } })
     })
     .catch((err) => {
       errorMessage.value = err?.message ?? config.auth.errorMessages.resetPasswordFailed
@@ -60,7 +80,7 @@ const handleConfirmPasswordReset = (event) => {
         <fieldset :disabled="isLoading">
           <div>
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" required />
+            <input type="email" id="email" name="email" :value="email" required />
           </div>
           <div>
             <label for="code">Reset Code</label>
@@ -75,10 +95,19 @@ const handleConfirmPasswordReset = (event) => {
             <input type="password" id="passwordConfirm" name="passwordConfirm" required />
           </div>
           <div class="auth-form-actions">
-            <router-link class="auth-link" to="/password-reset">Back to request</router-link>
+            <router-link class="auth-link" :to="{ name: 'password-reset' }">
+              Back to request
+            </router-link>
             <button type="submit">Update Password</button>
           </div>
-          <p class="auth-secondary-link">Didn't receive a reset code?<br><router-link to="/password-reset">Request a new code</router-link></p>
+          <p class="auth-secondary-link">
+            Didn't receive a reset code?<br />
+            <router-link
+              :to="{ name: 'password-reset', query: { email: encodeURIComponent(email) } }"
+            >
+              Request a new code
+            </router-link>
+          </p>
         </fieldset>
       </form>
     </div>

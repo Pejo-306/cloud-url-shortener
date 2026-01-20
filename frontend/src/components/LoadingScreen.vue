@@ -1,5 +1,5 @@
 <script setup>
-import { computed, defineEmits, defineProps, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { pickLoadingMessage, pickParrot } from '@/helpers/parrots'
 import Modal from '@/components/Modal.vue'

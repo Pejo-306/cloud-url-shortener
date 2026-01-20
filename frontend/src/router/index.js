@@ -11,14 +11,49 @@ import PasswordResetForm from '@/components/auth/PasswordResetForm.vue'
 import ConfirmPasswordResetForm from '@/components/auth/ConfirmPasswordResetForm.vue'
 
 const routes = [
-  { path: '/', components: { default: Home } },
-  { path: '/login', components: { default: Home, modal: LoginForm } },
-  { path: '/logout', redirect: () => { logout(); return '/' } },
-  { path: '/register', components: { default: Home, modal: RegistrationForm } },
-  { path: '/password-reset', components: { default: Home, modal: PasswordResetForm } },
-  { path: '/confirm-password-reset', components: { default: Home, modal: ConfirmPasswordResetForm } },
-  { path: '/confirm-registration', components: { default: Home, modal: ConfirmRegistrationForm } },
-  { path: '/resend-confirmation-code', components: { default: Home, modal: ResendConfirmationCodeForm } },
+  {
+    path: '/',
+    components: { default: Home },
+    name: 'home',
+  },
+  {
+    path: '/login',
+    components: { default: Home, modal: LoginForm },
+    name: 'login',
+  },
+  {
+    path: '/logout',
+    redirect: () => {
+      logout()
+      return '/'
+    },
+    name: 'logout',
+  },
+  {
+    path: '/register',
+    components: { default: Home, modal: RegistrationForm },
+    name: 'register',
+  },
+  {
+    path: '/password-reset',
+    components: { default: Home, modal: PasswordResetForm },
+    name: 'password-reset',
+  },
+  {
+    path: '/confirm-password-reset',
+    components: { default: Home, modal: ConfirmPasswordResetForm },
+    name: 'confirm-password-reset',
+  },
+  {
+    path: '/confirm-registration',
+    components: { default: Home, modal: ConfirmRegistrationForm },
+    name: 'confirm-registration',
+  },
+  {
+    path: '/resend-confirmation-code',
+    components: { default: Home, modal: ResendConfirmationCodeForm },
+    name: 'resend-confirmation-code',
+  },
 ]
 
 const router = createRouter({
@@ -28,20 +63,20 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const authFlows = [
-    '/login',
-    '/register',
-    '/password-reset',
-    '/confirm-password-reset',
-    '/confirm-registration',
-    '/resend-confirmation-code',
+    'login',
+    'register',
+    'password-reset',
+    'confirm-password-reset',
+    'confirm-registration',
+    'resend-confirmation-code',
   ]
 
   if (isAuthenticated()) {
-    if (authFlows.includes(to.path)) {
-      return '/'
+    if (authFlows.includes(to.name)) {
+      return { name: 'home' }
     }
-  } else if (to.path === '/') {
-    return '/login'
+  } else if (to.name === 'home') {
+    return { name: 'login' }
   }
 })
 

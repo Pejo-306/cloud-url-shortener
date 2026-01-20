@@ -1,16 +1,30 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 import Modal from '@/components/Modal.vue'
 
 import config from '@/config'
 import { register } from '@/helpers/auth'
-import { validateEmail, validatePassword, validatePasswordConfirmation } from '@/helpers/validations'
+import {
+  validateEmail,
+  validatePassword,
+  validatePasswordConfirmation,
+} from '@/helpers/validations'
 
+const email = ref('')
 const router = useRouter()
+const route = useRoute()
 const errorMessage = ref('')
 const isLoading = ref(false)
+
+// Populate email field from query parameter
+onMounted(() => {
+  const emailParam = route.query.email
+  if (emailParam) {
+    email.value = decodeURIComponent(emailParam)
+  }
+})
 
 const handleRegister = (event) => {
   event.preventDefault()
@@ -22,8 +36,15 @@ const handleRegister = (event) => {
   const emailValidation = validateEmail(email)
   const passwordValidation = validatePassword(password)
   const passwordConfirmationValidation = validatePasswordConfirmation(password, passwordConfirm)
-  if (!emailValidation.valid || !passwordValidation.valid || !passwordConfirmationValidation.valid) {
-    errorMessage.value = emailValidation.message || passwordValidation.message || passwordConfirmationValidation.message
+  if (
+    !emailValidation.valid ||
+    !passwordValidation.valid ||
+    !passwordConfirmationValidation.valid
+  ) {
+    errorMessage.value =
+      emailValidation.message ||
+      passwordValidation.message ||
+      passwordConfirmationValidation.message
     return
   } else {
     errorMessage.value = ''
@@ -33,9 +54,9 @@ const handleRegister = (event) => {
   register(email, password)
     .then((response) => {
       if (response.userConfirmed) {
-        router.push('/login')
+        router.push({ name: 'login', query: { email: encodeURIComponent(email) } })
       } else {
-        router.push('/confirm-registration')
+        router.push({ name: 'confirm-registration', query: { email: encodeURIComponent(email) } })
       }
     })
     .catch((err) => {
@@ -61,7 +82,7 @@ const handleRegister = (event) => {
         <fieldset :disabled="isLoading">
           <div>
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" required />
+            <input type="email" id="email" name="email" :value="email" required />
           </div>
           <div>
             <label for="password">Password</label>
@@ -79,10 +100,13 @@ const handleRegister = (event) => {
             >
           </div>
           <div class="auth-form-actions">
-            <router-link class="auth-link" to="/login">Back to login</router-link>
+            <router-link class="auth-link" :to="{ name: 'login' }">Back to login</router-link>
             <button type="submit">Register</button>
           </div>
-          <p class="auth-secondary-link">Got a confirmation code? <router-link to="/confirm-registration">Confirm registration</router-link></p>
+          <p class="auth-secondary-link">
+            Got a confirmation code?
+            <router-link :to="{ name: 'confirm-registration' }">Confirm registration</router-link>
+          </p>
         </fieldset>
       </form>
     </div>
@@ -90,24 +114,3 @@ const handleRegister = (event) => {
 </template>
 
 <style scoped></style>
-
-<!--
-response:  
-{user: CognitoUser2, userConfirmed: false, userSub: 'a3e4a872-b041-7041-da12-9309d90f3bfa', codeDeliveryDetails: {…}}
-codeDeliveryDetails
-: 
-{AttributeName: 'email', DeliveryMedium: 'EMAIL', Destination: 'l***@e***'}
-user
-: 
-CognitoUser2 {username: 'lambda123@example.com', pool: CognitoUserPool2, Session: null, client: Client2, signInUserSession: null, …}
-userConfirmed
-: 
-false
-userSub
-: 
-"a3e4a872-b041-7041-da12-9309d90f3bfa"
-[[Prototype]]
-: 
-Object
-
--->

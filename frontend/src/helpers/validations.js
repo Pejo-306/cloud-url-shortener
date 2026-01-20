@@ -26,7 +26,10 @@ export const validatePassword = (password) => {
   if (config.auth.passwordPolicy.requireNumbers && !password.match(/[0-9]/)) {
     return { valid: false, message: config.auth.errorMessages.passwordRequiresNumbers }
   }
-  if (config.auth.passwordPolicy.requireSymbols && !password.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/)) {
+  if (
+    config.auth.passwordPolicy.requireSymbols &&
+    !password.match(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/)
+  ) {
     return { valid: false, message: config.auth.errorMessages.passwordRequiresSymbols }
   }
   return { valid: true, message: null }

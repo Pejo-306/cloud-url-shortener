@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 
 import Modal from '@/components/Modal.vue'
 
@@ -8,9 +8,19 @@ import config from '@/config'
 import { requestPasswordReset } from '@/helpers/auth'
 import { validateEmail } from '@/helpers/validations'
 
+const email = ref('')
 const router = useRouter()
+const route = useRoute()
 const errorMessage = ref('')
 const isLoading = ref(false)
+
+// Populate email field from query parameter
+onMounted(() => {
+  const emailParam = route.query.email
+  if (emailParam) {
+    email.value = decodeURIComponent(emailParam)
+  }
+})
 
 const handleRequestPasswordReset = (event) => {
   event.preventDefault()
@@ -28,7 +38,7 @@ const handleRequestPasswordReset = (event) => {
   isLoading.value = true
   requestPasswordReset(email)
     .then(() => {
-      router.push('/confirm-password-reset')
+      router.push({ name: 'confirm-password-reset', query: { email: encodeURIComponent(email) } })
     })
     .catch((err) => {
       errorMessage.value = err?.message ?? config.auth.errorMessages.resetPasswordFailed
@@ -53,13 +63,22 @@ const handleRequestPasswordReset = (event) => {
         <fieldset :disabled="isLoading">
           <div>
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" required />
+            <input type="email" id="email" name="email" :value="email" required />
           </div>
           <div class="auth-form-actions">
-            <router-link class="auth-link" to="/login">Back to login</router-link>
+            <router-link class="auth-link" :to="`/login?email=${encodeURIComponent(email)}`">
+              Back to login
+            </router-link>
             <button type="submit">Send Reset Code</button>
           </div>
-          <p class="auth-secondary-link">Already have a reset code?<br><router-link to="/confirm-password-reset">Confirm password reset</router-link></p>
+          <p class="auth-secondary-link">
+            Already have a reset code?<br />
+            <router-link
+              :to="{ name: 'confirm-password-reset', query: { email: encodeURIComponent(email) } }"
+            >
+              Confirm password reset
+            </router-link>
+          </p>
         </fieldset>
       </form>
     </div>
