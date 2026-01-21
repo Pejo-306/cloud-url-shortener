@@ -1,13 +1,16 @@
 <script setup>
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
-import config from '@/config'
-import { validateUrl } from '@/helpers/validations'
-import sleep from '@/helpers/sleep'
-import { formatMessage } from '@/helpers/htmlUtils'
-import shorten from '@/composables/shortenUrl'
 import LoadingScreen from '@/components/LoadingScreen.vue'
 
+import config from '@/config'
+import { formatMessage } from '@/helpers/htmlUtils'
+import { validateUrl } from '@/helpers/validations'
+import shorten from '@/composables/shortenUrl'
+import { isAuthenticated } from '@/helpers/auth'
+
+const router = useRouter()
 const showStatus = ref(false)
 const showResult = ref(false)
 const showHint = ref(false)
@@ -33,14 +36,20 @@ const loadingStatus = computed(() => {
 
 const shortenUrl = () => {
   /**
-   *  1. Validate the URL
-   *  2. Fetch from API
-   *  3. Show loading modal & block input
-   *  4. Await fetch response
-   *  5. If success, show result & show message
-   *  6. If error, show error message & show error code
-   *  7. Unblock input & hide loading modal
+   *  1. Ensure authenticated
+   *  2. Validate the URL
+   *  3. Fetch from API
+   *  4. Show loading modal & block input
+   *  5. Await fetch response
+   *  6. If success, show result & show message
+   *  7. If error, show error message & show error code
+   *  8. Unblock input & hide loading modal
    */
+  if (!isAuthenticated()) {
+    router.push({ name: 'login' })
+    return
+  }
+
   if (!targetUrl.value || !validateUrl(targetUrl.value)) {
     hint.value = config.hints.enterValidUrl
     showHint.value = true
@@ -48,23 +57,19 @@ const shortenUrl = () => {
     return
   }
 
-  // TODO: show loading modal while waiting
   errorCode.value = null
   disableInput.value = true
   showLoading.value = true
-  // TODO: remove sleep after implementing actual backend
-  sleep(3000).then(() => {
-    load(targetUrl.value)
-      .then(() => {
-        disableInput.value = false
-        showResult.value = true
-        showStatus.value = true
-      })
-      .catch(() => {
-        disableInput.value = false
-        showStatus.value = true
-      })
-  })
+  load(targetUrl.value)
+    .then(() => {
+      disableInput.value = false
+      showResult.value = true
+      showStatus.value = true
+    })
+    .catch(() => {
+      disableInput.value = false
+      showStatus.value = true
+    })
 }
 
 const hideLoading = () => {

@@ -25,6 +25,13 @@ export const isAuthenticated = () => {
   return accessToken && idToken && refreshToken && expiresAt
 }
 
+export const getSession = () => {
+  const accessToken = localStorage.getItem('session.accessToken')
+  const idToken = localStorage.getItem('session.idToken')
+  const refreshToken = localStorage.getItem('session.refreshToken')
+  return { accessToken, idToken, refreshToken }
+}
+
 export const persistSession = (session) => {
   const expiresAt = Date.now() + session.expiresIn
 

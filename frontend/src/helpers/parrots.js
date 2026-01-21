@@ -1,6 +1,6 @@
-import loadingMessagesRaw from '../assets/loadingmessages.txt?raw'
+import loadingMessagesRaw from '@/assets/loadingmessages.txt?raw'
 
-const parrotModules = import.meta.glob('../assets/gifs/parrots/**/*.{gif,webp,png}', {
+const parrotModules = import.meta.glob('@/assets/gifs/parrots/**/*.{gif,webp,png}', {
   eager: true,
   import: 'default',
 })

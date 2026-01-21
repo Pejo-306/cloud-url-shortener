@@ -7,7 +7,7 @@
     "_type": "sam-local-api"
   },
   "flags": {
-    "isUsingJsonServer": true,
+    "isUsingJsonServer": false,
     "disableCaching": false
   },
   "hints": {
