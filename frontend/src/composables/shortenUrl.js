@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 
+import config from '@/config'
 import { BackendError } from '@/errors'
 import { isUsingJsonServer, disableCaching } from '@/flags'
 import { getSession } from '@/helpers/auth'
@@ -42,10 +43,13 @@ const shorten = (host, endpoint = '/v1/shorten') => {
   const load = async (targetUrl) => {
     const session = getSession()
     const accessToken = session.accessToken
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), config.backend.timeout)
+
     try {
       const { method, headers, body } = configureOptions(targetUrl, accessToken)
       const url = `${host}${endpoint}`
-      const response = await fetch(url, { method, headers, body })
+      const response = await fetch(url, { method, headers, body, signal: controller.signal })
       const data = await response.json()
 
       if (!response.ok) {
@@ -63,11 +67,19 @@ const shorten = (host, endpoint = '/v1/shorten') => {
         remainingQuota: data.remainingQuota,
       }
     } catch (error) {
-      if (error instanceof BackendError) {
+      if (error.name === 'AbortError') {
+        errorCode.value = 'TIMEOUT'
+        message.value = 'Request timed out'
+      } else if (error instanceof BackendError) {
         errorCode.value = error.errorCode
         message.value = error.message
+      } else {
+        errorCode.value = 'UNKNOWN_ERROR'
+        message.value = 'Unknown error occurred'
       }
       throw error
+    } finally {
+      clearTimeout(timeoutId)
     }
   }
 

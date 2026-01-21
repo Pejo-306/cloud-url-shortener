@@ -4,7 +4,8 @@
     "endpoints": {
       "shorten": "/v1/shorten"
     },
-    "_type": "aws-lambda"
+    "_type": "aws-lambda",
+    "timeout": 15000
   },
   "flags": {
     "isUsingJsonServer": false,

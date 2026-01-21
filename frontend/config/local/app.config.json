@@ -4,7 +4,8 @@
     "endpoints": {
       "shorten": "/v1/shorten"
     },
-    "_type": "sam-local-api"
+    "_type": "sam-local-api",
+    "timeout": 5000
   },
   "flags": {
     "isUsingJsonServer": false,
