@@ -6,12 +6,10 @@ Test coverage includes:
        - Confirms invalid Redis configuration raises DataStoreError.
     2. Insertion behavior
        - Validates inserting valid short URLs stores both URL and hit counter.
-       - Ensures invalid types raise TypeError or BeartypeCallHintParamViolation.
        - Confirms duplicate shortcodes raise ShortURLAlreadyExistsError.
        - Confirms Redis connection errors raise DataStoreError.
     3. Retrieval behavior
        - Ensures fetching valid shortcodes returns a populated ShortURLModel.
-       - Validates invalid parameter types raise type errors.
        - Confirms missing keys raise ShortURLNotFoundError.
        - Confirms Redis connection errors raise DataStoreError.
     4. Counter operations
@@ -23,7 +21,6 @@ Test coverage includes:
        - Confirms missing links raise ShortURLNotFoundError.
        - Validates negative quota values are allowed.
        - Confirms Redis connectivity issues raise DataStoreError.
-       - Ensures invalid parameter types raise type errors.
 """
 
 import re
@@ -32,7 +29,6 @@ from unittest.mock import MagicMock, call
 
 import pytest
 import redis
-from beartype.roar import BeartypeCallHintParamViolation
 from freezegun import freeze_time
 
 from cloudshortener.models import ShortURLModel
@@ -105,13 +101,6 @@ def test_insert_short_url(dao, redis_client):
     redis_client.set.assert_has_calls(expected_calls[1:], any_order=False)
 
 
-def test_insert_short_url_with_invalid_type(dao):
-    """Ensure inserting invalid types raises TypeError or Beartype error."""
-    invalid_url = 'https://example.com/notamodel'
-    with pytest.raises((TypeError, BeartypeCallHintParamViolation)):
-        dao.insert(invalid_url)
-
-
 def test_insert_short_url_with_redis_connection_error(dao, redis_client):
     """Ensure Redis connection errors during insert raise DataStoreError."""
     short_url = ShortURLModel(target='https://example.com/failure', shortcode='abc123', expires_at=None)
@@ -149,13 +138,6 @@ def test_get_short_url(dao, redis_client):
     assert short_url.shortcode == 'abc123'
     assert short_url.hits == 10000
     assert short_url.expires_at is not None
-
-
-def test_get_short_url_with_invalid_type(dao):
-    """Ensure invalid shortcode types raise TypeError or Beartype error."""
-    invalid_shortcode = 12345
-    with pytest.raises((TypeError, BeartypeCallHintParamViolation)):
-        dao.get(invalid_shortcode)
 
 
 def test_get_short_url_with_redis_connection_error(dao, redis_client):
@@ -290,11 +272,3 @@ def test_hit_with_redis_connection_error(dao, redis_client):
 
     with pytest.raises(DataStoreError, match="Can't connect to Redis at 203.0.113.1:18000/5."):
         dao.hit('abc123')
-
-
-@freeze_time('2025-10-15')
-def test_hit_with_invalid_type(dao):
-    """Ensure invalid shortcode types raise TypeError or Beartype error."""
-    invalid_shortcode = [1, 2, 88]
-    with pytest.raises((TypeError, BeartypeCallHintParamViolation)):
-        dao.hit(invalid_shortcode)

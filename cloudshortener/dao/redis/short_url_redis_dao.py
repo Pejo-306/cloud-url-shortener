@@ -1,7 +1,5 @@
 from datetime import datetime, timedelta, UTC
 
-from beartype import beartype  # TODO: remove this dependency
-
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
 from cloudshortener.dao.redis.mixins import RedisClientMixin
@@ -13,7 +11,6 @@ from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_Q
 
 class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
     @handle_redis_connection_error
-    @beartype
     def insert(self, short_url: ShortURLModel, **kwargs) -> 'ShortURLRedisDAO':
         link_url_key = self.keys.link_url_key(short_url.shortcode)
         link_hits_key = self.keys.link_hits_key(short_url.shortcode)
@@ -46,7 +43,6 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         return self
 
     @handle_redis_connection_error
-    @beartype
     def get(self, shortcode: str, **kwargs) -> ShortURLModel:
         link_url_key = self.keys.link_url_key(shortcode)
         link_hits_key = self.keys.link_hits_key(shortcode)
@@ -80,7 +76,6 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         )
 
     @handle_redis_connection_error
-    @beartype
     def hit(self, shortcode: str, **kwargs) -> int:
         """Decrement the monthly hit counter for a short URL.
 

@@ -4,7 +4,6 @@ from datetime import datetime, UTC
 
 import boto3
 import redis
-from beartype import beartype
 from botocore.client import BaseClient
 
 from cloudshortener.types import AppConfig, AppConfigMetadata
@@ -83,18 +82,15 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         self.ttl = ttl
 
     @handle_redis_connection_error
-    @beartype
     def latest(self, pull: bool = True, force: bool = False) -> AppConfig:
         return self.get('latest', pull=pull, force=force)
 
     @handle_redis_connection_error
-    @beartype
     def version(self, pull: bool = True, force: bool = False) -> int:
         """Version number of the latest AppConfig document."""
         return self.metadata('latest', pull=pull, force=force)['version']
 
     @handle_redis_connection_error
-    @beartype
     def get(self, version: int | str, pull: bool = True, force: bool = False) -> AppConfig:
         # FORCE PULL: always fetch the document from AppConfig and cache
         if force:
@@ -121,7 +117,6 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         return document
 
     @handle_redis_connection_error
-    @beartype
     def metadata(self, version: int | str, pull: bool = True, force: bool = False) -> AppConfigMetadata:
         # FORCE PULL: always fetch the metadata from AppConfig and cache
         if force:
@@ -146,7 +141,6 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         _, _, metadata = self._pull_appconfig(version)
         return metadata
 
-    @beartype
     def _pull_appconfig(self, version: int | str) -> tuple[int, AppConfig, AppConfigMetadata]:
         """Fetch the requested AppConfig document + metadata and warm the cache.
 
@@ -172,7 +166,6 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         )
         return resolved_version, document, metadata
 
-    @beartype
     def _warm_up_cache(
         self,
         resolved_version: int,
@@ -203,7 +196,6 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             ) from e
 
     @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
-    @beartype
     def _fetch_latest_appconfig(self) -> tuple[int, AppConfig, AppConfigMetadata]:
         """Fetch the latest AppConfig document via the AppConfig Data API.
 
@@ -259,7 +251,6 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         return resolved_version, document, metadata
 
     @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
-    @beartype
     def _get_latest_version_number(self) -> int:
         """Get the latest hosted configuration version number from the control-plane API.
 
@@ -290,7 +281,6 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             raise ValueError(f'Failed to determine latest configuration version: {e}') from e
 
     @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
-    @beartype
     def _fetch_appconfig(self, version: int) -> tuple[int, AppConfig, AppConfigMetadata]:
         """Fetch a specific hosted AppConfig version via the control-plane API."""
         app_id = os.environ[APPCONFIG_APP_ID_ENV]
