@@ -5,22 +5,17 @@ path parameters, handles configuration errors, and interacts correctly
 with the DAO layer.
 
 Test coverage includes:
-
-1. Successful redirect
-   - Ensures valid shortcodes return a 302 redirect with correct Location header.
-
-2. Invalid path parameters
-   - Ensures requests missing the `shortcode` parameter return HTTP 400.
-
-3. Invalid shortcode
-    - Ensure non-existing shortcodes raise HTTP 400.
-
-4. Link quota exceeded
-   - Ensures requests exceeding monthly quota return HTTP 429.
-   - Validates multiple consecutive quota-exceeded requests return HTTP 429.
-
-5. Configuration errors
-   - Ensures missing or unreadable config files result in HTTP 500 responses.
+    1. Successful redirect
+       - Ensures valid shortcodes return a 302 redirect with correct Location header.
+    2. Invalid path parameters
+       - Ensures requests missing the `shortcode` parameter return HTTP 400.
+    3. Invalid shortcode
+       - Ensure non-existing shortcodes raise HTTP 400.
+    4. Link quota exceeded
+       - Ensures requests exceeding monthly quota return HTTP 429.
+       - Validates multiple consecutive quota-exceeded requests return HTTP 429.
+    5. Configuration errors
+       - Ensures missing or unreadable config files result in HTTP 500 responses.
 
 Fixtures:
     - `apigw_event`: generic API Gateway GET event.

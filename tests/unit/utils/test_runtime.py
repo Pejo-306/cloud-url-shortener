@@ -1,9 +1,8 @@
 """Unit tests for runtime utilities in runtime.py.
 
 Test coverage includes:
-
-1. running_locally() behavior
-2. get_user_id() behavior
+    1. running_locally() behavior
+    2. get_user_id() behavior
 """
 
 import re
@@ -47,6 +46,6 @@ def test_get_user_id(event, expected):
 
 
 def test_get_user_id_with_local_sam_api(monkeypatch):
-    """get_user_id() returns a random user id if the lambda is running locally via sam local invoke."""
+    """get_user_id() returns a random user id if the lambda runs locally via sam local invoke."""
     monkeypatch.setenv(AWS_SAM_LOCAL_ENV, 'true')
     assert re.match(r'lambda\d{3}', get_user_id({}))

@@ -5,7 +5,7 @@ from cloudshortener.models import ShortURLModel
 
 class ShortURLBaseDAO(ABC):
     """Interface: Access ShortURL data from the data store.
-    
+
     Methods:
         insert(short_url: ShortURLModel, **kwargs) -> ShortURLBaseDAO:
             Insert a new ShortURLModel into the data store.
@@ -18,7 +18,7 @@ class ShortURLBaseDAO(ABC):
             Raises DataStoreError on connection or read failure.
 
         hit(shortcode: str, **kwargs) -> int:
-            Decrement a short URL's monhtly link hit quota.
+            Decrement a short URL's monthly link hit quota.
             Raises ShortURLNotFoundError if the entry does not exist.
             Raises DataStoreError on connection or read failure.
 
@@ -83,7 +83,7 @@ class ShortURLBaseDAO(ABC):
 
     @abstractmethod
     def hit(self, shortcode: str, **kwargs) -> int:
-        """Decrement a short URL's monhtly link hit quota.
+        """Decrement a short URL's monthly link hit quota.
 
         Args:
             shortcode (str):
@@ -92,7 +92,7 @@ class ShortURLBaseDAO(ABC):
             **kwargs:
                 Additional keyword arguments, used by data store.
 
-        Return:
+        Returns:
             int:
                 leftover link hits for this month.
 

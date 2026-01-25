@@ -4,13 +4,11 @@ Verify that the Lambda correctly triggers AppConfig cache warming
 and propagates failures so EventBridge can retry.
 
 Test coverage includes:
-
-1. Successful cache warm-up
-   - Ensures AppConfigCacheDAO.latest(pull=True) is called.
-
-2. Failure propagation
-   - Ensures CacheMissError, CachePutError, and DataStoreError
-     are not swallowed and cause Lambda failure.
+    1. Successful cache warm-up
+       - Ensures AppConfigCacheDAO.latest(pull=True) is called.
+    2. Failure propagation
+       - Ensures CacheMissError, CachePutError, and DataStoreError are not
+         swallowed and cause Lambda failure.
 
 Fixtures:
     - `event`: generic EventBridge event payload.

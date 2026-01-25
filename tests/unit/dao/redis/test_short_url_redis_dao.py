@@ -1,34 +1,29 @@
-"""Unit tests for the ShortURLRedisDAO
+"""Unit tests for the ShortURLRedisDAO.
 
 Test coverage includes:
-
-1. Initialization and configuration
-   - Ensures correct initialization with or without a Redis client.
-   - Confirms invalid Redis configuration raises DataStoreError.
-
-2. Insertion behavior
-   - Validates inserting valid short URLs stores both URL and hit counter.
-   - Ensures invalid types raise TypeError or BeartypeCallHintParamViolation.
-   - Confirms duplicate shortcodes raise ShortURLAlreadyExistsError.
-   - Confirms Redis connection errors raise DataStoreError.
-
-3. Retrieval behavior
-   - Ensures fetching valid shortcodes returns a populated ShortURLModel.
-   - Validates invalid parameter types raise type errors.
-   - Confirms missing keys raise ShortURLNotFoundError.
-   - Confirms Redis connection errors raise DataStoreError.
-
-4. Counter operations
-   - Ensures global counter increments or retrieves correctly.
-   - Confirms Redis connectivity issues raise DataStoreError.
-
-5. Link hits counter operations
-   - Ensures hit() decrements monthly quota correctly when key exists.
-   - Validates monthly quota initialization when missing.
-   - Confirms missing links raise ShortURLNotFoundError.
-   - Validates negative quota values are allowed.
-   - Confirms Redis connectivity issues raise DataStoreError.
-   - Ensures invalid parameter types raise type errors.
+    1. Initialization and configuration
+       - Ensures correct initialization with or without a Redis client.
+       - Confirms invalid Redis configuration raises DataStoreError.
+    2. Insertion behavior
+       - Validates inserting valid short URLs stores both URL and hit counter.
+       - Ensures invalid types raise TypeError or BeartypeCallHintParamViolation.
+       - Confirms duplicate shortcodes raise ShortURLAlreadyExistsError.
+       - Confirms Redis connection errors raise DataStoreError.
+    3. Retrieval behavior
+       - Ensures fetching valid shortcodes returns a populated ShortURLModel.
+       - Validates invalid parameter types raise type errors.
+       - Confirms missing keys raise ShortURLNotFoundError.
+       - Confirms Redis connection errors raise DataStoreError.
+    4. Counter operations
+       - Ensures global counter increments or retrieves correctly.
+       - Confirms Redis connectivity issues raise DataStoreError.
+    5. Link hits counter operations
+       - Ensures hit() decrements monthly quota correctly when key exists.
+       - Validates monthly quota initialization when missing.
+       - Confirms missing links raise ShortURLNotFoundError.
+       - Validates negative quota values are allowed.
+       - Confirms Redis connectivity issues raise DataStoreError.
+       - Ensures invalid parameter types raise type errors.
 """
 
 import re

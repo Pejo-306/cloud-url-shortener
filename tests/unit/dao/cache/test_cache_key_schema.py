@@ -4,21 +4,16 @@ This test suite verifies the correctness, consistency, and safety of
 cache key generation supplied by CacheKeySchema for AppConfig caching.
 
 Test coverage includes:
-
-1. AppConfig keys generation
-   - Ensures the appconfig_* key methods generate correct cache keys.
-
-2. Default prefix behavior
-   - Confirms keys are not prefixed when no prefix is provided.
-
-3. Custom prefix behavior
-   - Confirms keys are correctly prefixed when a valid prefix is provided.
-
-4. Invalid prefix types
-   - Ensures improper prefix types raise TypeError.
-
-5. Invalid version types
-   - Ensures version arguments are validated (cast to int) and invalid inputs raise.
+    1. AppConfig keys generation
+       - Ensures the appconfig_* key methods generate correct cache keys.
+    2. Default prefix behavior
+       - Confirms keys are not prefixed when no prefix is provided.
+    3. Custom prefix behavior
+       - Confirms keys are correctly prefixed when a valid prefix is provided.
+    4. Invalid prefix types
+       - Ensures improper prefix types raise TypeError.
+    5. Invalid version types
+       - Ensures version arguments are validated (cast to int) and invalid inputs raise.
 """
 
 import pytest

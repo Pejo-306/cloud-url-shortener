@@ -1,6 +1,7 @@
 # TODO: we can probably store the error code
 # inside these exceptions instead of passing it to logger statements
 
+
 class DAOError(Exception):
     """Generic base class for DAO-related exceptions."""
 
@@ -10,11 +11,14 @@ class ShortURLNotFoundError(DAOError):
 
 
 class ShortURLAlreadyExistsError(DAOError):
-    """Raised when attempting to insert a ShortURLModel that already exists in the data store."""
+    """Raised when inserting a ShortURLModel that already exists in the data store."""
 
 
 class DataStoreError(DAOError):
-    """Raised when there is an error in the data store (e.g. connection issues, timeouts, OOM, etc.)"""
+    """Raised when the data store encounters an error.
+
+    Examples include connection issues, timeouts, and out-of-memory failures.
+    """
 
 
 class UserDoesNotExistError(DAOError):

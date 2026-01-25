@@ -84,14 +84,14 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
     def hit(self, shortcode: str, **kwargs) -> int:
         """Decrement the monthly hit counter for a short URL.
 
-        If the link hits counter for this month still hasn't been isntantiated,
+        If the link hits counter for this month still hasn't been instantiated,
         this method is responsible for setting this month's link hit counter with
-        the default link hit quota and set to expire by the beginning of next month
-        (YYYY-MM+1-01T00:00:00Z in UTC).
+        the default link hit quota and set it to expire by the beginning of next
+        month (YYYY-MM+1-01T00:00:00Z in UTC).
 
-        The method will decrement the link hits quota value below 0 to avoid multiple
-        Redis network round trip for validity checks. It is the application's responsibility
-        to handle negative link hit counter values.
+        The method will decrement the link hits quota value below 0 to avoid
+        multiple Redis network round trips for validity checks. It is the
+        application's responsibility to handle negative link hit counter values.
         """
         link_url_key = self.keys.link_url_key(shortcode)
         link_hits_key = self.keys.link_hits_key(shortcode)
@@ -102,7 +102,7 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         # NOTE: The SET NX and DECR commands are executed as an atomic operation
         #       to avoid race conditions where a concurrent request might steal race
         #       preference from another concurrent request by decrementing below the link hits quota.
-        # 
+        #
         #       e.g. if <quota> == 1 in this example:
         #
         #       (lambda 1): ShortURLRedisDAO.hit():

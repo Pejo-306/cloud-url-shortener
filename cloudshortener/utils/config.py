@@ -1,11 +1,11 @@
 """Utility functions for application configuration management.
 
-This module provides a standardized interface for Lambda functions to
-access configuration data stored in **AWS AppConfig**. Each environment
-(`APP_ENV`) has a dedicated AppConfig *Environment* within the shared
-AppConfig *Application* identified by `APP_NAME`. Configuration data is
-stored as a JSON document under a configuration profile (typically
-`backend-config`) and deployed to the corresponding environment.
+This module provides a standardized interface for Lambda functions to access
+configuration data stored in **AWS AppConfig**. Each environment (`APP_ENV`) has
+a dedicated AppConfig *Environment* within the shared AppConfig *Application*
+identified by `APP_NAME`. Configuration data is stored as a JSON document under
+a configuration profile (typically `backend-config`) and deployed to the
+corresponding environment.
 
 The configuration JSON follows this structure:
 
@@ -21,8 +21,8 @@ The configuration JSON follows this structure:
         }
     }
 
-Each Lambda loads its own section (e.g., `"shorten_url"`) from this
-AppConfig document, determined by the current application environment.
+Each Lambda loads its own section (e.g., `"shorten_url"`) from this AppConfig
+document, determined by the current application environment.
 
 Typical usage inside a Lambda handler:
     >>> from cloudshortener.utils.config import load_config
@@ -33,8 +33,7 @@ Typical usage inside a Lambda handler:
 TODO:
     - Add schema validation for required configuration keys.
     - Add caching of AppConfig responses for better cold-start performance.
-    - Add @require_environment decorator to @_sam_load_local_appconfig
-    - Add better typing to make it clearer what all these decorators actually return
+    - Add @require_environment decorator to @_sam_load_local_appconfig.
 """
 
 import os
@@ -47,6 +46,7 @@ from collections.abc import Callable
 
 import boto3
 
+from cloudshortener.types import LambdaConfiguration
 from cloudshortener.utils.helpers import require_environment
 from cloudshortener.utils.runtime import running_locally
 from cloudshortener.utils.constants import (
@@ -81,17 +81,18 @@ def app_prefix() -> str | None:
 
 
 def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
-    """Decorator: load AppConfig from a local AppConfig Agent when running under SAM
+    """Decorator: load AppConfig from a local AppConfig Agent when running under SAM.
 
     Behavior:
         - If the application is running locally and `APPCONFIG_AGENT_URL` is set
-          to a safe local URL, fetch the app configuration JSON from the local AppConfig agent.
+          to a safe local URL, fetch the app configuration JSON from the local
+          AppConfig agent.
         - Else, call the wrapped function (which pulls from AWS AppConfig via boto3).
 
     TODO: use @require_environment decorator and remove this section
     Environment variables used:
-        APPCONFIG_AGENT_URL     – Base URL of the local AppConfig Agent (e.g., http://host.docker.internal:2772).
-        APPCONFIG_PROFILE_NAME  – Optional profile name (default: "backend-config").
+        APPCONFIG_AGENT_URL     : Base URL of the local AppConfig Agent (e.g., http://host.docker.internal:2772).
+        APPCONFIG_PROFILE_NAME  : Optional profile name (default: "backend-config").
     """
 
     # ruff: noqa: E701
@@ -110,10 +111,10 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
     # ruff: enable
 
     @functools.wraps(func)
-    def wrapper(lambda_name: str, *args, **kwargs) -> dict:
+    def wrapper(lambda_name: str) -> LambdaConfiguration:
         agent_url = __validate_appconfig_url(os.getenv(APPCONFIG_AGENT_URL_ENV))
         if not running_locally() or not agent_url:
-            return func(lambda_name, *args, **kwargs)
+            return func(lambda_name)
 
         profile_name = os.getenv(APPCONFIG_PROFILE_NAME_ENV, 'backend-config')
         url = f'{agent_url}/applications/{app_name()}/environments/{app_env()}/configurations/{profile_name}'
@@ -131,7 +132,7 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
 
 
 def cache_appconfig(func: Callable) -> Callable:
-    """Decorator: transparently cache AppConfig documents via ElastiCache
+    """Decorator: transparently cache AppConfig documents via ElastiCache.
 
     Behavior:
         - On normal path:
@@ -143,7 +144,7 @@ def cache_appconfig(func: Callable) -> Callable:
     """
 
     @functools.wraps(func)
-    def wrapper(lambda_name: str, *args, **kwargs) -> dict:
+    def wrapper(lambda_name: str) -> LambdaConfiguration:
         from cloudshortener.dao.cache import AppConfigCacheDAO
         from cloudshortener.dao.exceptions import CacheMissError, CachePutError, DataStoreError
 
@@ -157,7 +158,7 @@ def cache_appconfig(func: Callable) -> Callable:
         except (CacheMissError, CachePutError, DataStoreError, ValueError, KeyError):
             # On any cache / config-structure / env-related issues, fall back
             # to the original (non-cached) implementation.
-            return func(lambda_name, *args, **kwargs)
+            return func(lambda_name)
 
         else:
             # Reproduce the existing load_config() behavior:
@@ -173,8 +174,8 @@ def cache_appconfig(func: Callable) -> Callable:
 @_sam_load_local_appconfig
 @cache_appconfig
 @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
-def load_config(lambda_name: str) -> dict:
-    """Load configuration for a given Lambda from AWS AppConfig
+def load_config(lambda_name: str) -> LambdaConfiguration:
+    """Load configuration for a given Lambda from AWS AppConfig.
 
     Fetches the AppConfig JSON once and returns the section relevant
     to the requested Lambda function (e.g., 'shorten_url', 'redirect_url').

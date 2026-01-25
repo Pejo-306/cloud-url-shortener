@@ -5,27 +5,21 @@ interacts with the DAO layer, and returns proper HTTP responses in both
 success and error scenarios.
 
 Test coverage includes:
-
-1. Successful shortening
-   - Ensures the Lambda generates and returns valid short URLs (HTTP 200).
-
-2. Invalid JSON body
-   - Ensures malformed request bodies return HTTP 400 with descriptive messages.
-
-3. Missing `target_url` key
-   - Ensures requests missing the required field return HTTP 400.
-
-4. Configuration errors
-   - Ensures missing or unreadable config files raise HTTP 500 responses.
-
-5. Short URL already exists
-   - Ensure lambda wont overwrite an existing short URL and raise HTTP 409.
-
-6. Monthly user quota hit
-   - Ensure lambda won't create a short URL if the user has hit their quota.
-
-7. Unathorized access attemp
-   - Ensure lambda only runs if the event provides Amazon Cognito information about the user.
+    1. Successful shortening
+       - Ensures the Lambda generates and returns valid short URLs (HTTP 200).
+    2. Invalid JSON body
+       - Ensures malformed request bodies return HTTP 400 with descriptive messages.
+    3. Missing `target_url` key
+       - Ensures requests missing the required field return HTTP 400.
+    4. Configuration errors
+       - Ensures missing or unreadable config files raise HTTP 500 responses.
+    5. Short URL already exists
+       - Ensure lambda won't overwrite an existing short URL and raise HTTP 409.
+    6. Monthly user quota hit
+       - Ensure lambda won't create a short URL if the user has hit their quota.
+    7. Unauthorized access attempt
+       - Ensure lambda only runs if the event provides Amazon Cognito information
+         about the user.
 
 Fixtures:
     - `apigw_event`: generic API Gateway event structure.
@@ -38,7 +32,7 @@ Fixtures:
     - `short_url_dao`: mock DAO implementing ShortURLBaseDAO.
     - `user_dao`: mock DAO implementing UserBaseDAO.
     - `_patch_lambda_dependencies`: autouse fixture that monkeypatches app dependencies
-                                    (config, DAO, shortcode generator, and base URL).
+      (config, DAO, shortcode generator, and base URL).
 """
 
 import json

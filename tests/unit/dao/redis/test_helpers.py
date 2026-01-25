@@ -1,18 +1,15 @@
-"""Unit tests for handle_redis_connection_error decorator
+"""Unit tests for handle_redis_connection_error decorator.
 
 This test suite verifies that the decorator properly handles Redis
 connection failures and preserves the original method’s behavior.
 
 Test coverage includes:
-
-1. Normal function execution
-   - Ensures the wrapped method executes and returns its result.
-
-2. Connection error handling
-   - Ensures Redis connection errors are converted into DataStoreError.
-
-3. Function metadata preservation
-   - Confirms functools.wraps preserves the original function’s name and docstring.
+    1. Normal function execution
+       - Ensures the wrapped method executes and returns its result.
+    2. Connection error handling
+       - Ensures Redis connection errors are converted into DataStoreError.
+    3. Function metadata preservation
+       - Confirms functools.wraps preserves the original function's name and docstring.
 """
 
 import pytest

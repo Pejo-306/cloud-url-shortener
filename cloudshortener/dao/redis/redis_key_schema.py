@@ -1,3 +1,4 @@
+import functools
 from collections.abc import Callable
 from datetime import date
 
@@ -6,9 +7,11 @@ __all__ = ['RedisKeySchema']  # hide internal decorator prefix_key from imports
 
 
 def prefix_key(func: Callable) -> Callable:
+    @functools.wraps(func)
     def wrapper(self, *args, **kwargs) -> str:
         key = func(self, *args, **kwargs)
         return f'{self.prefix}:{key}' if self.prefix is not None else key
+
     return wrapper
 
 
@@ -16,7 +19,7 @@ class RedisKeySchema:
     """Provide standardized Redis keys for storing data models.
 
     An optional prefix can be provided to namespace all generated keys.
-    It is highly encouranged to set a custom prefix for each app and environment,
+    It is highly encouraged to set a custom prefix for each app and environment,
     e.g. "cloudshortener:prod" or "cloudshortener:dev".
     """
 

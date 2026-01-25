@@ -1,6 +1,5 @@
 import functools
 import redis
-from typing import TypeVar, Any
 from collections.abc import Callable
 
 from cloudshortener.dao.exceptions import DataStoreError
@@ -8,11 +7,9 @@ from cloudshortener.dao.exceptions import DataStoreError
 
 __all__ = []
 
-F = TypeVar('F', bound=Callable[..., Any])  # TODO: I can just remove this
 
-
-def handle_redis_connection_error[F](method: F) -> F:
-    """Decorator: Transform Redis connection errors into `DataStoreError` exceptions."""
+def handle_redis_connection_error(method: Callable) -> Callable:
+    """Decorator: transform Redis connection errors into `DataStoreError` exceptions."""
 
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):

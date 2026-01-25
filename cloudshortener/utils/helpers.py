@@ -3,9 +3,9 @@ import functools
 import logging
 import json
 from datetime import datetime, UTC
-from typing import Any
 from collections.abc import Callable
 
+from cloudshortener.types import LambdaEvent, LambdaContext, LambdaResponse
 from cloudshortener.utils.runtime import running_locally
 from cloudshortener.utils.constants import UNKNOWN_INTERNAL_SERVER_ERROR
 
@@ -13,7 +13,7 @@ from cloudshortener.utils.constants import UNKNOWN_INTERNAL_SERVER_ERROR
 logger = logging.getLogger(__name__)
 
 
-def base_url(event: dict[str, Any]) -> str:  # TODO: transform dict[str, Any] to custom type
+def base_url(event: LambdaEvent) -> str:  # TODO: transform dict[str, Any] to custom type
     """Return the public base URL for the current Lambda event.
 
     Examples:
@@ -39,7 +39,7 @@ def base_url(event: dict[str, Any]) -> str:  # TODO: transform dict[str, Any] to
     return 'http://localhost:3000'
 
 
-def get_short_url(shortcode: str, event: dict[str, Any]) -> str:
+def get_short_url(shortcode: str, event: LambdaEvent) -> str:
     """String representation of the shortened URL for a given shortcode."""
     return f'{base_url(event).rstrip("/")}/{shortcode}'
 
@@ -51,8 +51,9 @@ def beginning_of_next_month() -> datetime:
     return datetime(next_year, next_month, 1, 0, 0, 0, tzinfo=UTC)
 
 
+# TODO: patch this to allow local_only = True for local-only environment variables
 def require_environment(*names: str) -> Callable:
-    """Decorator: Ensure required environment variables are present before executing the callable."""
+    """Decorator: ensure required environment variables are present before executing the callable."""
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
@@ -69,10 +70,10 @@ def require_environment(*names: str) -> Callable:
 
 
 def guarantee_500_response(lambda_handler: Callable) -> Callable:
-    """Decorator: Guarantee a 500 HTTP response in case of unhandled exception
+    """Decorator: guarantee a 500 HTTP response in case of unhandled exception.
 
-    NOTE: if the lambda is running locally, the exception is reraised. It's expected
-          to be handled by a developer.
+    NOTE: If the lambda is running locally, the exception is reraised. It's expected
+    to be handled by a developer.
     """
 
     def _response_500() -> dict:
@@ -86,9 +87,9 @@ def guarantee_500_response(lambda_handler: Callable) -> Callable:
         }
 
     @functools.wraps(lambda_handler)
-    def wrapper(*args, **kwargs):
+    def wrapper(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
         try:
-            return lambda_handler(*args, **kwargs)
+            return lambda_handler(event, context)
         except Exception as error:
             extra = {'error': error.__class__.__name__, 'reason': str(error)}
 

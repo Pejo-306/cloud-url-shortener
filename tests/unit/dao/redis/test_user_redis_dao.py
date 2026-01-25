@@ -1,23 +1,19 @@
-"""
-Unit tests for the UserRedisDAO class.
+"""Unit tests for the UserRedisDAO class.
 
 Verify that user quota operations correctly interact with Redis and handle
 missing user scenarios with appropriate exceptions.
 
 Test coverage includes:
-
-1. Retrieving user quotas
-   - Ensures `quota()` returns the correct stored value for an existing user.
-
-2. Incrementing user quotas
-   - Ensures `increment_quota()` increments and returns the updated value when the key exists.
-
-3. Missing user
-   - Ensures  `increment_quota()` raise UserDoesNotExistError when
-     the user record does not exist.
-
-4. Auto-initialize user quota
-   - Ensure `quota()` auto initializes a user's monthly quota to 0 if key does not exist in Redis.
+    1. Retrieving user quotas
+       - Ensures `quota()` returns the correct stored value for an existing user.
+    2. Incrementing user quotas
+       - Ensures `increment_quota()` increments and returns the updated value when the key exists.
+    3. Missing user
+       - Ensures `increment_quota()` raises UserDoesNotExistError when the user
+         record does not exist.
+    4. Auto-initialize user quota
+       - Ensure `quota()` auto initializes a user's monthly quota to 0 if key
+         does not exist in Redis.
 
 Fixtures:
     - `app_prefix`: consistent Redis key prefix for predictable test output.

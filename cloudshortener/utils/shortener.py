@@ -1,4 +1,4 @@
-"""Shortcode generation algorithm 
+"""Shortcode generation algorithm.
 
 This module provides a helper function for generating short, deterministic,
 non-sequential hashes based on a numeric counter and a secret salt value.
@@ -29,10 +29,10 @@ def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7
 
     This implementation uses a **multiplicative permutation** over a fixed
     Base62 space to guarantee:
-    - 1:1 mapping (bijective)
-    - Deterministic output
-    - No visible sequential patterns
-    - Constant-time execution
+        - 1:1 mapping (bijective)
+        - Deterministic output
+        - No visible sequential patterns
+        - Constant-time execution
 
     Args:
         counter (int):
@@ -58,12 +58,12 @@ def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7
         'ibCJIAD'
 
     NOTE:
-        - While the funnction will eventually produce collisions to ensure
+        - While the function will eventually produce collisions to ensure
           fixed-length output, old URLs are expected to expire. This ensures
-          The risk of collisions is practically 0.
+          the risk of collisions is practically 0.
         - The output is not trivially predictable without knowledge of the salt
           and permutation parameters (this is obfuscation, not encryption).
-        - The alphabet is Base62 safe: [a-zA-Z0-9].
+        - The alphabet is Base62-safe: [a-zA-Z0-9].
         - Uses ultra-fast xxhash for hashing the salt.
     """
     if not isinstance(counter, int):

@@ -13,7 +13,7 @@ class UserRedisDAO(RedisClientMixin, UserBaseDAO):
     def quota(self, user_id: str, **kwargs) -> int:
         user_quota_key = self.keys.user_quota_key(user_id)
         monthly_quota = self.redis.incrby(user_quota_key, 0)  # Initialize key if missing
-        if monthly_quota == 0:                                # Set new quota key to expire after 1 month
+        if monthly_quota == 0:  # Set new quota key to expire after 1 month
             self.redis.expire(user_quota_key, ONE_MONTH_SECONDS)
         return monthly_quota
 

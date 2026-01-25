@@ -4,18 +4,14 @@ This test suite verifies the correctness, consistency, and safety of
 Redis key generation supplied by RedisKeySchema.
 
 Test coverage includes:
-
-1. Redis keys generation
-   - Ensures the various _key() methods generate correct Redis keys.
-
-2. Default prefix behavior
-   - Confirms keys are not prefixed when no prefix is provided.
-
-3. Custom prefix behavior
-   - Confirms keys are correctly prefixed when a valid prefix is provided.
-
-4. Invalid prefix types
-   - Ensures improper prefix types raise TypeError.
+    1. Redis keys generation
+       - Ensures the various _key() methods generate correct Redis keys.
+    2. Default prefix behavior
+       - Confirms keys are not prefixed when no prefix is provided.
+    3. Custom prefix behavior
+       - Confirms keys are correctly prefixed when a valid prefix is provided.
+    4. Invalid prefix types
+       - Ensures improper prefix types raise TypeError.
 """
 
 import pytest

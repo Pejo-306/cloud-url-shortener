@@ -1,4 +1,4 @@
-"""Application-wide logging initialization
+"""Application-wide logging initialization.
 
 IMPORTANT: Call `initialize_logging()` in the lambda handler's `__init__.py` file
 before any other logging is done.
@@ -25,7 +25,7 @@ from cloudshortener.utils.constants import LOG_LEVEL_ENV
 
 
 class JsonFormatter(logging.Formatter):
-    """JSON formatter that includes LogRecord extras"""
+    """JSON formatter that includes LogRecord extras."""
 
     STANDARD_ATTRS = frozenset(
         {

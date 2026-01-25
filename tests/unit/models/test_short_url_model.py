@@ -5,23 +5,18 @@ of the ShortURLModel, which represents a shortened URL mapping with an
 optional expiration timestamp.
 
 Test coverage includes:
-
-1. Model creation and field validation
-   - Ensures instances can be created with valid field types and values.
-
-2. Optional expires_at field
-   - Verifies that expires_at can be omitted and defaults to None.
-
-3. Equality semantics
-   - Confirms that models with identical data compare equal.
-
-4. Inequality semantics
-   - Ensures that differing field values (URL, short code, or expiration)
-     produce non-equal instances.
-
-5. Immutability
-   - Verifies that all fields are frozen and cannot be reassigned after
-     object creation.
+    1. Model creation and field validation
+       - Ensures instances can be created with valid field types and values.
+    2. Optional expires_at field
+       - Verifies that expires_at can be omitted and defaults to None.
+    3. Equality semantics
+       - Confirms that models with identical data compare equal.
+    4. Inequality semantics
+       - Ensures that differing field values (URL, short code, or expiration)
+         produce non-equal instances.
+    5. Immutability
+       - Verifies that all fields are frozen and cannot be reassigned after
+         object creation.
 """
 
 from dataclasses import FrozenInstanceError

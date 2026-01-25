@@ -3,11 +3,11 @@
 Seed AWS Secrets Manager from local YAML config files.
 
 This CLI follows this procedure to publish application secrets:
-- Step 1: Discover YAML files in config/<function>/<env>.yaml
-- Step 2: Load and validate each YAML document
-- Step 3: Extract only the `secrets:` section (ignore `params:`)
-- Step 4: Group secrets by top-level component (e.g., "redis")
-- Step 5: Create or update one Secrets Manager secret per component
+    - Step 1: Discover YAML files in config/<function>/<env>.yaml
+    - Step 2: Load and validate each YAML document
+    - Step 3: Extract only the `secrets:` section (ignore `params:`)
+    - Step 4: Group secrets by top-level component (e.g., "redis")
+    - Step 5: Create or update one Secrets Manager secret per component
 
 CLI usage:
     $ python -m bootstrap.seed_secrets --app-name cloudshortener --root config --env-allow dev prod
@@ -83,14 +83,14 @@ def main(argv: list[str] | None = None) -> None:
     """CLI entry point.
 
     Steps:
-        - Parse CLI arguments
-        - Discover config YAMLs under --root
-        - For each file, extract `secrets:` and publish one secret per component
+        - Parse CLI arguments.
+        - Discover config YAMLs under --root.
+        - For each file, extract `secrets:` and publish one secret per component.
 
     Raises:
-        FileNotFoundError: when --root is not a directory.
-        ValueError: when --tags is malformed or YAML contents are invalid.
-        boto3/botocore exceptions: on AWS API failures.
+        FileNotFoundError: When --root is not a directory.
+        ValueError: When --tags is malformed or YAML contents are invalid.
+        boto3/botocore exceptions: On AWS API failures.
     """
     parser = argparse.ArgumentParser(
         prog='seed_secrets.py',

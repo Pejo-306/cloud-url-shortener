@@ -1,8 +1,8 @@
 import json
 import logging
 from datetime import datetime, UTC
-from typing import Any
 
+from cloudshortener.types import LambdaEvent, LambdaContext, LambdaResponse
 from cloudshortener.dao.redis import ShortURLRedisDAO
 from cloudshortener.dao.exceptions import ShortURLNotFoundError
 from cloudshortener.utils import load_config, get_short_url, app_prefix
@@ -18,7 +18,7 @@ from cloudshortener.lambdas.redirect_url.constants import (
 logger = logging.getLogger(__name__)
 
 
-def response_500(message: str | None = None) -> dict:
+def response_500(message: str | None = None) -> LambdaResponse:
     base = 'Internal Server Error'
     body = {'message': base if not message else f'{base} ({message})'}
     return {
@@ -27,7 +27,7 @@ def response_500(message: str | None = None) -> dict:
     }
 
 
-def response_400(message: str | None = None, error_code: str | None = None) -> dict:
+def response_400(message: str | None = None, error_code: str | None = None) -> LambdaResponse:
     base = 'Bad Request'
     body = {'message': base if not message else f'{base} ({message})'}
     if error_code:
@@ -38,7 +38,7 @@ def response_400(message: str | None = None, error_code: str | None = None) -> d
     }
 
 
-def response_429(*, retry_after: int, message: str | None = None, error_code: str | None = None) -> dict:
+def response_429(*, retry_after: int, message: str | None = None, error_code: str | None = None) -> LambdaResponse:
     body = {'message': message or 'Too Many Requests'}
     if error_code:
         body['errorCode'] = error_code
@@ -52,7 +52,7 @@ def response_429(*, retry_after: int, message: str | None = None, error_code: st
     }
 
 
-def response_302(*, location: str) -> dict:
+def response_302(*, location: str) -> LambdaResponse:
     return {
         'statusCode': 302,
         'headers': {
@@ -67,14 +67,14 @@ def response_302(*, location: str) -> dict:
 
 
 @guarantee_500_response
-def lambda_handler(event: dict, context: Any) -> dict:
-    """Redirect short URL to original long URL
-    
+def lambda_handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
+    """Redirect short URL to original long URL.
+
     Procedure:
-    - Step 1: Extract shortcode from request path
-    - Step 2: Hit the link and check if quota is exceeded
-    - Step 3: Get short URL record from database
-    - Step 4: Redirect client to target URL
+        - Step 1: Extract shortcode from request path
+        - Step 2: Hit the link and check if quota is exceeded
+        - Step 3: Get short URL record from database
+        - Step 4: Redirect client to target URL
 
     HTTP responses:
         302: Successful redirect

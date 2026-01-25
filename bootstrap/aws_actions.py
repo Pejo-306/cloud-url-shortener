@@ -2,9 +2,9 @@
 AWS action primitives for seeding configuration and CloudFormation stack management.
 
 This module encapsulates AWS SDK calls used by bootstrap CLIs:
-- SSM Parameter Store upserts
-- Secrets Manager upserts
-- CloudFormation deploy/delete using Change Sets with live event streaming
+    - SSM Parameter Store upserts
+    - Secrets Manager upserts
+    - CloudFormation deploy/delete using Change Sets with live event streaming
 
 Exposed functions (signatures):
     put_parameter(

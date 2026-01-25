@@ -1,76 +1,13 @@
-"""DAO for caching AWS AppConfig documents in Redis (ElastiCache)
-
-This module provides a Redis-backed cache for AWS AppConfig documents with an
-on-demand fallback to the AppConfig APIs when cache entries are missing.
-
-Responsibilities:
-    - Retrieve AppConfig documents and metadata from Redis
-    - On cache-miss (and when configured), fetch from AppConfig and populate cache
-    - Maintain three key types (no TTL applied):
-        * <prefix>:appconfig:latest            -> latest document JSON (string)
-        * <prefix>:appconfig:latest:metadata   -> latest metadata JSON (string)
-        * <prefix>:appconfig:v{n}              -> versioned document JSON (string)
-        * <prefix>:appconfig:v{n}:metadata     -> versioned metadata JSON (string)
-
-Classes:
-    AppConfigCacheDAO:
-        Concrete DAO for AppConfig caching backed by Redis. Uses ElastiCacheClientMixin
-        to initialize the Redis client (AWS/LocalStack aware) and assigns CacheKeySchema
-        for key generation.
-
-Example:
-    Basic usage with cache-warming on misses:
-
-        >>> dao = AppConfigCacheDAO(prefix="cloudshortener:dev")
-
-        # Retrieve the latest AppConfig document; warms cache if missing.
-        >>> doc = dao.latest(pull=True)
-        >>> isinstance(doc, dict)
-        True
-        >>> sorted(doc.keys())[:3]
-        ['active_backend', 'configs', 'redirect_url']  # example keys (may vary)
-
-        # Retrieve a specific version; warms cache if missing.
-        >>> v12 = dao.get(12, pull=True)
-        >>> v12 == doc  # not necessarily equal; depends on current 'latest' vs version 12
-        False
-
-        # Retrieve metadata for a version; warms cache if missing.
-        >>> meta = dao.metadata(12, pull=True)
-        >>> meta  # doctest: +ELLIPSIS
-        {'version': 12, 'etag': 'W/"...etag..."', 'content_type': 'application/json', 'fetched_at': '2025-...Z'}
-
-        # Retrieve the latest version of the AppConfig document
-        >>> version = dao.version(pull=True)
-        >>> version
-        12
-
-        # Access the same values from cache (Cache HITs) without reaching AppConfig:
-        >>> cached_latest = dao.latest(pull=False)
-        >>> cached_v12 = dao.get(12, pull=False)
-        >>> cached_meta_v12 = dao.metadata(12, pull=False)
-
-        # Force pull the latest document from AppConfig and cache it
-        >>> forced_latest = dao.latest(force=True)
-        >>> forced_latest == doc
-        True
-
-NOTE:
-    - This DAO intentionally couples cache access with AppConfig fetching to keep the
-      interface simple at call sites. If the cache is cold, the DAO can populate it
-      by contacting AppConfig (when pull=True).
-"""
-
 import json
 import os
 from datetime import datetime, UTC
-from typing import Any
 
 import boto3
 import redis
 from beartype import beartype
 from botocore.client import BaseClient
 
+from cloudshortener.types import AppConfig, AppConfigMetadata
 from cloudshortener.dao.cache.mixins import ElastiCacheClientMixin
 from cloudshortener.dao.cache.constants import COOL_TTL
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
@@ -84,40 +21,45 @@ from cloudshortener.utils.constants import (
 
 
 class AppConfigCacheDAO(ElastiCacheClientMixin):
-    """Redis-backed DAO for AppConfig documents with on-demand fetch/caching
+    """ElastiCache DAO for AppConfig documents with on-demand fetch/caching.
 
-    Attributes (via mixins):
-        redis (redis.Redis):
-            Redis client used to communicate with the ElastiCache/Redis datastore.
-        keys (CacheKeySchema):
-            Key schema helper for generating namespaced AppConfig cache keys.
-        ttl (int):
-            The TTL in seconds for the cache entry.
-            Defaults to COOL_TTL.
-            None means no TTL is applied.
+    Fetching behavior is controlled with the following flags, available in all public
+    methods:
+        - `pull` (bool): If True and cache miss, fetch the `latest` document from
+          AppConfig and cache it. If False, raise `CacheMissError` on miss. Defaults
+          to True.
+        - `force` (bool): Always fetch the `latest` document from AppConfig and
+          force cache. Defaults to False.
 
-    Methods:
-        latest(pull: bool = True, force: bool = False) -> dict:
-            Retrieve the latest AppConfig document.
-            On miss, optionally fetch from AppConfig and populate cache.
+    Configurations and metadata are always stored as versioned keys in ElastiCache.
+    They are also duplicated as `latest` version keys when the user accesses the
+    latest application configuration. This speeds up retrieval (immediate GET
+    instead of algorithmically looking for the latest versioned cache entry).
 
-        version(pull: bool = True, force: bool = False) -> int:
-            Retrieve the latest version of the AppConfig document.
-            On miss, optionally fetch from AppConfig and populate cache.
+    The `version` parameter on methods can be a specific integer version or the
+    string literal `latest`. If `latest` is requested, the DAO will use `latest`
+    keys instead of versioned AppConfig keys.
 
-        get(version: int | str, pull: bool = True, force: bool = False) -> dict:
-            Retrieve a specific version of the AppConfig document, or 'latest'.
-            On miss, optionally fetch from AppConfig and populate cache.
+    Configurations expire after a specific time, set by the `ttl` attribute, to
+    avoid stale application configurations.
 
-        metadata(version: int, pull: bool = True, force: bool = False) -> dict:
-            Retrieve metadata for a specific AppConfig version.
-            On miss, optionally fetch from AppConfig and populate cache.
+    `AppConfigMetadata` is a JSON object like:
+    ```
+        {
+            "version": int,
+            "etag": str | None,
+            "content_type": str | None,
+            "fetched_at": ISO-8601 string
+        }
+    ```
 
-    Example:
-        >>> dao = AppConfigCacheDAO(prefix="cloudshortener:dev")
-        >>> dao.latest()          # dict
-        >>> dao.get(10)           # dict
-        >>> dao.metadata(10)      # dict
+    Raises:
+        `CacheMissError`:
+            If the AppConfig is not cached and `pull` is False.
+        `CachePutError`:
+            If the AppConfig cannot be written to the cache after fetch.
+        `DataStoreError`:
+            If a Redis connectivity issue occurs.
     """
 
     def __init__(
@@ -142,101 +84,18 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
     @handle_redis_connection_error
     @beartype
-    def latest(self, pull: bool = True, force: bool = False) -> dict[str, Any]:
-        """Retrieve the latest AppConfig document
-
-        This method stores the full JSON document under the '<prefix>:appconfig:latest'
-        key to avoid two round trips to Redis. Internally, it delegates to get('latest').
-
-        Args:
-            pull (bool):
-                If True, fetch the 'latest' document from AppConfig and cache on miss.
-                If False, raise CacheMissError on miss.
-                Defaults to True.
-            force (bool):
-                If True, always fetch the 'latest' document from AppConfig and cache.
-                Defaults to False.
-
-        Returns:
-            dict[str, Any]: The AppConfig JSON document.
-
-        Raises:
-            CacheMissError:
-                If the 'latest' document is not cached and pull is False.
-            CachePutError:
-                If the 'latest' document cannot be written to the cache after fetch.
-            ValueError:
-                If environment variables required for AppConfig are missing.
-            DataStoreError:
-                If a Redis connectivity issue occurs (handled by decorator).
-        """
+    def latest(self, pull: bool = True, force: bool = False) -> AppConfig:
         return self.get('latest', pull=pull, force=force)
 
     @handle_redis_connection_error
     @beartype
     def version(self, pull: bool = True, force: bool = False) -> int:
-        """Retrieve the latest version of the AppConfig document
-
-        Args:
-            pull (bool):
-                If True, fetch the latest version from AppConfig and cache on miss.
-                If False, raise CacheMissError on miss.
-                Defaults to True.
-            force (bool):
-                If True, always fetch the latest version from AppConfig and cache.
-                Defaults to False.
-
-        Returns:
-            int: The latest version of the AppConfig document.
-
-        Raises:
-            CacheMissError:
-                If the latest version is not cached and pull is False.
-            CachePutError:
-                If the latest version cannot be written to the cache after fetch.
-            ValueError:
-                If environment variables required for AppConfig are missing.
-            DataStoreError:
-                If a Redis connectivity issue occurs (handled by decorator).
-        """
+        """Version number of the latest AppConfig document."""
         return self.metadata('latest', pull=pull, force=force)['version']
 
     @handle_redis_connection_error
     @beartype
-    def get(self, version: int | str, pull: bool = True, force: bool = False) -> dict[str, Any]:
-        """Retrieve a versioned (or latest) AppConfig document
-
-        Steps:
-            - If version == 'latest', try "<prefix>:appconfig:latest".
-              Else try "<prefix>:appconfig:v{version}".
-            - On CACHE HIT, load appconfig document as deserialized JSON object (Python dictionary)
-            - On CACHE MISS, raise CacheMissError if pull=False. Otherwise, fetch
-              the document from AppConfig (which also warms the cache as a side effect)
-
-        Args:
-            version (int | str):
-                Either an integer version or the string 'latest'.
-            pull (bool):
-                If True, fetch from AppConfig and cache on miss.
-                If False, raise CacheMissError on miss.
-                Defaults to True.
-            force (bool):
-                If True, always fetch the document from AppConfig and cache.
-                Defaults to False.
-
-        Returns:
-            dict[str, Any]: The AppConfig JSON document.
-
-        Raises:
-            CacheMissError:
-                If the requested document is not cached and pull is False.
-            CachePutError:
-                If the AppConfig document cannot be written to the cache after fetch.
-            ValueError:
-                If environment variables required for AppConfig are missing.
-            DataStoreError:
-                If a Redis connectivity issue occurs (handled by decorator).
-        """
+    def get(self, version: int | str, pull: bool = True, force: bool = False) -> AppConfig:
         # FORCE PULL: always fetch the document from AppConfig and cache
         if force:
             _, document, _ = self._pull_appconfig(version)
@@ -263,47 +122,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
     @handle_redis_connection_error
     @beartype
-    def metadata(self, version: int | str, pull: bool = True, force: bool = False) -> dict[str, Any]:
-        """Retrieve metadata for a specific AppConfig version
-
-        Steps:
-            - If version == 'latest', try "<prefix>:appconfig:latest:metadata".
-              Else try "<prefix>:appconfig:v{version}:metadata".
-            - On CACHE HIT, load appconfig metadata as deserialized JSON object (Python dictionary)
-            - On CACHE MISS, raise CacheMissError if pull=False. Otherwise, fetch
-              the metadata from AppConfig (which also warms the cache as a side effect)
-
-        Args:
-            version (int):
-                Hosted configuration version to retrieve metadata for.
-            pull (bool):
-                If True, fetch from AppConfig and cache on miss.
-                If False, raise CacheMissError on miss.
-                Defaults to True.
-            force (bool):
-                If True, always fetch the metadata from AppConfig and cache.
-                Defaults to False.
-
-        Returns:
-            dict[str, Any]:
-                Metadata object:
-                    {
-                      "version": int,
-                      "etag": str | None,
-                      "content_type": str | None,
-                      "fetched_at": ISO-8601 string
-                    }
-
-        Raises:
-            CacheMissError:
-                If the metadata is not cached and pull is False.
-            CachePutError:
-                If the metadata cannot be written to the cache after fetch.
-            ValueError:
-                If environment variables required for AppConfig are missing.
-            DataStoreError:
-                If a Redis connectivity issue occurs (handled by decorator).
-        """
+    def metadata(self, version: int | str, pull: bool = True, force: bool = False) -> AppConfigMetadata:
         # FORCE PULL: always fetch the metadata from AppConfig and cache
         if force:
             _, _, metadata = self._pull_appconfig(version)
@@ -328,31 +147,17 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         return metadata
 
     @beartype
-    def _pull_appconfig(self, version: int | str) -> tuple[int, dict[str, Any], dict[str, Any]]:
-        """Fetch the requested AppConfig document + metadata and warm the cache
+    def _pull_appconfig(self, version: int | str) -> tuple[int, AppConfig, AppConfigMetadata]:
+        """Fetch the requested AppConfig document + metadata and warm the cache.
 
         Behavior:
-            - If version == 'latest', uses the AppConfig Data API and writes both:
+            - If version == 'latest', uses the AppConfig Data API and writes:
               * <prefix>:appconfig:v{resolved_version}
               * <prefix>:appconfig:v{resolved_version}:metadata
               * <prefix>:appconfig:latest (duplicate of document, for faster HITs)
+              * <prefix>:appconfig:latest:metadata (duplicate of metadata, for faster HITs)
             - If version is an int, uses the AppConfig control-plane API to fetch
               the specific hosted configuration version and writes the versioned keys.
-
-        Args:
-            version (int | str):
-                Either the string 'latest' or a concrete integer version.
-
-        Returns:
-            tuple[int, dict[str, Any], dict[str, Any]]:
-                (resolved_version, document_dict, metadata_dict)
-
-        Raises:
-            ValueError:
-                If required AppConfig environment variables are missing or response headers
-                are malformed (e.g., no configuration version).
-            CachePutError:
-                If a Redis connection error occurs while writing fetched values to the cache.
         """
         if version == 'latest':
             resolved_version, document, metadata = self._fetch_latest_appconfig()
@@ -371,33 +176,10 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
     def _warm_up_cache(
         self,
         resolved_version: int,
-        document: dict[str, Any],
-        metadata: dict[str, Any],
+        document: AppConfig,
+        metadata: AppConfigMetadata,
         latest: bool = False,
     ) -> None:
-        """Write fetched AppConfig content and metadata to Redis
-
-        Args:
-            resolved_version (int):
-                The concrete version number resolved from the fetch operation.
-            document (dict[str, Any]):
-                The AppConfig document JSON (already parsed).
-            metadata (dict[str, Any]):
-                Metadata for the document (version, etag, content_type, fetched_at).
-            latest (bool):
-                If True, also set '<prefix>:appconfig:latest' to the same document.
-            ttl (int):
-                The TTL in seconds for the cache entry.
-                Defaults to COOL_TTL.
-                None means no TTL is applied.
-
-        Returns:
-            None
-
-        Raises:
-            CachePutError:
-                If the Redis writes fail due to connectivity or other Redis errors.
-        """
         content_key = self.keys.appconfig_version_key(resolved_version)
         meta_key = self.keys.appconfig_metadata_key(resolved_version)
         latest_key = self.keys.appconfig_latest_key()
@@ -410,9 +192,9 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             with self.redis.pipeline(transaction=True) as pipe:
                 pipe.set(content_key, document_json, ex=self.ttl)
                 pipe.set(meta_key, metadata_json, ex=self.ttl)
-                if latest:
-                    pipe.set(latest_key, document_json, ex=self.ttl)  # duplicate full doc for faster retrieval
-                    pipe.set(latest_meta_key, metadata_json, ex=self.ttl)  # duplicate metadata for faster retrieval
+                if latest:  # duplicate AppConfig document & metadata for faster retrieval
+                    pipe.set(latest_key, document_json, ex=self.ttl)
+                    pipe.set(latest_meta_key, metadata_json, ex=self.ttl)
                 pipe.execute()
         except redis.exceptions.ConnectionError as e:
             raise CachePutError(
@@ -422,23 +204,14 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
     @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
     @beartype
-    def _fetch_latest_appconfig(self) -> tuple[int, dict[str, Any], dict[str, Any]]:
-        """Fetch the latest AppConfig document via the AppConfig Data API
-
-        Environment:
-            APPCONFIG_APP_ID, APPCONFIG_ENV_ID, APPCONFIG_PROFILE_ID must be set.
-
-        Returns:
-            tuple[int, dict[str, Any], dict[str, Any]]:
-                (resolved_version, document, metadata)
+    def _fetch_latest_appconfig(self) -> tuple[int, AppConfig, AppConfigMetadata]:
+        """Fetch the latest AppConfig document via the AppConfig Data API.
 
         Raises:
             ValueError:
-                If required environment variables are missing;
-                OR if the response lacks a configuration version header;
-                OR if the version header is invalid.
-            botocore.exceptions.BotoCoreError / ClientError:
-                If the AppConfig Data API calls fail.
+                TODO: turn this into a custom exception.
+                If required environment variables are missing, the response lacks a
+                configuration version header, or the version header is invalid.
         """
         app_id = os.environ[APPCONFIG_APP_ID_ENV]
         env_id = os.environ[APPCONFIG_ENV_ID_ENV]
@@ -488,22 +261,10 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
     @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
     @beartype
     def _get_latest_version_number(self) -> int:
-        """Get the latest hosted configuration version number from the control-plane API
+        """Get the latest hosted configuration version number from the control-plane API.
 
         This method is used as a fallback when the Data API doesn't return version
         information in headers.
-
-        Environment:
-            APPCONFIG_APP_ID, APPCONFIG_PROFILE_ID must be set.
-
-        Returns:
-            int: The latest hosted configuration version number.
-
-        Raises:
-            ValueError:
-                If required environment variables are missing or no versions are found.
-            botocore.exceptions.BotoCoreError / ClientError:
-                If the AppConfig control-plane API call fails.
         """
         app_id = os.environ[APPCONFIG_APP_ID_ENV]
         profile_id = os.environ[APPCONFIG_PROFILE_ID_ENV]
@@ -530,26 +291,8 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
     @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
     @beartype
-    def _fetch_appconfig(self, version: int) -> tuple[int, dict[str, Any], dict[str, Any]]:
-        """Fetch a specific hosted AppConfig version via the control-plane API
-
-        Environment:
-            APPCONFIG_APP_ID, APPCONFIG_PROFILE_ID must be set.
-
-        Args:
-            version (int):
-                The hosted configuration version to fetch.
-
-        Returns:
-            tuple[int, dict[str, Any], dict[str, Any]]:
-                (version, document, metadata)
-
-        Raises:
-            ValueError:
-                If required environment variables are missing.
-            botocore.exceptions.BotoCoreError / ClientError:
-                If the AppConfig control-plane API call fails.
-        """
+    def _fetch_appconfig(self, version: int) -> tuple[int, AppConfig, AppConfigMetadata]:
+        """Fetch a specific hosted AppConfig version via the control-plane API."""
         app_id = os.environ[APPCONFIG_APP_ID_ENV]
         profile_id = os.environ[APPCONFIG_PROFILE_ID_ENV]
 
@@ -567,7 +310,6 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         document = json.loads((content or b'').decode('utf-8'))
 
         # Extract the etag from the response headers
-        # etag = (resp.get('ResponseMetadata') or {}).get('HTTPHeaders', {}).get('etag')
         etag = resp.get('ResponseMetadata', {}).get('HTTPHeaders', {}).get('etag')
         metadata = {
             'version': version,

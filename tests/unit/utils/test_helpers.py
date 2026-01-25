@@ -1,22 +1,18 @@
 """Unit tests for helper functions in helpers.py.
 
 Test coverage includes:
-
-1. base_url() correct extraction
-   - 1.1. Ensures URLs include the stage (e.g., `/Prod`) when invoked via AWS.
-   - 1.2. Ensures URLs do NOT include stage information for clean public links.
-   - 1.3. Confirms a proper localhost fallback is returned when no domain is present.
-   - 1.4. Ensures graceful fallback behavior when API Gateway data is partially missing.
-
-2. get_short_url() retrieves short URL string representation
-
-3. beginning_of_next_month() computes next month's first moment
-   - 3.1. Ensures correct calculation for various dates throughout the year.
-   - 3.2. Validates year rollover behavior at December boundaries.
-
-4. require_environment() decorator behavior
-   - 4.1. Ensures decorated functions execute when all env vars are present.
-   - 4.2. Ensures missing or empty env vars raise a descriptive ValueError.
+    1. base_url() correct extraction
+       - 1.1. Ensures URLs include the stage (e.g., `/Prod`) when invoked via AWS.
+       - 1.2. Ensures URLs do NOT include stage information for clean public links.
+       - 1.3. Confirms a proper localhost fallback is returned when no domain is present.
+       - 1.4. Ensures graceful fallback behavior when API Gateway data is partially missing.
+    2. get_short_url() retrieves short URL string representation
+    3. beginning_of_next_month() computes next month's first moment
+       - 3.1. Ensures correct calculation for various dates throughout the year.
+       - 3.2. Validates year rollover behavior at December boundaries.
+    4. require_environment() decorator behavior
+       - 4.1. Ensures decorated functions execute when all env vars are present.
+       - 4.2. Ensures missing or empty env vars raise a descriptive ValueError.
 """
 
 import json

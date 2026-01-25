@@ -3,11 +3,11 @@
 Seed SSM Parameter Store from local YAML config files.
 
 This CLI follows this procedure to publish configuration parameters:
-- Step 1: Discover YAML files in config/<function>/<env>.yaml
-- Step 2: Load and validate each YAML document
-- Step 3: Extract only the `params:` section (ignore `secrets:`)
-- Step 4: Flatten nested keys into SSM paths
-- Step 5: Upsert parameters into AWS Systems Manager Parameter Store
+    - Step 1: Discover YAML files in config/<function>/<env>.yaml
+    - Step 2: Load and validate each YAML document
+    - Step 3: Extract only the `params:` section (ignore `secrets:`)
+    - Step 4: Flatten nested keys into SSM paths
+    - Step 5: Upsert parameters into AWS Systems Manager Parameter Store
 
 CLI usage:
     $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --root config --env-allow dev prod
@@ -55,15 +55,15 @@ def main(argv: list[str] | None = None) -> None:
     """CLI entry point.
 
     Steps:
-        - Parse CLI arguments
-        - Discover config YAMLs under --root
-        - For each file, extract `params:` and compute SSM paths
-        - Write (or preview) parameters with idempotent upserts
+        - Parse CLI arguments.
+        - Discover config YAMLs under --root.
+        - For each file, extract `params:` and compute SSM paths.
+        - Write (or preview) parameters with idempotent upserts.
 
     Raises:
-        FileNotFoundError: when --root is not a directory.
-        ValueError: when --tags is malformed or YAML contents are invalid.
-        boto3/botocore exceptions: on AWS API failures.
+        FileNotFoundError: When --root is not a directory.
+        ValueError: When --tags is malformed or YAML contents are invalid.
+        boto3/botocore exceptions: On AWS API failures.
     """
     parser = argparse.ArgumentParser(
         prog='seed_ssm_parameters.py',

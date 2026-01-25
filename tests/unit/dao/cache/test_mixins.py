@@ -1,16 +1,14 @@
-"""Unit tests for cache mixins (ElastiCacheClientMixin)
+"""Unit tests for cache mixins (ElastiCacheClientMixin).
 
 Test coverage includes:
-
-1. Initialization and configuration
-   - Ensures correct initialization using provided SSM/Secrets clients.
-   - Verifies redis client is constructed with resolved host/port/db/auth.
-   - Confirms key schema is initialized with the provided prefix.
-
-2. Username resolution precedence
-   - Secret username overrides SSM username.
-   - Falls back to SSM username when secret omits it.
-   - Uses None when both secret username and SSM user param are absent.
+    1. Initialization and configuration
+       - Ensures correct initialization using provided SSM/Secrets clients.
+       - Verifies redis client is constructed with resolved host/port/db/auth.
+       - Confirms key schema is initialized with the provided prefix.
+    2. Username resolution precedence
+       - Secret username overrides SSM username.
+       - Falls back to SSM username when secret omits it.
+       - Uses None when both secret username and SSM user param are absent.
 """
 
 import json

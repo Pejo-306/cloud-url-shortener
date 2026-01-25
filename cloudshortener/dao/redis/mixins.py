@@ -9,9 +9,10 @@ from cloudshortener.dao.exceptions import DataStoreError
 class RedisClientMixin:
     """Mixin Redis client setup and health check for Redis-backed DAOs.
 
-    You can provide either raw connection parameters or a pre-initialized Redis client instance.
+    You can provide either raw connection parameters or a pre-initialized Redis
+    client instance.
 
-    Public Attributes:
+    Attributes:
         redis (redis.Redis):
             Active Redis client instance used by subclasses.
 

@@ -1,16 +1,17 @@
 import os
 import random
 
+from cloudshortener.types import LambdaEvent
 from cloudshortener.utils.constants import APP_ENV_ENV, AWS_SAM_LOCAL_ENV
 
 
 def running_locally() -> bool:
-    """True if running in SAM local invoke/api, False otherwise"""
+    """Return True if running in SAM local invoke/api, False otherwise."""
     env = os.getenv(APP_ENV_ENV, '').lower()
     return env == 'local' or os.getenv(AWS_SAM_LOCAL_ENV) == 'true'
 
 
-def get_user_id(event: dict) -> str | None:
+def get_user_id(event: LambdaEvent) -> str | None:
     claims = event.get('requestContext', {}).get('authorizer', {}).get('claims', {})
     user_id = claims.get('sub')
 

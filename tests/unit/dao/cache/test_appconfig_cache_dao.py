@@ -1,39 +1,32 @@
-"""Unit tests for the AppConfigCacheDAO
+"""Unit tests for the AppConfigCacheDAO.
 
 This test suite verifies the Redis-backed caching behavior for AWS AppConfig
 documents, including cache HIT/MISS flows, optional fetch-and-warm on MISS,
 and error handling.
 
 Test coverage includes:
-
-1. Latest document retrieval
-   - Returns cached latest document on HIT
-   - Raises CacheMissError on MISS with pull=False
-   - Fetches from AppConfig and warms cache on MISS with pull=True
-
-2. Versioned document retrieval
-   - Returns cached versioned document on HIT
-   - Raises CacheMissError on MISS with pull=False
-   - Fetches specific version and warms cache on MISS with pull=True
-
-3. Versioned metadata retrieval
-   - Returns cached metadata on HIT
-   - Raises CacheMissError on MISS with pull=False
-   - Fetches specific version metadata and warms cache on MISS with pull=True
-
-4. Latest version retrieval
-   - Returns cached version on HIT
-   - Raises CacheMissError on MISS with pull=False
-   - Fetches latest version from AppConfig and warms cache on MISS with pull=True
-
-5. Cache write failures
-   - Raises CachePutError if Redis write fails during warm-up
-
-6. Environment validation
-   - Raises ValueError when required AppConfig env vars are missing for fetches
-
-7. Force pull
-   - Always fetches the latest AppConfig document and caches it
+    1. Latest document retrieval
+       - Returns cached latest document on HIT
+       - Raises CacheMissError on MISS with pull=False
+       - Fetches from AppConfig and warms cache on MISS with pull=True
+    2. Versioned document retrieval
+       - Returns cached versioned document on HIT
+       - Raises CacheMissError on MISS with pull=False
+       - Fetches specific version and warms cache on MISS with pull=True
+    3. Versioned metadata retrieval
+       - Returns cached metadata on HIT
+       - Raises CacheMissError on MISS with pull=False
+       - Fetches specific version metadata and warms cache on MISS with pull=True
+    4. Latest version retrieval
+       - Returns cached version on HIT
+       - Raises CacheMissError on MISS with pull=False
+       - Fetches latest version from AppConfig and warms cache on MISS with pull=True
+    5. Cache write failures
+       - Raises CachePutError if Redis write fails during warm-up
+    6. Environment validation
+       - Raises ValueError when required AppConfig env vars are missing for fetches
+    7. Force pull
+       - Always fetches the latest AppConfig document and caches it
 """
 
 import json

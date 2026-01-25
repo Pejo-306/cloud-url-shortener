@@ -3,10 +3,10 @@
 Provision or remove the OIDC bootstrap CloudFormation stack.
 
 This CLI drives a small, idempotent CFN workflow to manage GitHub OIDC identities:
-- Step 1: Read a local CloudFormation template (TemplateBody mode)
-- Step 2: Create a Change Set (CREATE or UPDATE) with parameter defaults
-- Step 3: Optionally execute the Change Set and stream stack events every 5 seconds
-- Step 4: Support deletion with event streaming
+    - Step 1: Read a local CloudFormation template (TemplateBody mode)
+    - Step 2: Create a Change Set (CREATE or UPDATE) with parameter defaults
+    - Step 3: Optionally execute the Change Set and stream stack events every 5 seconds
+    - Step 4: Support deletion with event streaming
 
 CLI usage:
     $ python -m bootstrap.bootstrap_oidc up \

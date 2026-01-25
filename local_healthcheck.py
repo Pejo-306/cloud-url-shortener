@@ -1,10 +1,10 @@
-"""Check that a Redis 8.2 is running on your local machine
+"""Check that a Redis 8.2 is running on your local machine.
 
 Connection details:
-- redis: 127.0.0.1:6379
-- redisinsight: 127.0.0.1:5540
+    - redis: 127.0.0.1:6379
+    - redisinsight: 127.0.0.1:5540
 
-Expect to see the string "Redis 8.2" pritned in your local console.
+Expect to see the string "Redis 8.2" printed in your local console.
 
 You can also access the Redis Insight UI at localhost:5540 and confirm the
 string 'framework' is set.

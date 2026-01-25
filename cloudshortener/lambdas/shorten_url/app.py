@@ -1,7 +1,7 @@
 import json
 import logging
-from typing import Any
 
+from cloudshortener.types import LambdaEvent, LambdaContext, LambdaResponse
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.redis import ShortURLRedisDAO, UserRedisDAO
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 # fmt: off
-def response_500(message: str | None = None) -> dict:
+def response_500(message: str | None = None) -> LambdaResponse:
     base = 'Internal Server Error'
     body = {'message': base if not message else f'{base} ({message})'}
     return {
@@ -36,7 +36,7 @@ def response_500(message: str | None = None) -> dict:
     }
 
 
-def response_401(message: str | None = None, error_code: str | None = None) -> dict:
+def response_401(message: str | None = None, error_code: str | None = None) -> LambdaResponse:
     base = 'Unauthorized'
     body = {'message': base if not message else f'{base} ({message})'}
     if error_code:
@@ -47,7 +47,7 @@ def response_401(message: str | None = None, error_code: str | None = None) -> d
     }
 
 
-def response_400(message: str | None = None, error_code: str | None = None) -> dict:
+def response_400(message: str | None = None, error_code: str | None = None) -> LambdaResponse:
     base = 'Bad Request'
     body = {'message': base if not message else f'{base} ({message})'}
     if error_code:
@@ -58,7 +58,7 @@ def response_400(message: str | None = None, error_code: str | None = None) -> d
     }
 
 
-def response_429(message: str | None = None, error_code: str | None = None) -> dict:
+def response_429(message: str | None = None, error_code: str | None = None) -> LambdaResponse:
     base = 'Too Many Link Generation Requests'
     body = {'message': base if not message else f'{base} ({message})'}
     if error_code:
@@ -69,7 +69,7 @@ def response_429(message: str | None = None, error_code: str | None = None) -> d
     }
 
 
-def response_409(message: str | None = None, error_code: str | None = None) -> dict:
+def response_409(message: str | None = None, error_code: str | None = None) -> LambdaResponse:
     base = 'Conflict'
     body = {'message': base if not message else f'{base} ({message})'}
     if error_code:
@@ -80,7 +80,7 @@ def response_409(message: str | None = None, error_code: str | None = None) -> d
     }
 
 
-def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota: int) -> dict:
+def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota: int) -> LambdaResponse:
     return {
         'statusCode': 200,
         'headers': {
@@ -104,16 +104,16 @@ def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota:
 
 
 @guarantee_500_response
-def lambda_handler(event: dict, context: Any) -> dict:
-    """Shorten target URL into a short URL
+def lambda_handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
+    """Shorten target URL into a short URL.
 
     Procedure:
-    - Step 1: Extract Amazon Cognito user id from Lambda event
-    - Step 2: Check if monthly user quota is reached
-    - Step 3: Extract original URL from request body
-    - Step 4: Generate shortcode for new link
-    - Step 5: Store short_url and target_url mapping in database (via DAO)
-    - Step 6: Respond to user with 200 success
+        - Step 1: Extract Amazon Cognito user id from Lambda event
+        - Step 2: Check if monthly user quota is reached
+        - Step 3: Extract original URL from request body
+        - Step 4: Generate shortcode for new link
+        - Step 5: Store short_url and target_url mapping in database (via DAO)
+        - Step 6: Respond to user with 200 success
 
     HTTP responses:
         200: Successful URL shortening

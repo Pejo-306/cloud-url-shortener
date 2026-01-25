@@ -1,19 +1,16 @@
-"""Unit tests for configuration utilities in config.py
+"""Unit tests for configuration utilities in config.py.
 
 Test coverage includes:
-
-1. Environment variable resolution
-   - Ensures app_env(), app_name(), app_prefix() correctly read environment variables.
-
-2. Project root resolution
-   - Ensures project_root() correctly reads PROJECT_ROOT from environment variables.
-
-3. Configuration loading behavior
-   - Ensures load_config() correctly returns parsed AppConfig configuration data.
-   - Validates that AppConfig fetching is safely isolated via monkeypatching.
-   - Ensures load_config() raises ClientError when AppConfig calls fail.
-   - Ensures cache_appconfig decorator integrates with AppConfigCacheDAO and
-     falls back correctly when the cache path fails.
+    1. Environment variable resolution
+       - Ensures app_env(), app_name(), app_prefix() correctly read environment variables.
+    2. Project root resolution
+       - Ensures project_root() correctly reads PROJECT_ROOT from environment variables.
+    3. Configuration loading behavior
+       - Ensures load_config() correctly returns parsed AppConfig configuration data.
+       - Validates that AppConfig fetching is safely isolated via monkeypatching.
+       - Ensures load_config() raises ClientError when AppConfig calls fail.
+       - Ensures cache_appconfig decorator integrates with AppConfigCacheDAO and
+         falls back correctly when the cache path fails.
 """
 
 import os
@@ -90,25 +87,25 @@ def failing_cache_dao():
 
 
 def test_app_env(monkeypatch):
-    """Ensure app_env() returns the correct environment value from APP_ENV"""
+    """Ensure app_env() returns the correct environment value from APP_ENV."""
     monkeypatch.setitem(os.environ, 'APP_ENV', 'test')
     assert config.app_env() == 'test'
 
 
 def test_app_name(monkeypatch):
-    """Ensure app_name() returns the correct environment value from APP_NAME"""
+    """Ensure app_name() returns the correct environment value from APP_NAME."""
     monkeypatch.setitem(os.environ, 'APP_NAME', 'test-app')
     assert config.app_name() == 'test-app'
 
 
 def test_app_name_not_set(monkeypatch):
-    """Ensure app_name() returns None when APP_NAME is not set"""
+    """Ensure app_name() returns None when APP_NAME is not set."""
     monkeypatch.delitem(os.environ, 'APP_NAME', raising=False)
     assert config.app_name() is None
 
 
 def test_app_prefix(monkeypatch):
-    """Ensure app_prefix() returns the correct environment value from APP_PREFIX"""
+    """Ensure app_prefix() returns the correct environment value from APP_PREFIX."""
     monkeypatch.setitem(os.environ, 'APP_NAME', 'test-app')
     monkeypatch.setitem(os.environ, 'APP_ENV', 'test')
     assert config.app_prefix() == 'test-app:test'
@@ -120,7 +117,7 @@ def test_app_prefix(monkeypatch):
 
 
 def test_project_root(monkeypatch):
-    """Ensure project_root() returns the corrent environment value from PROJECT_ROOT"""
+    """Ensure project_root() returns the correct environment value from PROJECT_ROOT."""
     monkeypatch.setitem(os.environ, 'PROJECT_ROOT', '/monkey/path')
     assert config.project_root() == Path('/monkey/path')
 

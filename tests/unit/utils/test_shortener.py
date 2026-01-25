@@ -5,44 +5,33 @@ of the generate_shortcode() helper function that generates deterministic,
 base62-safe short hashes using a multiplicative permutation strategy.
 
 Test coverage includes:
-
-1. Basic functionality
-   - Ensures the function returns a string of the expected length.
-
-2. Determinism
-   - Same input and salt must always produce identical output.
-
-3. Different salts
-   - Changing the salt for the same counter produces different results.
-
-4. Edge cases
-   - Handles small, zero, and very large integer counters gracefully.
-   - Ensures wrapped, fixed-length output even for large counter values.
-
-5. Error handling
-   - Ensures invalid inputs (negative numbers, non-integers, None) raise
-     appropriate exceptions.
-
-6. Output format
-   - All characters in the hash must belong to the Base62 alphabet
-     (letters and digits only).
-
-7. Length parameter enforcement
-   - The 'length' argument must be respected; output should meet or exceed
-     the specified minimum length.
-
-8. Regression testing
-   - Known input and salt combinations produce stable, expected output
-     to detect accidental future changes.
-
-9. Performance sanity
-   - The function executes efficiently for a large number of iterations.
-
-10. Non-sequential output
-    - Sequential counters must not produce visually similar shortcodes.
-
-11. Multiplicative factor validation
-    - Non-coprime multiplicative factors must be rejected.
+    1. Basic functionality
+       - Ensures the function returns a string of the expected length.
+    2. Determinism
+       - Same input and salt must always produce identical output.
+    3. Different salts
+       - Changing the salt for the same counter produces different results.
+    4. Edge cases
+       - Handles small, zero, and very large integer counters gracefully.
+       - Ensures wrapped, fixed-length output even for large counter values.
+    5. Error handling
+       - Ensures invalid inputs (negative numbers, non-integers, None) raise
+         appropriate exceptions.
+    6. Output format
+       - All characters in the hash must belong to the Base62 alphabet
+         (letters and digits only).
+    7. Length parameter enforcement
+       - The 'length' argument must be respected; output should meet or exceed
+         the specified minimum length.
+    8. Regression testing
+       - Known input and salt combinations produce stable, expected output
+         to detect accidental future changes.
+    9. Performance sanity
+       - The function executes efficiently for a large number of iterations.
+    10. Non-sequential output
+        - Sequential counters must not produce visually similar shortcodes.
+    11. Multiplicative factor validation
+        - Non-coprime multiplicative factors must be rejected.
 """
 
 import string
@@ -197,8 +186,8 @@ def test_shorten_url_performance(iterations):
     """Ensure the function runs efficiently for multiple iterations.
 
     NOTE: The system must be able to handle 40 link generations per second.
-          The size of iterations parameter demonstrates that the URL shortening
-          function will not cause a bottleneck in performance.
+    The size of iterations parameter demonstrates that the URL shortening
+    function will not cause a bottleneck in performance.
     """
     start = time.perf_counter()
     for i in range(iterations):

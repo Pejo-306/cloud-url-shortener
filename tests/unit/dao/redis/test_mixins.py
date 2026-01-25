@@ -1,14 +1,12 @@
-"""Unit tests for Redis-based mixins
+"""Unit tests for Redis-based mixins.
 
 Test coverage includes:
-
-1. Initialization and configuration
-   - Ensures correct initialization with or without a Redis client.
-   - Confirms invalid Redis configuration raises DataStoreError.
-
-2. Healthcheck behavior
-   - Healthcheck pings Redis
-   - Missed pong from Redis raises error
+    1. Initialization and configuration
+       - Ensures correct initialization with or without a Redis client.
+       - Confirms invalid Redis configuration raises DataStoreError.
+    2. Healthcheck behavior
+       - Healthcheck pings Redis.
+       - Missed pong from Redis raises error.
 """
 
 from unittest.mock import MagicMock, patch

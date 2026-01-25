@@ -87,8 +87,9 @@ Raises:
     botocore.exceptions.BotoCoreError / ClientError: For AWS API failures.
 
 NOTE: The ElastiCache password must be 32-128 printable ASCII characters, no
-      spaces, no */*, *"*, *@* characters with at least one uppercase letter & one digit.
-      Otherwise, the stack deployment will fail. Example password: `bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD`.
+spaces, no */*, *"*, *@* characters with at least one uppercase letter and one
+digit. Otherwise, the stack deployment will fail. Example password:
+`bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD`.
 """
 
 from __future__ import annotations
@@ -113,14 +114,14 @@ def main(argv: list[str] | None = None) -> None:
     """CLI entry point.
 
     Steps:
-        - Parse CLI arguments
-        - Determine operating mode (full, secrets-only, ssm-only)
-        - Build SSM parameter and Secrets Manager paths
-        - Write (or preview) parameters and secret with idempotent upserts
+        - Parse CLI arguments.
+        - Determine operating mode (full, secrets-only, ssm-only).
+        - Build SSM parameter and Secrets Manager paths.
+        - Write (or preview) parameters and secret with idempotent upserts.
 
     Raises:
-        ValueError: when inputs are invalid or missing.
-        boto3/botocore exceptions: on AWS API failures.
+        ValueError: When inputs are invalid or missing.
+        boto3/botocore exceptions: On AWS API failures.
     """
     parser = argparse.ArgumentParser(
         prog='seed_elasticache_params.py',

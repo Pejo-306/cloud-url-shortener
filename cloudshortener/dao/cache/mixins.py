@@ -1,42 +1,11 @@
-"""Cache mixin providing AWS-resolved ElastiCache client initialization.
-
-Responsibilities:
-    - Initialize a TLS-enabled Redis client targeting AWS ElastiCache.
-    - Resolve connection parameters from AWS SSM Parameter Store.
-    - Resolve credentials from AWS Secrets Manager.
-    - Delegate healthcheck and key management to RedisClientMixin.
-
-Classes:
-    - ElastiCacheClientMixin: Base mixin to inject AWS-resolved client setup
-      (TLS + AUTH) and reuse RedisClientMixin’s healthcheck and key schema.
-
-Example:
-    Typical usage with a DAO implementation:
-
-        >>> class AppConfigCacheDAO(ElastiCacheClientMixin, SomeBaseDAO):
-        ...     pass
-        ...
-        >>> dao = AppConfigCacheDAO(prefix="cloudshortener:dev")
-        >>> dao._heatlhcheck()
-        True
-
-Environment variables (paths/names to resolve at runtime):
-    - ELASTICACHE_HOST_PARAM  : SSM parameter path for Redis host
-    - ELASTICACHE_PORT_PARAM  : SSM parameter path for Redis port
-    - ELASTICACHE_DB_PARAM    : SSM parameter path for Redis DB index
-    - ELASTICACHE_USER_PARAM  : SSM parameter path for Redis username (optional)
-    - ELASTICACHE_SECRET      : Secrets Manager name for {"username": "...", "password": "..."}
-    - LOCALSTACK_ENDPOINT     : LocalStack endpoint URL for local development
-"""
-
 import json
 import os
-from typing import Optional
 
 import boto3
 import redis
 from botocore.client import BaseClient
 
+from cloudshortener.dao.cache.types import ElastiCacheParameters, ElastiCacheUserSecret
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.redis.mixins import RedisClientMixin
 from cloudshortener.utils.config import running_locally
@@ -52,63 +21,33 @@ from cloudshortener.utils.constants import (
 
 
 class ElastiCacheClientMixin(RedisClientMixin):
-    """Mixin ElastiCache client setup using AWS SSM/Secrets with TLS by default.
+    """Cache mixin for AWS ElastiCache clients.
 
-    This mixin resolves connection parameters from SSM and credentials from
-    Secrets Manager, constructs a Redis client (TLS in AWS; plain in local),
-    and passes it to the parent RedisClientMixin for healthcheck and key schema
-    wiring.
+    Use this mixin as a parent class on all DAOs that interact with AWS ElastiCache.
+    The mixin resolves connection parameters from SSM and Secrets Manager and
+    constructs a Redis client for use within the DAO.
 
-    Attributes:
-        redis (redis.Redis):
-            Active Redis client instance created with TLS and (optional) AUTH.
+    Environment variables (paths/names to resolve at runtime):
+        - `ELASTICACHE_HOST_PARAM`  : SSM parameter path for Redis host
+        - `ELASTICACHE_PORT_PARAM`  : SSM parameter path for Redis port
+        - `ELASTICACHE_DB_PARAM`    : SSM parameter path for Redis DB index
+        - `ELASTICACHE_USER_PARAM`  : SSM parameter path for Redis username (optional)
+        - `ELASTICACHE_SECRET`      : Secrets Manager name for {"username": "...", "password": "..."}
+        - `LOCALSTACK_ENDPOINT`     : LocalStack endpoint URL for local development
 
-        keys (RedisKeySchema):
-            Helper class for generating namespaced Redis key names (inherited
-            from RedisClientMixin via its constructor).
-
-    Methods:
-        (inherited) _heatlhcheck(raise_error: bool = True) -> bool:
-            Ping Redis to verify connectivity. Optionally raise a DataStoreError
-            if unreachable.
-
-    Args:
-        prefix (Optional[str]):
-            Namespace prefix for all Redis keys, e.g. 'app:env'.
-        ssm_client (Optional[BaseClient]):
-            Optional boto3 SSM client to reuse (useful in tests).
-            If None, a new client is created (points to LocalStack in local mode).
-        secrets_client (Optional[BaseClient]):
-            Optional boto3 Secrets Manager client to reuse (useful in tests).
-            If None, a new client is created (points to LocalStack in local mode).
-        redis_decode_responses (bool):
-            If True, decodes Redis responses. Defaults to True.
-        tls_verify (bool):
-            If True (default), require certificate verification (ssl_cert_reqs='required').
-            Set False to disable verification (not recommended; mainly for custom CA/local).
-        ca_bundle_path (Optional[str]):
-            Optional path to a CA bundle file for certificate verification.
-
-    Raises:
-        KeyError:
-            If required environment variables are missing.
-        ValueError:
-            If SSM values are malformed (e.g., non-integer port/db) or the secret payload
-            is invalid/missing required fields.
-        botocore.exceptions.BotoCoreError / ClientError:
-            On AWS API failures while reading SSM or Secrets Manager.
-        DataStoreError:
-            If the Redis healthcheck fails after initialization (raised by parent mixin).
+    The secret is expected to be a JSON object with fields:
+        - `username`: optional string (commonly `None` for ElastiCache token auth)
+        - `password`: required string (the AuthToken)
     """
 
     def __init__(
         self,
-        prefix: Optional[str] = None,
-        ssm_client: Optional[BaseClient] = None,
-        secrets_client: Optional[BaseClient] = None,
+        prefix: str | None = None,
+        ssm_client: BaseClient | None = None,
+        secrets_client: BaseClient | None = None,
         redis_decode_responses: bool = True,
         tls_verify: bool = False,
-        ca_bundle_path: Optional[str] = None,
+        ca_bundle_path: str | None = None,
     ):
         # Resolve runtime settings from AWS (or LocalStack in local mode)
         host, port, db, user_from_ssm = self._resolve_ssm_params(ssm_client)
@@ -150,32 +89,8 @@ class ElastiCacheClientMixin(RedisClientMixin):
 
     @staticmethod
     @require_environment(ELASTICACHE_HOST_PARAM_ENV, ELASTICACHE_PORT_PARAM_ENV, ELASTICACHE_DB_PARAM_ENV)
-    def _resolve_ssm_params(ssm_client: Optional[BaseClient]) -> tuple[str, int, int, Optional[str]]:
-        """Resolve host, port, db, and optional username from SSM Parameter Store.
-
-        Reads parameter names from environment variables and fetches their values
-        using SSM (or LocalStack in local mode). The port and db values are validated
-        and cast to integers.
-
-        Environment:
-            - ELASTICACHE_HOST_PARAM: SSM parameter path for Redis host
-            - ELASTICACHE_PORT_PARAM: SSM parameter path for Redis port
-            - ELASTICACHE_DB_PARAM: SSM parameter path for Redis DB index
-            - ELASTICACHE_USER_PARAM: SSM parameter path for Redis username (optional)
-            - LOCALSTACK_ENDPOINT: LocalStack endpoint URL for local development
-
-        Returns:
-            Tuple[str, int, int, Optional[str]]:
-                (host, port, db, user_from_ssm_or_none)
-
-        Raises:
-            KeyError:
-                If mandatory environment variables are missing.
-            botocore.exceptions.BotoCoreError / ClientError:
-                On AWS SSM API failures.
-            ValueError:
-                If SSM responses are malformed or port/db cannot be cast to int.
-        """
+    def _resolve_ssm_params(ssm_client: BaseClient | None) -> ElastiCacheParameters:
+        """Resolve host, port, db, and optional username from SSM Parameter Store."""
         host_param = os.environ[ELASTICACHE_HOST_PARAM_ENV]
         port_param = os.environ[ELASTICACHE_PORT_PARAM_ENV]
         db_param = os.environ[ELASTICACHE_DB_PARAM_ENV]
@@ -195,7 +110,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
             user = None
             if user_param:
                 user = ssm.get_parameter(Name=user_param)['Parameter']['Value']
-        except KeyError as e:
+        except KeyError as e:  # TODO: turn these into custom exceptions
             raise ValueError('Malformed SSM get_parameter response') from e
 
         try:
@@ -206,31 +121,11 @@ class ElastiCacheClientMixin(RedisClientMixin):
 
         return host, port, db, user
 
+    # TODO: decorate this with @require_environment(LOCALSTACK_ENDPOINT_ENV, local_only=True)
     @staticmethod
     @require_environment(ELASTICACHE_SECRET_ENV)
-    def _resolve_secret(secrets_client: Optional[BaseClient]) -> tuple[Optional[str], str]:
-        """Resolve optional username and required password from Secrets Manager.
-
-        Environment:
-            - ELASTICACHE_SECRET: Secrets Manager name for {"username": "...", "password": "..."}
-            - LOCALSTACK_ENDPOINT: LocalStack endpoint URL for local development
-
-        The secret is expected to be a JSON object with fields:
-            - "username": optional string (commonly None for ElastiCache token auth)
-            - "password": required string (the AuthToken)
-
-        Returns:
-            Tuple[Optional[str], str]:
-                (username_or_none, password)
-
-        Raises:
-            KeyError:
-                If ELASTICACHE_SECRET environment variable is missing.
-            botocore.exceptions.BotoCoreError / ClientError:
-                On AWS Secrets Manager API failures.
-            ValueError:
-                If the secret payload is not valid JSON or missing 'password'.
-        """
+    def _resolve_secret(secrets_client: BaseClient | None) -> ElastiCacheUserSecret:
+        """Resolve optional username and required password from Secrets Manager."""
         secret_name = os.environ[ELASTICACHE_SECRET_ENV]
         # fmt: off
         secrets_client_kwargs = {
@@ -242,7 +137,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
         try:
             raw = sm.get_secret_value(SecretId=secret_name).get('SecretString')
             payload = json.loads(raw or '{}')
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError as e:  # TODO: turn these into custom exceptions
             raise ValueError('Invalid JSON in ElastiCache secret payload') from e
 
         username = payload.get('username')  # optional

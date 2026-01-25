@@ -1,7 +1,7 @@
 import json
 import logging
-from typing import Any
 
+from cloudshortener.types import LambdaEvent, LambdaContext, LambdaResponse
 from cloudshortener.dao.cache import AppConfigCacheDAO
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError, DataStoreError, DAOError
 from cloudshortener.utils.config import app_prefix
@@ -11,7 +11,7 @@ from cloudshortener.lambdas.warm_appconfig_cache.constants import SUCCESS, ERROR
 logger = logging.getLogger(__name__)
 
 
-def response_success(*, appconfig_version: int) -> dict:
+def response_success(*, appconfig_version: int) -> LambdaResponse:
     return json.dumps(
         {
             'status': SUCCESS,
@@ -21,7 +21,7 @@ def response_success(*, appconfig_version: int) -> dict:
     )
 
 
-def response_error(*, error: DAOError | Exception) -> dict:
+def response_error(*, error: DAOError | Exception) -> LambdaResponse:
     return json.dumps(
         {
             'status': ERROR,
@@ -32,8 +32,8 @@ def response_error(*, error: DAOError | Exception) -> dict:
     )
 
 
-def lambda_handler(event: dict, context: Any) -> dict:
-    """Warm ElastiCache with newest AppConfig deployment document
+def lambda_handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse:
+    """Warm ElastiCache with newest AppConfig deployment document.
 
     Diagnostic responses (NOT valid HTTP responses):
         `success`:
