@@ -35,39 +35,16 @@ def response_error(*, error: DAOError | Exception) -> dict:
 def lambda_handler(event: dict, context: Any) -> dict:
     """Warm ElastiCache with newest AppConfig deployment document
 
-    This Lambda handler follows this procedure to shorten URLs:
-    - Step 1: Pull and cache the latest AppConfig deployment document
-    - Step 2: Respond with success or error
-
-    Diagnostic responses:
-        success:
+    Diagnostic responses (NOT valid HTTP responses):
+        `success`:
             status: success
             appconfig_version: <version>
             message: Successfully warmed cache with AppConfig version <version>
-        error:
+        `error`:
             status: error
             message: Failed to warm up cache with latest AppConfig
             reason: <reason>
             error: <error class name> (e.g. CacheMissError, CachePutError, DataStoreError)
-
-    Args:
-        event (dict):
-            EventBridge event payload.
-        context (LambdaContext):
-            AWS Lambda context object containing runtime information.
-
-    Returns:
-        dict:
-            JSON-serializable response in Lambda Proxy format.
-
-    TOOD: Example:
-        >>> response = lambda_handler({}, None)
-        >>> response['status']
-        'success'
-        >>> response['appconfig_version']
-        123
-        >>> response['message']
-        'Successfully warmed cache with AppConfig version 123'
     """
     try:
         # Force pull the latest AppConfig document and cache it

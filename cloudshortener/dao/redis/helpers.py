@@ -8,25 +8,11 @@ from cloudshortener.dao.exceptions import DataStoreError
 
 __all__ = []
 
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar('F', bound=Callable[..., Any])  # TODO: I can just remove this
 
 
 def handle_redis_connection_error[F](method: F) -> F:
-    """Wrap Redis-interacting DAO methods to handle connection errors
-
-    Args:
-        method (Callable[..., Any]):
-            DAO method performing Redis operations which may raise redis.exceptions.ConnectionError.
-
-    Returns:
-        Callable[..., Any]:
-            Wrapped method which raises DataStoreError on connectivity issues with Redis.
-
-    Example:
-        >>> @handle_redis_connection_error
-        ... def get_count(self):
-        ...     return self.redis.get('count')
-    """
+    """Decorator: Transform Redis connection errors into `DataStoreError` exceptions."""
 
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):

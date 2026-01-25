@@ -10,6 +10,9 @@ Logging format:
     "logger": "cloudshortener.utils.logging",
     "message": "Application started"
 }
+
+TODO:
+    - remove this ugly JSON formatting (ditch CloudWatch) and add some sensible logging
 """
 
 import os

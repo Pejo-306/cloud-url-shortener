@@ -1,23 +1,3 @@
-"""Redis mixin providing shared client initialization and connectivity checks.
-
-Responsibilities:
-    - Initialized Redis client
-    - Healthcheck Redis client
-
-Classes:
-    - RedisClientMixin: Base mixin to inject Redis key managemnent, client setup & healthcheck.
-
-Example:
-    Typical usage with a DAO implementation:
-
-        >>> class UserRedisDAO(RedisClientMixin, UserBaseDAO):
-        ...     pass
-        ...
-        >>> dao = UserRedisDAO(prefix="myapp:prod")
-        >>> dao._healthcheck()
-        True
-"""
-
 from typing import Optional
 
 import redis
@@ -29,19 +9,17 @@ from cloudshortener.dao.exceptions import DataStoreError
 class RedisClientMixin:
     """Mixin Redis client setup and health check for Redis-backed DAOs.
 
-    Attributes:
+    You can provide either raw connection parameters or a pre-initialized Redis client instance.
+
+    Public Attributes:
         redis (redis.Redis):
             Active Redis client instance used by subclasses.
 
         keys (RedisKeySchema):
             Helper class for generating namespaced Redis key names.
-
-    Methods:
-        _healthcheck(raise_error: bool = True) -> bool:
-            Ping Redis to verify connectivity.
-            Optionally raise a DataStoreError if unreachable.
     """
 
+    # TODO: change these type hints from Optional to type | None
     def __init__(
         self,
         redis_host: Optional[str] = 'localhost',
@@ -53,40 +31,6 @@ class RedisClientMixin:
         redis_client: Optional[redis.Redis] = None,
         prefix: Optional[str] = None,
     ):
-        """Initialize a Redis-based DAO for short URL management
-
-        The option is given to either use an existing Redis client instance or
-        create one via the appropriate Redis connection parameters.
-
-        Args:
-            redis_host (Optional[str]):
-                Hostname of the Redis server. Defaults to 'localhost'.
-
-            redis_port (Optional[int]):
-                Redis server port. Defaults to 6379.
-
-            redis_db (Optional[int]):
-                Redis database index. Defaults to 0.
-
-            redis_decode_responses (Optional[bool]):
-                If True, decodes Redis responses. Defaults to True.
-
-            redis_username (Optional[str]):
-                Username for Redis authentication (if required).
-
-            redis_password (Optional[str]):
-                Password for Redis authentication (if required).
-
-            redis_client (Optional[redis.Redis]):
-                Pre-initialized Redis client. If None, a new client is created.
-
-            prefix (Optional[str]):
-                Namespace prefix for all Redis keys, e.g. 'app:env'.
-
-        Raises:
-            DataStoreError:
-                If Redis healthcheck fails (connectivity issues).
-        """
         if redis_client is None:
             redis_client = redis.Redis(
                 host=redis_host,
@@ -103,24 +47,6 @@ class RedisClientMixin:
         self._heatlhcheck()
 
     def _heatlhcheck(self, raise_error: bool = True) -> bool:
-        """PING Redis to healthcheck connectivity
-
-        Args:
-            raise_error (bool):
-                If True, raises DataStoreError on failure. Defaults to True.
-
-        Returns:
-            bool:
-                True if Redis is reachable, False otherwise (only if raise_error=False).
-
-        Raises:
-            DataStoreError:
-                If Redis connection cannot be established and raise_error=True.
-
-        Example:
-            >>> self._heatlhcheck()
-            True
-        """
         try:
             self.redis.ping()
         except redis.exceptions.ConnectionError as e:

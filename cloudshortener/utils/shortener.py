@@ -1,11 +1,7 @@
-"""Shortcode generation utility
+"""Shortcode generation algorithm 
 
 This module provides a helper function for generating short, deterministic,
 non-sequential hashes based on a numeric counter and a secret salt value.
-
-Functions:
-    generate_shortcode(counter, salt='default_salt', length=7, mult=1315423911):
-        Generate a short hash suitable for use as a URL slug.
 
 Example:
     >>> from cloudshortener.utils import generate_shortcode
@@ -28,8 +24,8 @@ def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7
     """Generate a short, deterministic URL hash from a counter and salt.
 
     This function encodes a numeric counter into an n-character Base62 string
-    (using A-Z, a-z, 0-9). The counter is salted and wrapped wrapped in modulo
-    BASE^length to ensure fixed-length output.
+    (using A-Z, a-z, 0-9). The counter is salted and wrapped in modulo space
+    `BASE^length` to ensure fixed-length output.
 
     This implementation uses a **multiplicative permutation** over a fixed
     Base62 space to guarantee:
@@ -44,12 +40,10 @@ def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7
 
         salt (str, optional):
             Secret string used to randomize the output space.
-            Defaults to "default_salt".
             Highly recommended to set a custom salt for security.
 
         length (int, optional):
             Minimum length of the resulting hash.
-            Defaults to 7.
 
         mult (int, optional):
             Multiplicative factor for the permutation.
@@ -60,8 +54,8 @@ def generate_shortcode(counter: int, salt: str = 'default_salt', length: int = 7
         str: A short alphanumeric hash derived from the counter and salt.
 
     Example:
-        >>> generate_shortcode(12345, salt='my_secret', length=7)
-        'Gh71WPT'
+        >>> generate_shortcode(12345, salt='my_secret')
+        'ibCJIAD'
 
     NOTE:
         - While the funnction will eventually produce collisions to ensure

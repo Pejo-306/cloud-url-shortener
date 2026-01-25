@@ -105,9 +105,9 @@ def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota:
 
 @guarantee_500_response
 def lambda_handler(event: dict, context: Any) -> dict:
-    """Handle incoming API Gateway requests to shorten URLs
+    """Shorten target URL into a short URL
 
-    This Lambda handler follows this procedure to shorten URLs:
+    Procedure:
     - Step 1: Extract Amazon Cognito user id from Lambda event
     - Step 2: Check if monthly user quota is reached
     - Step 3: Extract original URL from request body
@@ -131,25 +131,6 @@ def lambda_handler(event: dict, context: Any) -> dict:
             message: monthly user quota hit
         500: Internal server error
             message: indicate the server experieced an internal error
-
-    Args:
-        event (dict):
-            API Gateway event payload in Lambda Proxy format.
-        context (LambdaContext):
-            AWS Lambda context object containing runtime information.
-
-    Returns:
-        dict:
-            JSON-serializable response following API Gateway Lambda Proxy
-            output format. Includes status code, headers, and response body.
-
-    Example:
-        >>> event = {'body': '{"target_url": "https://example.com"}'}
-        >>> response = lambda_handler(event, None)
-        >>> response['statusCode']
-        200
-        >>> json.loads(response['body'])['message']
-        Successfully shortened https://example.com to https://mylambda.com/abc123
     """
     # 0- Get application's config
     try:

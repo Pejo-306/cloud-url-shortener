@@ -1,23 +1,3 @@
-"""Runtime utilities
-
-Functions:
-    running_locally() -> bool:
-        True if lambda is running in local SAM, False otherwise.
-    get_user_id(event: dict) -> str | None:
-        Get the user id from the event.
-        If the lambda is running locally, return a random user id.
-        If the lambda is running in a real environment, return the user id from the event.
-
-Example:
-    >>> fromt cloudshortener.utils.runtime import running_locally
-    >>> os.environ['APP_ENV'] = 'local'
-    >>> running_locally()
-    True
-    >>> os.environ['APP_ENV'] = 'dev'
-    >>> running_locally()
-    False
-"""
-
 import os
 import random
 
@@ -25,19 +5,7 @@ from cloudshortener.utils.constants import APP_ENV_ENV, AWS_SAM_LOCAL_ENV
 
 
 def running_locally() -> bool:
-    """Check if the lambda is running locally via sam local invoke
-
-    Returns:
-        bool: True if running locally, False otherwise.
-
-    Example:
-        >>> os.environ['APP_ENV'] = 'local'
-        >>> running_locally()
-        True
-        >>> os.environ['APP_ENV'] = 'dev'
-        >>> running_locally()
-        False
-    """
+    """True if running in SAM local invoke/api, False otherwise"""
     env = os.getenv(APP_ENV_ENV, '').lower()
     return env == 'local' or os.getenv(AWS_SAM_LOCAL_ENV) == 'true'
 

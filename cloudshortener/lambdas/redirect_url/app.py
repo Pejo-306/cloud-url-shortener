@@ -68,9 +68,9 @@ def response_302(*, location: str) -> dict:
 
 @guarantee_500_response
 def lambda_handler(event: dict, context: Any) -> dict:
-    """Handle incoming API Gateway requests to redirect URLs
-
-    This Lambda handler follows this procedure to redirect URLs:
+    """Redirect short URL to original long URL
+    
+    Procedure:
     - Step 1: Extract shortcode from request path
     - Step 2: Hit the link and check if quota is exceeded
     - Step 3: Get short URL record from database
@@ -86,24 +86,6 @@ def lambda_handler(event: dict, context: Any) -> dict:
             message: monthly hit quota exceeded for link
         500: Internal server error
             message: server experienced an internal error
-
-    Args:
-        event (dict):
-            API Gateway event payload containing the shortcode path parameter.
-        context (LambdaContext):
-            AWS Lambda runtime context object (not used directly).
-
-    Returns:
-        dict:
-            API Gateway-compatible response including statusCode, headers, and body.
-
-    Example:
-        >>> event = {'pathParameters': {'shortcode': 'Gh71TCN'}}
-        >>> response = lambda_handler(event, None)
-        >>> response['statusCode']
-        302
-        >>> response['headers']['Location']
-        'https://example.com/my-page'
     """
     # 0- Get application's config
     try:
@@ -125,7 +107,6 @@ def lambda_handler(event: dict, context: Any) -> dict:
         return response_400(message="missing 'shortcode' in path", error_code=MISSING_SHORTCODE)
     logger.debug('Client requested short URL %s.', get_short_url(shortcode, event))
 
-    # Create DAO class to access short URL records
     short_url_dao = ShortURLRedisDAO(**redis_config, prefix=app_prefix())
 
     # 2- Hit the link and check if quota is exceeded
