@@ -1,504 +1,368 @@
-"""Unit tests for the AppConfigCacheDAO.
-
-This test suite verifies the Redis-backed caching behavior for AWS AppConfig
-documents, including cache HIT/MISS flows, optional fetch-and-warm on MISS,
-and error handling.
-
-Test coverage includes:
-    1. Latest document retrieval
-       - Returns cached latest document on HIT
-       - Raises CacheMissError on MISS with pull=False
-       - Fetches from AppConfig and warms cache on MISS with pull=True
-    2. Versioned document retrieval
-       - Returns cached versioned document on HIT
-       - Raises CacheMissError on MISS with pull=False
-       - Fetches specific version and warms cache on MISS with pull=True
-    3. Versioned metadata retrieval
-       - Returns cached metadata on HIT
-       - Raises CacheMissError on MISS with pull=False
-       - Fetches specific version metadata and warms cache on MISS with pull=True
-    4. Latest version retrieval
-       - Returns cached version on HIT
-       - Raises CacheMissError on MISS with pull=False
-       - Fetches latest version from AppConfig and warms cache on MISS with pull=True
-    5. Cache write failures
-       - Raises CachePutError if Redis write fails during warm-up
-    6. Environment validation
-       - Raises ValueError when required AppConfig env vars are missing for fetches
-    7. Force pull
-       - Always fetches the latest AppConfig document and caches it
-"""
-
 import json
 from io import BytesIO
+from typing import cast
 from unittest.mock import MagicMock, call
 
 import pytest
 import redis
+from pytest import MonkeyPatch
 from freezegun import freeze_time
 
+from cloudshortener.types import AppConfig, AppConfigMetadata, AppConfigDataClient, AppConfigClient
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.cache.appconfig_cache_dao import AppConfigCacheDAO
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
+from cloudshortener.utils.constants import APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV
 
 
-# Manually defined here to ensure changing the constant breaks the tests
-COOL_TTL = 7 * 24 * 60 * 60  # 7 days * 24 hours * 60 minutes * 60 seconds = 7 days
+COOL_TTL = 7 * 24 * 60 * 60
 
 
-# -------------------------------
-# Autouse environment
-# -------------------------------
+class TestAppConfigCacheDAO:
 
+    @pytest.fixture(autouse=True)
+    def _env(self, monkeypatch: MonkeyPatch) -> None:
+        monkeypatch.setenv(APPCONFIG_APP_ID_ENV, 'app123')
+        monkeypatch.setenv(APPCONFIG_ENV_ID_ENV, 'env123')
+        monkeypatch.setenv(APPCONFIG_PROFILE_ID_ENV, 'prof123')
 
-@pytest.fixture(autouse=True)
-def _env(monkeypatch):
-    """Set up environment variables for testing."""
-    # AppConfig env vars
-    monkeypatch.setenv('APPCONFIG_APP_ID', 'app123')
-    monkeypatch.setenv('APPCONFIG_ENV_ID', 'env123')
-    monkeypatch.setenv('APPCONFIG_PROFILE_ID', 'prof123')
-
-    # ElastiCache env vars (not used directly in these tests, but kept consistent)
-    monkeypatch.setenv('ELASTICACHE_HOST_PARAM', '/test/elasticache/host')
-    monkeypatch.setenv('ELASTICACHE_PORT_PARAM', '/test/elasticache/port')
-    monkeypatch.setenv('ELASTICACHE_DB_PARAM', '/test/elasticache/db')
-    monkeypatch.setenv('ELASTICACHE_USER_PARAM', '/test/elasticache/user')
-    monkeypatch.setenv('ELASTICACHE_SECRET', 'test/elasticache/creds')
-
-
-# -------------------------------
-# Default AppConfig document and metadata
-# -------------------------------
-
-
-@pytest.fixture
-def default_appconfig_doc():
-    return {
-        'active_backend': 'redis',
-        'configs': {
-            'shorten_url': {
-                'redis': {
-                    'host': 'localtest',
-                    'port': 96379,
-                    'db': 42,
-                }
+    @pytest.fixture
+    def default_appconfig_doc(self) -> AppConfig:
+        return cast(AppConfig, {
+            'active_backend': 'redis',
+            'configs': {
+                'shorten_url': {
+                    'redis': {
+                        'host': 'localtest',
+                        'port': 96379,
+                        'db': 42,
+                    }
+                },
+                'redirect_url': {
+                    'redis': {
+                        'host': 'localtest',
+                        'port': 66379,
+                        'db': 24,
+                    }
+                },
             },
-            'redirect_url': {
-                'redis': {
-                    'host': 'localtest',
-                    'port': 66379,
-                    'db': 24,
-                }
+        })
+
+    @pytest.fixture
+    def default_appconfig_metadata(self) -> AppConfigMetadata:
+        return cast(AppConfigMetadata, {
+            'version': 42,
+            'etag': 'W/"etag-latest"',
+            'content_type': 'application/json',
+            'fetched_at': '2025-01-03T00:00:00+00:00',
+        })
+
+    @pytest.fixture
+    def appconfigdata_client(
+        self,
+        default_appconfig_doc: AppConfig,
+        default_appconfig_metadata: AppConfigMetadata,
+    ) -> AppConfigDataClient:
+        client = MagicMock()
+        client.start_configuration_session.return_value = {'InitialConfigurationToken': 'token-xyz'}
+        client.get_latest_configuration.return_value = {
+            'Configuration': BytesIO(json.dumps(default_appconfig_doc).encode('utf-8')),
+            'ContentType': 'application/json',
+            'ResponseMetadata': {
+                'HTTPHeaders': {
+                    'configuration-version': str(default_appconfig_metadata['version']),
+                    'etag': default_appconfig_metadata['etag'],
+                },
             },
-        },
-    }
+        }
+        return client
 
-
-@pytest.fixture
-def default_appconfig_metadata():
-    return {
-        'version': 42,
-        'etag': 'W/"etag-latest"',
-        'content_type': 'application/json',
-        'fetched_at': '2025-01-03T00:00:00+00:00',
-    }
-
-
-# -------------------------------
-# Global boto3 client mocks
-# -------------------------------
-
-
-@pytest.fixture
-def appconfigdata_client(default_appconfig_doc, default_appconfig_metadata):
-    """Mock AppConfigData client used for fetching 'latest'."""
-    client = MagicMock()
-    client.start_configuration_session.return_value = {'InitialConfigurationToken': 'token-xyz'}
-    client.get_latest_configuration.return_value = {
-        'Configuration': BytesIO(json.dumps(default_appconfig_doc).encode('utf-8')),
-        'ContentType': 'application/json',
-        'ResponseMetadata': {
-            'HTTPHeaders': {
-                'configuration-version': str(default_appconfig_metadata['version']),
-                'etag': default_appconfig_metadata['etag'],
+    @pytest.fixture
+    def appconfig_client(
+        self,
+        default_appconfig_doc: AppConfig,
+        default_appconfig_metadata: AppConfigMetadata,
+    ) -> AppConfigClient:
+        client = MagicMock()
+        client.get_hosted_configuration_version.return_value = {
+            'Content': BytesIO(json.dumps(default_appconfig_doc).encode('utf-8')),
+            'ContentType': 'application/json',
+            'ResponseMetadata': {
+                'HTTPHeaders': {
+                    'configuration-version': str(default_appconfig_metadata['version']),
+                    'etag': default_appconfig_metadata['etag'],
+                },
             },
-        },
-    }
-    return client
-
-
-@pytest.fixture
-def appconfig_client(default_appconfig_doc, default_appconfig_metadata):
-    """Mock AppConfig control-plane client used for fetching specific versions."""
-    client = MagicMock()
-    client.get_hosted_configuration_version.return_value = {
-        'Content': BytesIO(json.dumps(default_appconfig_doc).encode('utf-8')),
-        'ContentType': 'application/json',
-        'ResponseMetadata': {
-            'HTTPHeaders': {
-                'configuration-version': str(default_appconfig_metadata['version']),
-                'etag': default_appconfig_metadata['etag'],
-            },
-        },
-    }
-    return client
-
-
-@pytest.fixture(autouse=True)
-def _boto3_client(monkeypatch, appconfigdata_client, appconfig_client):
-    """Monkeypatch boto3.client globally for this test module."""
-    import boto3 as _boto3
-
-    def _client(service_name: str, *args, **kwargs):
-        if service_name == 'appconfigdata':
-            return appconfigdata_client
-        if service_name == 'appconfig':
-            return appconfig_client
-        raise AssertionError(f'Unexpected boto3 client requested: {service_name}')
-
-    monkeypatch.setattr(_boto3, 'client', _client)
-
-
-# -------------------------------
-# Fixtures
-# -------------------------------
-
-
-@pytest.fixture
-def app_prefix():
-    """Provide a consistent Redis key prefix for testing."""
-    return 'testapp:test'
-
-
-@pytest.fixture
-def redis_client():
-    """Mock a Redis client with pipeline support."""
-    client = MagicMock(spec=redis.Redis)
-
-    pipe = MagicMock()
-    pipe.__enter__.return_value = pipe
-    pipe.__exit__.return_value = None
-    # By default, pipeline.execute() succeeds
-    pipe.execute.return_value = None
-
-    client.pipeline.return_value = pipe
-    client.get.return_value = None  # default: cache MISS
-
-    # Expose pipe for assertions where needed
-    client._pipe = pipe
-    return client
-
-
-@pytest.fixture
-def dao(redis_client, app_prefix):
-    """Instantiate AppConfigCacheDAO with injected redis client and key schema."""
-    _dao = object.__new__(AppConfigCacheDAO)  # bypass mixin/network init
-    _dao.redis = redis_client
-    _dao.keys = CacheKeySchema(prefix=app_prefix)
-    _dao.ttl = COOL_TTL
-    return _dao
-
-
-# -------------------------------
-# 1. Latest document retrieval
-# -------------------------------
-
-
-def test_latest_cache_hit_returns_document(dao, redis_client, default_appconfig_doc):
-    """Ensure latest() returns cached document on HIT."""
-    redis_client.get.return_value = json.dumps(default_appconfig_doc)
-
-    result = dao.latest(pull=False)
-
-    assert isinstance(result, dict)
-    assert result['active_backend'] == 'redis'
-    assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
-    assert result['configs']['shorten_url']['redis']['port'] == 96379
-    assert result['configs']['shorten_url']['redis']['db'] == 42
-    assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
-    assert result['configs']['redirect_url']['redis']['port'] == 66379
-    assert result['configs']['redirect_url']['redis']['db'] == 24
-
-    redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:latest')
-
-
-def test_latest_cache_miss_with_pull_false_raises(dao, redis_client):
-    """Ensure latest() raises CacheMissError on MISS when pull=False."""
-    redis_client.get.return_value = None
-    with pytest.raises(CacheMissError, match='latest'):
-        dao.latest(pull=False)
-
-
-@freeze_time('2025-01-03T00:00:00Z')
-def test_latest_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
-    """Ensure latest() fetches from AppConfig and warms cache on MISS with pull=True."""
-    # fmt: off
-    expected_calls = [
-        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-    ]
-    # fmt: on
-    redis_client.get.return_value = None
-
-    result = dao.latest(pull=True)
-
-    # Verify returned document
-    assert isinstance(result, dict)
-    assert result['active_backend'] == 'redis'
-    assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
-    assert result['configs']['shorten_url']['redis']['port'] == 96379
-    assert result['configs']['shorten_url']['redis']['db'] == 42
-    assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
-    assert result['configs']['redirect_url']['redis']['port'] == 66379
-    assert result['configs']['redirect_url']['redis']['db'] == 24
-
-    # Verify warm-up writes: v{n}, v{n}:metadata, latest, latest:metadata
-    pipe = redis_client._pipe
-    assert pipe.set.call_count == 4
-    pipe.set.assert_has_calls(expected_calls)
-    pipe.execute.assert_called_once()
-
-
-# -------------------------------
-# 2. Versioned document retrieval
-# -------------------------------
-
-
-def test_get_version_cache_hit_returns_document(dao, redis_client, default_appconfig_doc):
-    """Ensure get(version) returns cached document on HIT."""
-    redis_client.get.return_value = json.dumps(default_appconfig_doc)
-
-    result = dao.get(42, pull=False)
-
-    assert isinstance(result, dict)
-    assert result['active_backend'] == 'redis'
-    assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
-    assert result['configs']['shorten_url']['redis']['port'] == 96379
-    assert result['configs']['shorten_url']['redis']['db'] == 42
-    assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
-    assert result['configs']['redirect_url']['redis']['port'] == 66379
-    assert result['configs']['redirect_url']['redis']['db'] == 24
-
-    redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:v42')
-
-
-def test_get_version_cache_miss_with_pull_false_raises(dao, redis_client):
-    """Ensure get(version) raises CacheMissError on MISS when pull=False."""
-    redis_client.get.return_value = None
-    with pytest.raises(CacheMissError, match='v42'):
-        dao.get(42, pull=False)
-
-
-@freeze_time('2025-01-03T00:00:00Z')
-def test_get_version_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
-    """Ensure get(version) fetches specific version and warms cache on MISS with pull=True."""
-    written_appconfig_metadata = default_appconfig_metadata.copy()
-    written_appconfig_metadata['version'] = 9
-    # fmt: off
-    expected_calls = [
-        call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-    ]
-    # fmt: on
-    redis_client.get.return_value = None
-
-    result = dao.get(9, pull=True)
-
-    # Verify returned document
-    assert isinstance(result, dict)
-    assert result['active_backend'] == 'redis'
-    assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
-    assert result['configs']['shorten_url']['redis']['port'] == 96379
-    assert result['configs']['shorten_url']['redis']['db'] == 42
-    assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
-    assert result['configs']['redirect_url']['redis']['port'] == 66379
-    assert result['configs']['redirect_url']['redis']['db'] == 24
-
-    # Verify warm-up writes: v{n}, v{n}:metadata, and latest
-    pipe = redis_client._pipe
-    assert pipe.set.call_count == 2
-    pipe.set.assert_has_calls(expected_calls)
-    pipe.execute.assert_called_once()
-
-
-# -------------------------------
-# 3. Versioned metadata retrieval
-# -------------------------------
-
-
-def test_metadata_cache_hit_returns_metadata(dao, redis_client, default_appconfig_metadata):
-    """Ensure metadata(version) returns cached metadata on HIT."""
-    redis_client.get.return_value = json.dumps(default_appconfig_metadata)
-
-    result = dao.metadata(42, pull=False)
-
-    assert isinstance(result, dict)
-    assert result['version'] == 42
-    assert result['etag'] == 'W/"etag-latest"'
-    assert result['content_type'] == 'application/json'
-    assert result['fetched_at'] == '2025-01-03T00:00:00+00:00'
-
-    redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:v42:metadata')
-
-
-def test_metadata_cache_miss_with_pull_false_raises(dao, redis_client):
-    """Ensure metadata(version) raises CacheMissError on MISS when pull=False."""
-    redis_client.get.return_value = None
-    with pytest.raises(CacheMissError, match='metadata'):
-        dao.metadata(11, pull=False)
-
-
-@freeze_time('2025-01-03T00:00:00Z')
-def test_metadata_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
-    """Ensure metadata(version) fetches and warms cache on MISS with pull=True."""
-    written_appconfig_metadata = default_appconfig_metadata.copy()
-    written_appconfig_metadata['version'] = 9
-    # fmt: off
-    expected_calls = [
-        call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-    ]
-    # fmt: on
-    redis_client.get.return_value = None
-
-    result = dao.metadata(9, pull=True)
-
-    # Verify returned document
-    assert isinstance(result, dict)
-    assert result['version'] == 9
-    assert result['etag'] == 'W/"etag-latest"'
-    assert result['content_type'] == 'application/json'
-    assert result['fetched_at'] == '2025-01-03T00:00:00+00:00'
-
-    # Verify warm-up writes: v{n}, v{n}:metadata, and latest
-    pipe = redis_client._pipe
-    assert pipe.set.call_count == 2
-    pipe.set.assert_has_calls(expected_calls)
-    pipe.execute.assert_called_once()
-
-
-# -------------------------------
-# 4. Latest version retrieval
-# -------------------------------
-
-
-def test_version_cache_hit_returns_version(dao, redis_client, default_appconfig_metadata):
-    """Ensure version() returns cached version on HIT."""
-    redis_client.get.return_value = json.dumps(default_appconfig_metadata)
-
-    result = dao.version(pull=False)
-    assert result == 42
-
-    redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:latest:metadata')
-
-
-def test_version_cache_miss_with_pull_false_raises(dao, redis_client):
-    """Ensure version() raises CacheMissError on MISS when pull=False."""
-    redis_client.get.return_value = None
-    with pytest.raises(CacheMissError, match='latest'):
-        dao.version(pull=False)
-
-
-@freeze_time('2025-01-03T00:00:00Z')
-def test_version_cache_miss_with_pull_true_fetches_and_writes(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
-    """Ensure version() fetches latest version from AppConfig on cache MISS."""
-    # fmt: off
-    expected_calls = [
-        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-    ]
-    # fmt: on
-    redis_client.get.return_value = None
-
-    result = dao.version(pull=True)
-    assert result == 42
-
-    # Verify warm-up writes: v{n}, v{n}:metadata, latest, latest:metadata
-    pipe = redis_client._pipe
-    assert pipe.set.call_count == 4
-    pipe.set.assert_has_calls(expected_calls)
-    pipe.execute.assert_called_once()
-
-
-# -------------------------------
-# 5. Cache write failures
-# -------------------------------
-
-
-def test_cache_put_error_when_pipeline_execute_fails(dao, redis_client, appconfig_client):
-    """Ensure CachePutError is raised when Redis write fails during warm-up."""
-    # Cause the pipeline execute to fail
-    redis_client.get.return_value = None
-    redis_client._pipe.execute.side_effect = redis.exceptions.ConnectionError('Connection error')
-
-    with pytest.raises(CachePutError, match='Failed to write AppConfig v42'):
-        dao.get(42, pull=True)
-
-
-# -------------------------------
-# 6. Environment validation
-# -------------------------------
-
-
-def test_fetch_latest_env_validation_missing_vars(dao, monkeypatch):
-    """Ensure _fetch_latest_appconfig() validates required env vars."""
-    monkeypatch.delenv('APPCONFIG_ENV_ID', raising=False)
-    expected_message = "Missing required environment variables: 'APPCONFIG_ENV_ID'"
-    with pytest.raises(KeyError, match=expected_message):
-        dao.latest(pull=True)
-
-
-def test_fetch_version_env_validation_missing_vars(dao, monkeypatch):
-    """Ensure _fetch_appconfig() validates required env vars."""
-    monkeypatch.delenv('APPCONFIG_PROFILE_ID', raising=False)
-    expected_message = "Missing required environment variables: 'APPCONFIG_PROFILE_ID'"
-    with pytest.raises(KeyError, match=expected_message):
-        dao.get(42, pull=True)
-
-
-# -------------------------------
-# 7. Force pull
-# -------------------------------
-
-
-@freeze_time('2025-01-03T00:00:00Z')
-def test_force_pull_latest(dao, redis_client, default_appconfig_doc, default_appconfig_metadata):
-    """Ensure force=True always fetches the latest AppConfig document and caches it."""
-    # Simulate cache HIT that should be ignored
-    redis_client.get.return_value = json.dumps({'stale': 'data'})
-
-    # fmt: off
-    expected_calls = [
-        call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-        call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-    ]
-    # fmt: on
-
-    result = dao.latest(force=True)
-
-    # Returned document must be the freshly fetched one, not cached
-    assert isinstance(result, dict)
-    assert result == default_appconfig_doc
-    assert result['active_backend'] == 'redis'
-    assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
-    assert result['configs']['shorten_url']['redis']['port'] == 96379
-    assert result['configs']['shorten_url']['redis']['db'] == 42
-    assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
-    assert result['configs']['redirect_url']['redis']['port'] == 66379
-    assert result['configs']['redirect_url']['redis']['db'] == 24
-
-    # Verify no cache reads were attempted
-    redis_client.get.assert_not_called()
-
-    # Verify warm-up writes: v{n}, v{n}:metadata, latest, latest:metadata
-    pipe = redis_client._pipe
-    assert pipe.set.call_count == 4
-    pipe.set.assert_has_calls(expected_calls)
-    pipe.execute.assert_called_once()
+        }
+        return client
+
+    @pytest.fixture(autouse=True)
+    def boto3_client(
+        self,
+        monkeypatch: MonkeyPatch,
+        appconfigdata_client: AppConfigDataClient,
+        appconfig_client: AppConfigClient,
+    ) -> None:
+        import boto3 as _boto3
+
+        def _client(service_name: str, *args, **kwargs):
+            if service_name == 'appconfigdata':
+                return appconfigdata_client
+            if service_name == 'appconfig':
+                return appconfig_client
+            raise AssertionError(f'Unexpected boto3 client requested: {service_name}')
+
+        monkeypatch.setattr(_boto3, 'client', _client)
+
+    @pytest.fixture
+    def dao(self, redis_client: redis.Redis, app_prefix: str) -> AppConfigCacheDAO:
+        _dao = object.__new__(AppConfigCacheDAO)
+        _dao.redis = redis_client
+        _dao.keys = CacheKeySchema(prefix=app_prefix)
+        _dao.ttl = COOL_TTL
+        return _dao
+
+    @pytest.fixture(autouse=True)
+    def setup(self, dao: AppConfigCacheDAO, redis_client: redis.Redis) -> None:
+        self.dao = dao
+        self.redis_client = redis_client
+
+    def test_latest_cache_hit_returns_document(self, default_appconfig_doc: AppConfig):
+        self.redis_client.get.return_value = json.dumps(default_appconfig_doc)
+
+        result = self.dao.latest(pull=False)
+
+        assert isinstance(result, dict)
+        assert result['active_backend'] == 'redis'
+        assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
+        assert result['configs']['shorten_url']['redis']['port'] == 96379
+        assert result['configs']['shorten_url']['redis']['db'] == 42
+        assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
+        assert result['configs']['redirect_url']['redis']['port'] == 66379
+        assert result['configs']['redirect_url']['redis']['db'] == 24
+
+        self.redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:latest')
+
+    def test_latest_cache_miss_with_pull_false_raises(self):
+        self.redis_client.get.return_value = None
+        with pytest.raises(CacheMissError, match='latest'):
+            self.dao.latest(pull=False)
+
+    @freeze_time('2025-01-03T00:00:00Z')
+    def test_latest_cache_miss_with_pull_true_fetches_and_writes(
+        self,
+        default_appconfig_doc: AppConfig,
+        default_appconfig_metadata: AppConfigMetadata,
+    ):
+        # fmt: off
+        expected_calls = [
+            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        ]
+        # fmt: on
+        self.redis_client.get.return_value = None
+
+        result = self.dao.latest(pull=True)
+
+        assert isinstance(result, dict)
+        assert result['active_backend'] == 'redis'
+        assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
+        assert result['configs']['shorten_url']['redis']['port'] == 96379
+        assert result['configs']['shorten_url']['redis']['db'] == 42
+        assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
+        assert result['configs']['redirect_url']['redis']['port'] == 66379
+        assert result['configs']['redirect_url']['redis']['db'] == 24
+
+        assert self.redis_client.set.call_count == 4
+        self.redis_client.set.assert_has_calls(expected_calls)
+        self.redis_client.execute.assert_called_once()
+
+    def test_get_version_cache_hit_returns_document(self, default_appconfig_doc: AppConfig):
+        self.redis_client.get.return_value = json.dumps(default_appconfig_doc)
+
+        result = self.dao.get(42, pull=False)
+
+        assert isinstance(result, dict)
+        assert result['active_backend'] == 'redis'
+        assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
+        assert result['configs']['shorten_url']['redis']['port'] == 96379
+        assert result['configs']['shorten_url']['redis']['db'] == 42
+        assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
+        assert result['configs']['redirect_url']['redis']['port'] == 66379
+        assert result['configs']['redirect_url']['redis']['db'] == 24
+
+        self.redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:v42')
+
+    def test_get_version_cache_miss_with_pull_false_raises(self):
+        self.redis_client.get.return_value = None
+        with pytest.raises(CacheMissError, match='v42'):
+            self.dao.get(42, pull=False)
+
+    @freeze_time('2025-01-03T00:00:00Z')
+    def test_get_version_cache_miss_with_pull_true_fetches_and_writes(
+        self,
+        default_appconfig_doc: AppConfig,
+        default_appconfig_metadata: AppConfigMetadata,
+    ):
+        written_appconfig_metadata = cast(AppConfigMetadata, default_appconfig_metadata.copy())
+        written_appconfig_metadata['version'] = 9
+        # fmt: off
+        expected_calls = [
+            call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        ]
+        # fmt: on
+        self.redis_client.get.return_value = None
+
+        result = self.dao.get(9, pull=True)
+
+        assert isinstance(result, dict)
+        assert result['active_backend'] == 'redis'
+        assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
+        assert result['configs']['shorten_url']['redis']['port'] == 96379
+        assert result['configs']['shorten_url']['redis']['db'] == 42
+        assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
+        assert result['configs']['redirect_url']['redis']['port'] == 66379
+        assert result['configs']['redirect_url']['redis']['db'] == 24
+
+        assert self.redis_client.set.call_count == 2
+        self.redis_client.set.assert_has_calls(expected_calls)
+        self.redis_client.execute.assert_called_once()
+
+    def test_metadata_cache_hit_returns_metadata(self, default_appconfig_metadata):
+        self.redis_client.get.return_value = json.dumps(default_appconfig_metadata)
+
+        result = self.dao.metadata(42, pull=False)
+
+        assert isinstance(result, dict)
+        assert result['version'] == 42
+        assert result['etag'] == 'W/"etag-latest"'
+        assert result['content_type'] == 'application/json'
+        assert result['fetched_at'] == '2025-01-03T00:00:00+00:00'
+
+        self.redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:v42:metadata')
+
+    def test_metadata_cache_miss_with_pull_false_raises(self):
+        self.redis_client.get.return_value = None
+        with pytest.raises(CacheMissError, match='metadata'):
+            self.dao.metadata(11, pull=False)
+
+    @freeze_time('2025-01-03T00:00:00Z')
+    def test_metadata_cache_miss_with_pull_true_fetches_and_writes(
+        self,
+        default_appconfig_doc: AppConfig,
+        default_appconfig_metadata: AppConfigMetadata,
+    ):
+        written_appconfig_metadata = cast(AppConfigMetadata, default_appconfig_metadata.copy())
+        written_appconfig_metadata['version'] = 9
+        # fmt: off
+        expected_calls = [
+            call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        ]
+        # fmt: on
+        self.redis_client.get.return_value = None
+
+        result = self.dao.metadata(9, pull=True)
+
+        assert isinstance(result, dict)
+        assert result['version'] == 9
+        assert result['etag'] == 'W/"etag-latest"'
+        assert result['content_type'] == 'application/json'
+        assert result['fetched_at'] == '2025-01-03T00:00:00+00:00'
+
+        assert self.redis_client.set.call_count == 2
+        self.redis_client.set.assert_has_calls(expected_calls)
+        self.redis_client.execute.assert_called_once()
+
+    def test_version_cache_hit_returns_version(self, default_appconfig_metadata: AppConfigMetadata):
+        self.redis_client.get.return_value = json.dumps(default_appconfig_metadata)
+
+        result = self.dao.version(pull=False)
+        assert result == 42
+
+        self.redis_client.get.assert_called_once_with('cache:testapp:test:appconfig:latest:metadata')
+
+    def test_version_cache_miss_with_pull_false_raises(self):
+        self.redis_client.get.return_value = None
+        with pytest.raises(CacheMissError, match='latest'):
+            self.dao.version(pull=False)
+
+    @freeze_time('2025-01-03T00:00:00Z')
+    def test_version_cache_miss_with_pull_true_fetches_and_writes(
+        self,
+        default_appconfig_doc: AppConfig,
+        default_appconfig_metadata: AppConfigMetadata,
+    ):
+        # fmt: off
+        expected_calls = [
+            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        ]
+        # fmt: on
+        self.redis_client.get.return_value = None
+
+        result = self.dao.version(pull=True)
+        assert result == 42
+
+        assert self.redis_client.set.call_count == 4
+        self.redis_client.set.assert_has_calls(expected_calls)
+        self.redis_client.execute.assert_called_once()
+
+    def test_cache_put_error_when_pipeline_execute_fails(self):
+        self.redis_client.get.return_value = None
+        self.redis_client.execute.side_effect = redis.exceptions.ConnectionError('Connection error')
+
+        with pytest.raises(CachePutError, match='Failed to write AppConfig v42'):
+            self.dao.get(42, pull=True)
+    
+    def test_fetch_latest_env_validation_missing_vars(self, monkeypatch: MonkeyPatch):
+        monkeypatch.delenv(APPCONFIG_ENV_ID_ENV, raising=False)
+        expected_message = "Missing required environment variables: 'APPCONFIG_ENV_ID'"
+        with pytest.raises(KeyError, match=expected_message):
+            self.dao.latest(pull=True)
+
+    def test_fetch_version_env_validation_missing_vars(self, monkeypatch: MonkeyPatch):
+        monkeypatch.delenv(APPCONFIG_PROFILE_ID_ENV, raising=False)
+        expected_message = "Missing required environment variables: 'APPCONFIG_PROFILE_ID'"
+        with pytest.raises(KeyError, match=expected_message):
+            self.dao.get(42, pull=True)
+
+    @freeze_time('2025-01-03T00:00:00Z')
+    def test_force_pull_latest(
+        self,
+        default_appconfig_doc: AppConfig,
+        default_appconfig_metadata: AppConfigMetadata,
+    ):
+        self.redis_client.get.return_value = json.dumps({'stale': 'data'})
+
+        # fmt: off
+        expected_calls = [
+            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+        ]
+        # fmt: on
+
+        result = self.dao.latest(force=True)
+
+        assert isinstance(result, dict)
+        assert result == default_appconfig_doc
+        assert result['active_backend'] == 'redis'
+        assert result['configs']['shorten_url']['redis']['host'] == 'localtest'
+        assert result['configs']['shorten_url']['redis']['port'] == 96379
+        assert result['configs']['shorten_url']['redis']['db'] == 42
+        assert result['configs']['redirect_url']['redis']['host'] == 'localtest'
+        assert result['configs']['redirect_url']['redis']['port'] == 66379
+        assert result['configs']['redirect_url']['redis']['db'] == 24
+
+        self.redis_client.get.assert_not_called()
+
+        assert self.redis_client.set.call_count == 4
+        self.redis_client.set.assert_has_calls(expected_calls)
+        self.redis_client.execute.assert_called_once()

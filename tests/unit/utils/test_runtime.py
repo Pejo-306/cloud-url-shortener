@@ -1,9 +1,4 @@
-"""Unit tests for runtime utilities in runtime.py.
-
-Test coverage includes:
-    1. running_locally() behavior
-    2. get_user_id() behavior
-"""
+"""Unit tests for runtime utilities in runtime.py."""
 
 import re
 import pytest
@@ -21,7 +16,6 @@ from cloudshortener.utils.constants import APP_ENV_ENV, AWS_SAM_LOCAL_ENV
     ],
 )
 def test_running_locally(monkeypatch, app_env, sam_flag, expected):
-    """running_locally() evaluates local execution correctly."""
     monkeypatch.setenv(APP_ENV_ENV, app_env)
 
     if sam_flag is None:

@@ -1,59 +1,20 @@
-"""Unit tests for the shorten_url AWS Lambda handler.
-
-Verify that the Lambda correctly handles incoming API Gateway events,
-interacts with the DAO layer, and returns proper HTTP responses in both
-success and error scenarios.
-
-Test coverage includes:
-    1. Successful shortening
-       - Ensures the Lambda generates and returns valid short URLs (HTTP 200).
-    2. Invalid JSON body
-       - Ensures malformed request bodies return HTTP 400 with descriptive messages.
-    3. Missing `target_url` key
-       - Ensures requests missing the required field return HTTP 400.
-    4. Configuration errors
-       - Ensures missing or unreadable config files raise HTTP 500 responses.
-    5. Short URL already exists
-       - Ensure lambda won't overwrite an existing short URL and raise HTTP 409.
-    6. Monthly user quota hit
-       - Ensure lambda won't create a short URL if the user has hit their quota.
-    7. Unauthorized access attempt
-       - Ensure lambda only runs if the event provides Amazon Cognito information
-         about the user.
-
-Fixtures:
-    - `apigw_event`: generic API Gateway event structure.
-    - `successful_event_200`: valid request body for URL shortening.
-    - `bad_request_400`: malformed JSON input.
-    - `bad_request_400_no_target_url`: valid JSON missing `target_url`.
-    - `context`: mock AWS Lambda context object.
-    - `config`: application configuration mock.
-    - `base_url`: mocked base URL used in response construction.
-    - `short_url_dao`: mock DAO implementing ShortURLBaseDAO.
-    - `user_dao`: mock DAO implementing UserBaseDAO.
-    - `_patch_lambda_dependencies`: autouse fixture that monkeypatches app dependencies
-      (config, DAO, shortcode generator, and base URL).
-"""
-
 import json
-from unittest.mock import MagicMock, patch
+from typing import cast
+from unittest.mock import MagicMock
 
 import pytest
+from pytest import MonkeyPatch
 
+from cloudshortener.types import LambdaEvent, LambdaContext, LambdaConfiguration
 from cloudshortener.lambdas.shorten_url import app
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO, UserBaseDAO
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
 
 
-# -------------------------------
-# Fixtures
-# -------------------------------
-
-
-@pytest.fixture()
-def apigw_event():
-    return {
+@pytest.fixture
+def apigw_event() -> LambdaEvent:
+    return cast(LambdaEvent, {
         'body': '{ "test": "body"}',
         'resource': '/{proxy+}',
         'requestContext': {'resourcePath': '/{proxy+}', 'httpMethod': 'POST'},
@@ -69,12 +30,12 @@ def apigw_event():
                 'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
             },
         },
-    }
+    })
 
 
-@pytest.fixture()
-def successful_event_200():
-    return {
+@pytest.fixture
+def successful_event_200() -> LambdaEvent:
+    return cast(LambdaEvent, {
         'body': json.dumps({'target_url': 'https://example.com/blog/chuck-norris-is-awesome'}),
         'resource': '/v1/shorten',
         'requestContext': {'resourcePath': '/v1/shorten', 'httpMethod': 'POST'},
@@ -90,11 +51,11 @@ def successful_event_200():
                 'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
             },
         },
-    }
+    })
 
 
-@pytest.fixture()
-def bad_request_400():
+@pytest.fixture
+def bad_request_400() -> LambdaEvent:
     return {
         'body': '{"invalid_json": true',
         'resource': '/v1/shorten',
@@ -113,9 +74,9 @@ def bad_request_400():
     }
 
 
-@pytest.fixture()
-def bad_request_400_no_target_url():
-    return {
+@pytest.fixture
+def bad_request_400_no_target_url() -> LambdaEvent:
+    return cast(LambdaEvent, {
         'body': json.dumps({'invalid_json': True}),
         'resource': '/v1/shorten',
         'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
@@ -130,164 +91,132 @@ def bad_request_400_no_target_url():
                 'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
             },
         },
-    }
+    })
 
 
-@pytest.fixture()
-def context():
-    class _Context:
-        function_name = 'shorten_url'
+class TestShortenUrlHandler:
 
-    return _Context()
+    @pytest.fixture
+    def context(self) -> LambdaContext:
+        return cast(LambdaContext, {'function_name': 'shorten_url'})
 
+    @pytest.fixture
+    def config(self) -> LambdaConfiguration:
+        return cast(LambdaConfiguration, {'redis': {'host': 'redis.test', 'port': 6379, 'db': 0}})
 
-@pytest.fixture()
-def config():
-    return {'redis': {'host': 'redis.test', 'port': 6379, 'db': 0}}
+    @pytest.fixture
+    def short_url_dao(self) -> ShortURLBaseDAO:
+        return cast(ShortURLBaseDAO, MagicMock(spec=ShortURLBaseDAO))
 
+    @pytest.fixture
+    def user_dao(self) -> UserBaseDAO:
+        dao = cast(UserBaseDAO, MagicMock(spec=UserBaseDAO))
+        dao.quota.return_value = 10
+        dao.increment_quota.return_value = 11
+        return dao
 
-@pytest.fixture()
-def short_url_dao():
-    return MagicMock(spec=ShortURLBaseDAO)
+    @pytest.fixture(autouse=True)
+    def setup(
+        self,
+        monkeypatch: MonkeyPatch,
+        context: LambdaContext,
+        config: LambdaConfiguration,
+        short_url_dao: ShortURLBaseDAO,
+        user_dao: UserBaseDAO,
+    ) -> None:
+        # Patch Lambda dependencies
+        monkeypatch.setattr(app, 'load_config', lambda *a, **kw: self.config)
+        monkeypatch.setattr(app, 'generate_shortcode', lambda *a, **kw: 'abc123')
+        monkeypatch.setattr(app, 'ShortURLRedisDAO', lambda *a, **kw: self.short_url_dao)
+        monkeypatch.setattr(app, 'UserRedisDAO', lambda *a, **kw: self.user_dao)
 
+        self.context = context
+        self.config = config
+        self.short_url_dao = short_url_dao
+        self.user_dao = user_dao
 
-@pytest.fixture()
-def user_dao():
-    _dao = MagicMock(spec=UserBaseDAO)
-    _dao.quota.return_value = 10
-    _dao.increment_quota.return_value = 11
-    return _dao
+    def test_lambda_handler(self, successful_event_200: LambdaEvent) -> None:
+        target_url = 'https://example.com/blog/chuck-norris-is-awesome'
 
+        response = app.lambda_handler(successful_event_200, self.context)
+        body = json.loads(response['body'])
 
-@pytest.fixture(autouse=True)
-def _patch_lambda_dependencies(monkeypatch, config, short_url_dao, user_dao):
-    monkeypatch.setattr(app, 'load_config', lambda *a, **kw: config)
-    monkeypatch.setattr(app, 'generate_shortcode', lambda *a, **kw: 'abc123')
-    monkeypatch.setattr(app, 'ShortURLRedisDAO', lambda *a, **kw: short_url_dao)
-    monkeypatch.setattr(app, 'UserRedisDAO', lambda *a, **kw: user_dao)
+        # Assert Lambda successfully executes
+        assert response['statusCode'] == 200
+        assert body['message'] == f'Successfully shortened {target_url} to https://testhost:1000/abc123'
+        assert body['targetUrl'] == target_url
+        assert body['shortUrl'] == 'https://testhost:1000/abc123'
+        assert body['shortcode'] == 'abc123'
+        assert body['userQuota'] == 11
+        assert body['remainingQuota'] == 9
 
+        # Assert Lambda persisted a new short URL
+        short_url = ShortURLModel(target=target_url, shortcode='abc123')
+        self.short_url_dao.count.assert_called_once_with(increment=True)
+        self.short_url_dao.insert.assert_called_once_with(short_url=short_url)
 
-# -------------------------------
-# 1. Successful shortening
-# -------------------------------
+        # Assert user's monthly quota was incremented
+        self.user_dao.quota.assert_called_once_with(user_id='user123')
+        self.user_dao.increment_quota.assert_called_once_with(user_id='user123')
 
+    def test_lambda_handler_with_invalid_json(self, bad_request_400: LambdaEvent) -> None:
+        response = app.lambda_handler(bad_request_400, self.context)
+        body = json.loads(response['body'])
 
-def test_lambda_handler(successful_event_200, context, short_url_dao, user_dao):
-    """Ensure Lambda successfully shortens URLs and updates datastore."""
-    target_url = 'https://example.com/blog/chuck-norris-is-awesome'
+        assert response['statusCode'] == 400
+        assert body['message'] == 'Bad Request (invalid JSON body)'
+        assert body['errorCode'] == 'INVALID_JSON'
 
-    response = app.lambda_handler(successful_event_200, context)
-    body = json.loads(response['body'])
+    def test_lambda_handler_with_missing_target_url(self, bad_request_400_no_target_url: LambdaEvent) -> None:
+        response = app.lambda_handler(bad_request_400_no_target_url, self.context)
+        body = json.loads(response['body'])
 
-    # Assert successful response payload
-    assert response['statusCode'] == 200
-    assert body['message'] == f'Successfully shortened {target_url} to https://testhost:1000/abc123'
-    assert body['targetUrl'] == target_url
-    assert body['shortUrl'] == 'https://testhost:1000/abc123'
-    assert body['shortcode'] == 'abc123'
-    assert body['userQuota'] == 11
-    assert body['remainingQuota'] == 9
+        assert response['statusCode'] == 400
+        assert body['message'] == "Bad Request (missing 'target_url' or 'targetUrl' in JSON body)"
+        assert body['errorCode'] == 'MISSING_TARGET_URL'
 
-    # Assert ShortURLBaseDAO operations were called correctly
-    short_url = ShortURLModel(target=target_url, shortcode='abc123')
-    short_url_dao.count.assert_called_once_with(increment=True)
-    short_url_dao.insert.assert_called_once_with(short_url=short_url)
+    def test_lambda_handler_with_invalid_configuration_file(
+        self,
+        monkeypatch: MonkeyPatch,
+        apigw_event: LambdaEvent,
+    ) -> None:
+        mock_load_config = MagicMock(side_effect=FileNotFoundError('Something goes wrong'))
+        monkeypatch.setattr(app, 'load_config', mock_load_config)
 
-    # Assert UserBaseDAO operations were called correctly
-    user_dao.quota.assert_called_once_with(user_id='user123')
-    user_dao.increment_quota.assert_called_once_with(user_id='user123')
-
-
-# -------------------------------
-# 2. Invalid JSON body
-# -------------------------------
-
-
-def test_lambda_handler_with_invalid_json(bad_request_400, context):
-    """Ensure invalid JSON body returns HTTP 400 Bad Request."""
-    response = app.lambda_handler(bad_request_400, context)
-    body = json.loads(response['body'])
-
-    assert response['statusCode'] == 400
-    assert body['message'] == 'Bad Request (invalid JSON body)'
-    assert body['errorCode'] == 'INVALID_JSON'
-
-
-# -------------------------------
-# 3. Missing target_url field
-# -------------------------------
-
-
-def test_lambda_handler_with_missing_target_url(bad_request_400_no_target_url, context):
-    """Ensure missing 'target_url' or 'targetUrl' in JSON body returns HTTP 400."""
-    response = app.lambda_handler(bad_request_400_no_target_url, context)
-    body = json.loads(response['body'])
-
-    assert response['statusCode'] == 400
-    assert body['message'] == "Bad Request (missing 'target_url' or 'targetUrl' in JSON body)"
-    assert body['errorCode'] == 'MISSING_TARGET_URL'
-
-
-# -------------------------------
-# 4. Configuration error handling
-# -------------------------------
-
-
-def test_lambda_handler_with_invalid_configuration_file(apigw_event, context):
-    """Ensure FileNotFoundError in load_config raises HTTP 500."""
-    with patch('cloudshortener.lambdas.shorten_url.app.load_config') as mock_load_config:
-        mock_load_config.side_effect = FileNotFoundError('Something goes wrong')
-        response = app.lambda_handler(apigw_event, context)
+        response = app.lambda_handler(apigw_event, self.context)
         body = json.loads(response['body'])
 
         assert response['statusCode'] == 500
         assert body['message'] == 'Internal Server Error'
 
+    def test_lambda_handler_with_existing_short_url(self, successful_event_200: LambdaEvent) -> None:
+        # Assert Short URL DAO won't override an existing short URL
+        self.short_url_dao.insert.side_effect = ShortURLAlreadyExistsError()
 
-# -------------------------------
-# 5. Short URL already exists
-# -------------------------------
+        response = app.lambda_handler(successful_event_200, self.context)
+        body = json.loads(response['body'])
 
+        assert response['statusCode'] == 409
+        assert body['message'] == 'Conflict (short URL already exists)'
+        assert body['errorCode'] == 'SHORT_URL_ALREADY_EXISTS'
 
-def test_lambda_handler_with_existing_short_url(successful_event_200, context, short_url_dao):
-    """Ensure lambda wont overwrite an existing short URL and raise HTTP 409."""
-    short_url_dao.insert.side_effect = ShortURLAlreadyExistsError()
+    def test_lambda_handler_with_quota_reached(self, monkeypatch: MonkeyPatch, successful_event_200: LambdaEvent) -> None:
+        monkeypatch.setattr(app, 'DEFAULT_LINK_GENERATION_QUOTA', 30)
+        self.user_dao.quota.return_value = 30
 
-    response = app.lambda_handler(successful_event_200, context)
-    body = json.loads(response['body'])
+        response = app.lambda_handler(successful_event_200, self.context)
+        body = json.loads(response['body'])
 
-    assert response['statusCode'] == 409
-    assert body['message'] == 'Conflict (short URL already exists)'
-    assert body['errorCode'] == 'SHORT_URL_ALREADY_EXISTS'
+        assert response['statusCode'] == 429
+        assert body['message'] == 'Too Many Link Generation Requests (monthly quota reached)'
+        assert body['errorCode'] == 'LINK_QUOTA_EXCEEDED'
 
+    def test_lambda_handler_with_unauthorized_access_attempt(self, successful_event_200: LambdaEvent) -> None:
+        del successful_event_200['requestContext']['authorizer']
 
-# -------------------------------
-# 6. Monthly link generation quota reached
-# -------------------------------
+        response = app.lambda_handler(successful_event_200, self.context)
+        body = json.loads(response['body'])
 
-
-def test_lambda_handler_with_quota_reached(monkeypatch, successful_event_200, context, user_dao):
-    """Ensure lambda wont create a short URL if the monthly quota is reached."""
-    monkeypatch.setattr(app, 'DEFAULT_LINK_GENERATION_QUOTA', 30)
-    user_dao.quota.return_value = 30
-
-    response = app.lambda_handler(successful_event_200, context)
-    body = json.loads(response['body'])
-
-    assert response['statusCode'] == 429
-    assert body['message'] == 'Too Many Link Generation Requests (monthly quota reached)'
-    assert body['errorCode'] == 'LINK_QUOTA_EXCEEDED'
-
-
-# -------------------------------
-# 7. Unathorized access attempt (missing Cognito user id)
-# -------------------------------
-def test_lambda_handler_with_unauthorized_access_attempt(successful_event_200, context):
-    """Ensure lambda wont create a short URL if the Amazon Cognito user id is missing."""
-    del successful_event_200['requestContext']['authorizer']
-    response = app.lambda_handler(successful_event_200, context)
-    body = json.loads(response['body'])
-
-    assert response['statusCode'] == 401
-    assert body['message'] == "Unauthorized (missing 'sub' in JWT claims)"
-    assert body['errorCode'] == 'MISSING_USER_ID'
+        assert response['statusCode'] == 401
+        assert body['message'] == "Unauthorized (missing 'sub' in JWT claims)"
+        assert body['errorCode'] == 'MISSING_USER_ID'
