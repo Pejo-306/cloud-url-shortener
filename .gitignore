@@ -318,6 +318,11 @@ config/**/dev.yaml
 config/**/qa.yaml
 config/**/prod.yaml
 
+# Frontend configuration files
+frontend/config/dev/app.config.json
+frontend/config/qa/app.config.json
+frontend/config/prod/app.config.json
+
 # =====================================
 # Localstack
 # =====================================

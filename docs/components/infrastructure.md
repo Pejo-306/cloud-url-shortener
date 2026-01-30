@@ -86,12 +86,10 @@ The stack provisions:
 
 - Cognito User Pool
 - Cognito User Pool Client (for frontend)
-- Cognito User Pool Domain
 
 Key properties:
 - Email-based users
-- Hosted UI enabled
-- OAuth2 authorization code flow
+- SDK-based authentication (via `amazon-cognito-identity-js`)
 - Tokens issued for frontend authentication
 - Cognito is used exclusively for API authorization (not user management beyond auth)
 
@@ -184,7 +182,6 @@ The stack exports values used by operators and other components:
 
 - API base URL
 - Frontend CloudFront URL
-- Cognito Hosted UI URLs
 - Cognito User Pool and Client IDs
 - AppConfig identifiers
 - CloudFront distribution ID (for invalidation)

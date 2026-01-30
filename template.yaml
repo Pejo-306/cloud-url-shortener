@@ -388,33 +388,12 @@ Resources:
           - Name: verified_email
             Priority: 1
 
-  CognitoUserPoolDomain:
-    Type: AWS::Cognito::UserPoolDomain
-    Properties:
-      UserPoolId: !Ref CognitoUserPool
-      Domain: !Sub ${AppName}-${AppEnv}
-
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
     Properties:
       UserPoolId: !Ref CognitoUserPool
       ClientName: !Sub ${AppName}-${AppEnv}-web
       GenerateSecret: false
-      AllowedOAuthFlowsUserPoolClient: true
-      AllowedOAuthFlows:
-        - code
-      AllowedOAuthScopes:
-        - openid
-        - email
-        - profile
-      SupportedIdentityProviders:
-        - COGNITO
-      CallbackURLs:
-        - !Sub https://${CloudFrontDistribution.DomainName}
-        - !Sub https://${CloudFrontDistribution.DomainName}/
-      LogoutURLs:
-        - !Sub https://${CloudFrontDistribution.DomainName}
-        - !Sub https://${CloudFrontDistribution.DomainName}/
       ExplicitAuthFlows:
         - ALLOW_USER_PASSWORD_AUTH
         - ALLOW_USER_SRP_AUTH
@@ -782,14 +761,6 @@ Outputs:
   UserPoolClientId:
     Description: Cognito App Client ID
     Value: !Ref CognitoUserPoolClient
-
-  CognitoHostedUIUrl:
-    Description: Cognito Hosted UI Login URL
-    Value: !Sub https://${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${CognitoUserPoolClient}&response_type=code&scope=openid+email+profile&redirect_uri=https://${CloudFrontDistribution.DomainName}/
-
-  CognitoHostedUIDomain:
-    Description: Cognito Hosted UI Domain
-    Value: !Sub ${CognitoUserPoolDomain}.auth.${AWS::Region}.amazoncognito.com
 
   CloudFrontDistributionId:
     Description: CloudFront Distribution ID (for cache invalidation)

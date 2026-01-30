@@ -325,8 +325,8 @@ python -m bootstrap.bootstrap_oidc up \
 2- Create a free Redis database after registering at [Redis Cloud](https://redis.io/try-free/)
 
 3- Create dev environment configuration files by editting and renaming the files:
-- [config/shorten_url/dev.example.yaml](config/shorten_url/dev.example.yaml) -> config/shorten_url/dev.yaml
-- [config/redirect_url/dev.example.yaml](config/redirect_url/dev.example.yaml) -> config/redirect_url/dev.yaml
+- [config/shorten_url/dev.example.yaml](config/shorten_url/dev.example.yaml) -> `config/shorten_url/dev.yaml`
+- [config/redirect_url/dev.example.yaml](config/redirect_url/dev.example.yaml) -> `config/redirect_url/dev.yaml`
 
 ```bash
 cd config/shorten_url/
@@ -402,15 +402,21 @@ python -m bootstrap.seed_elasticache \
     --aws-profile <your AWS profile name with credentials>
 ```
 
+8- Upload frontend to S3
+
+```bash
+act push -W .github/workflows/act/frontend/deploy.yml -e .github/events/push_main.json -j deploy
+```
+
 ### Access the app
 
-Visit the `CognitoHostedUIUrl` in your browser which you can find in the stack's outputs:
+Visit the `FrontendUrl` in your browser which you can find in the stack's outputs:
 
 ```bash
 aws cloudformation describe-stacks \
   --stack-name cloudshortener-dev \
-  --query "Stacks[0].Outputs" \
-  --output table \
+  --query "Stacks[0].Outputs[?OutputKey=='FrontendUrl'].OutputValue" \
+  --output text \
   --aws-profile <your AWS profile name with credentials>
 ```
 

@@ -91,8 +91,8 @@ Split the deployed app and configuration per frontend in a central frontend buck
 
 **Integration with Cognito**
 
-We already have a fully functioning Cognito hosted UI. Instead of reimplementing
-authentication flows, we should use and customize Cognito's built-in UI.
+We use the `amazon-cognito-identity-js` SDK to authenticate users directly from
+the frontend, avoiding redirects to Cognito's hosted UI for a seamless UX.
 
 ## Decision
 
@@ -118,7 +118,7 @@ The frontend application is dependent on the following backend APIs at minimum:
 - `POST /v1/shorten`: protected shortening endpoint
 - `GET /v1/analytics`: (TBD) public/protected analytics endpoint
 
-Amazon Cognito's OAuth flow is used to authenticate the user.
+Amazon Cognito's SDK (`amazon-cognito-identity-js`) is used to authenticate the user.
 
 During deployment, the respective environment folder is overwritten in-place with
 the new frontend application. No versioning is implemented inside the S3 bucket.
