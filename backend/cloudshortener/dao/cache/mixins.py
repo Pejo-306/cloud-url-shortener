@@ -12,6 +12,7 @@ from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.redis.mixins import RedisClientMixin
 from cloudshortener.utils.config import running_locally
 from cloudshortener.utils.helpers import require_environment
+from cloudshortener.constants import ENV
 
 
 class ElastiCacheClientMixin(RedisClientMixin):

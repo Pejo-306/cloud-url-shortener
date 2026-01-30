@@ -12,7 +12,6 @@ from cloudshortener.types import AppConfig, AppConfigMetadata, AppConfigDataClie
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.cache.appconfig_cache_dao import AppConfigCacheDAO
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
-from cloudshortener.exceptions import MissingEnvironmentVariableError
 from cloudshortener.constants import ENV
 
 
