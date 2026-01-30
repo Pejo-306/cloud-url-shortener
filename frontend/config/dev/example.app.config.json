@@ -1,6 +1,6 @@
 {
   "backend": {
-    "host": null,
+    "host": "https://<aws-api-gateway-url>/dev",
     "endpoints": {
       "shorten": "/v1/shorten"
     },
@@ -17,8 +17,8 @@
   },
   "aws": {
     "cognito": {
-      "userPoolId": "eu-central-1_w0YmR0P8Y",
-      "clientId": "l896tehucdobc1frcfg2772og"
+      "userPoolId": "eu-central-1_e0ug41jxH",
+      "clientId": "a5n9rukugmm1rrnl67tvvrvjt"
     }
   },
   "auth": {

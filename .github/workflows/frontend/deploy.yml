@@ -24,6 +24,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Compile frontend
+        working-directory: frontend
+        run: npm run build -- --mode ${{ vars.APP_ENV }}
+
       - name: Install AWS CLI
         run: |
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -66,7 +81,7 @@ jobs:
       - name: Upload frontend app
         if: steps.get_bucket.outputs.bucket_name != ''
         run: |
-          aws s3 sync frontend/ \
+          aws s3 sync frontend/dist/ \
             s3://${{ steps.get_bucket.outputs.bucket_name }} \
             --delete \
             --region ${{ vars.AWS_REGION }}

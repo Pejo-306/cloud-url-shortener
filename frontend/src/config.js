@@ -2,8 +2,9 @@ const configModules = import.meta.glob('../config/*/app.config.json', { eager: t
 
 const configs = {}
 for (const path in configModules) {
-  const folderName = path.split('/')[2]
-  configs[folderName] = configModules[path]
+  const folderName = path.split('/').slice(-2, -1)[0]
+  const module = configModules[path]
+  configs[folderName] = module?.default ?? module
 }
 
 export function getCurrentConfig() {

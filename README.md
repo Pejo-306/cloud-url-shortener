@@ -402,7 +402,30 @@ python -m bootstrap.seed_elasticache \
     --aws-profile <your AWS profile name with credentials>
 ```
 
-8- Upload frontend to S3
+8- Create frontend configuration
+
+Create the frontend config file from the example:
+
+```bash
+cp frontend/config/dev/example.app.config.json frontend/config/dev/app.config.json
+```
+
+Edit `app.config.json` and fill in the values from the stack outputs:
+- `backend.host`: Use the `ApiUrl` output (e.g., `https://xxx.execute-api.eu-central-1.amazonaws.com/dev`)
+- `aws.cognito.userPoolId`: Use the `UserPoolId` output
+- `aws.cognito.clientId`: Use the `UserPoolClientId` output
+
+You can retrieve these values with:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name cloudshortener-dev \
+  --query "Stacks[0].Outputs" \
+  --output table \
+  --aws-profile <your AWS profile name with credentials>
+```
+
+9- Upload frontend to S3
 
 ```bash
 act push -W .github/workflows/act/frontend/deploy.yml -e .github/events/push_main.json -j deploy
