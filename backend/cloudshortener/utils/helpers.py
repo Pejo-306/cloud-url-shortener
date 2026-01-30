@@ -6,14 +6,15 @@ from datetime import datetime, UTC
 from collections.abc import Callable
 
 from cloudshortener.types import LambdaEvent, LambdaContext, LambdaResponse
-from cloudshortener.utils.runtime import running_locally
 from cloudshortener.constants import UNKNOWN_INTERNAL_SERVER_ERROR
+from cloudshortener.exceptions import MissingEnvironmentVariableError
+from cloudshortener.utils.runtime import running_locally
 
 
 logger = logging.getLogger(__name__)
 
 
-def base_url(event: LambdaEvent) -> str:  # TODO: transform dict[str, Any] to custom type
+def base_url(event: LambdaEvent) -> str:
     """Return the public base URL for the current Lambda event.
 
     Examples:
@@ -61,7 +62,7 @@ def require_environment(*names: str) -> Callable:
             missing = [name for name in names if not os.environ.get(name)]
             if missing:
                 missing_list = ', '.join(f"'{name}'" for name in missing)
-                raise KeyError(f'Missing required environment variables: {missing_list}')  # TODO: use custom exception
+                raise MissingEnvironmentVariableError(f'Missing required environment variables: {missing_list}')
             return func(*args, **kwargs)
 
         return wrapper

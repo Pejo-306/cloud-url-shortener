@@ -47,9 +47,10 @@ from collections.abc import Callable
 import boto3
 
 from cloudshortener.types import LambdaConfiguration
+from cloudshortener.constants import ENV
 from cloudshortener.utils.helpers import require_environment
 from cloudshortener.utils.runtime import running_locally
-from cloudshortener.constants import ENV
+from cloudshortener.exceptions import BadConfigurationError, ConfigurationError, InfrastructureError, MalformedResponseError
 
 
 logger = logging.getLogger(__name__)
@@ -92,11 +93,11 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
             return ''
         components = urllib.parse.urlparse(url)
         if components.scheme not in {'http', 'https'}:
-            raise ValueError(f'Bad scheme {url}')
+            raise BadConfigurationError(f'Bad scheme {url}')
         if components.hostname not in {'localhost', '127.0.0.1', 'host.docker.internal'}:
-            raise ValueError(f'Bad host {url}')
+            raise BadConfigurationError(f'Bad host {url}')
         if components.port not in {2772, None}:
-            raise ValueError(f'Bad port {url}')
+            raise BadConfigurationError(f'Bad port {url}')
         return url
 
     # ruff: enable
@@ -146,7 +147,7 @@ def cache_appconfig(func: Callable) -> Callable:
             dao = AppConfigCacheDAO(prefix=app_prefix())
             document = dao.latest(pull=True)
 
-        except (CacheMissError, CachePutError, DataStoreError, ValueError, KeyError):
+        except (CacheMissError, CachePutError, DataStoreError, ConfigurationError, InfrastructureError, MalformedResponseError):
             # On any cache / config-structure / env-related issues, fall back
             # to the original (non-cached) implementation.
             return func(lambda_name)
