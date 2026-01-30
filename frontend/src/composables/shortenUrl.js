@@ -5,7 +5,7 @@ import { BackendError } from '@/errors'
 import { isUsingJsonServer, disableCaching } from '@/flags'
 import { getSession } from '@/helpers/auth'
 
-const configureOptions = (targetUrl, accessToken) => {
+const configureOptions = (targetUrl, idToken) => {
   let method = null
   let headers = null
   let body = null
@@ -23,7 +23,7 @@ const configureOptions = (targetUrl, accessToken) => {
       method = 'POST'
       headers = {
         'Content-Type': 'application/json',
-        Authorization: accessToken ? `Bearer ${accessToken}` : null,
+        Authorization: idToken ? `Bearer ${idToken}` : null,
       }
       body = JSON.stringify({ targetUrl })
       break
@@ -42,12 +42,12 @@ const shorten = (host, endpoint = '/v1/shorten') => {
 
   const load = async (targetUrl) => {
     const session = getSession()
-    const accessToken = session.accessToken
+    const idToken = session.idToken
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), config.backend.timeout)
 
     try {
-      const { method, headers, body } = configureOptions(targetUrl, accessToken)
+      const { method, headers, body } = configureOptions(targetUrl, idToken)
       const url = `${host}${endpoint}`
       const response = await fetch(url, { method, headers, body, signal: controller.signal })
       const data = await response.json()
