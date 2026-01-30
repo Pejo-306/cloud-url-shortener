@@ -73,6 +73,7 @@ Globals:
     Tracing: Active
     LoggingConfig:
       LogFormat: JSON
+    CodeUri: backend/
     Runtime: python3.13
     Architectures:
       - arm64
@@ -575,7 +576,6 @@ Resources:
           - cloudshortener/**
     Properties:
       FunctionName: shorten-url-function
-      CodeUri: .
       Handler: cloudshortener.lambdas.shorten_url.app.lambda_handler
       Role: !GetAtt LambdaFunctionRole.Arn
       Description: Shorten long URLs to short codes
@@ -600,7 +600,6 @@ Resources:
           - cloudshortener/**
     Properties:
       FunctionName: redirect-url-function
-      CodeUri: .
       Handler: cloudshortener.lambdas.redirect_url.app.lambda_handler
       Role: !GetAtt LambdaFunctionRole.Arn
       Description: Redirect short URLs to target URLs
@@ -626,7 +625,6 @@ Resources:
           - cloudshortener/**
     Properties:
       FunctionName: warm-appconfig-cache-function
-      CodeUri: .
       Handler: cloudshortener.lambdas.warm_appconfig_cache.app.lambda_handler
       Role: !GetAtt LambdaFunctionRole.Arn
       Description: Proactively warm AppConfig cache in ElastiCache on deployment
@@ -724,6 +722,14 @@ Resources:
           ViewerProtocolPolicy: redirect-to-https
           CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # Managed-CachingOptimized
         CustomErrorResponses:
+          # Allow access to frontend's auth endpoints (/login, /logout, etc.).
+          # The reason this is needed is due to hosting the frontend in S3 and using CloudFront as a CDN -
+          # Auth endopints don't exist as files in the S3 bucket, so CloudFront returns 403 Forbidden
+          # (it bypasses the Vue Router). That's why we redirect 403/404 to index.html and
+          # let the Vue Router handle the routing.
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
           - ErrorCode: 404
             ResponseCode: 200
             ResponsePagePath: /index.html

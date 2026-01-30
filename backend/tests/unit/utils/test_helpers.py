@@ -131,6 +131,7 @@ def test_require_environment_with_missing_or_empty_env_vars(
         sample_function()
 
 
+# TODO: extend this to include CORS headers
 def test_guarantee_500_response(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr('cloudshortener.utils.helpers.running_locally', lambda: False)
 

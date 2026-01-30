@@ -17,35 +17,35 @@ I want to write simple and maintainable Python code. That's why I've documented 
 Let's accept the root of this repository is the directory `/`.
 
 Inside the root directory, each folder is a **seperate component of the system**, e.g.:
-- `/cloudshortener/`: Backed application code, including the codebase for 2 Lambdas
+- `/backend/`: Backend application code, including the codebase for 2 Lambdas
+- `/backend/tests/`: Unit and integration tests for the backend
 - `/frontend/`: Web application frontend code
-- `/tests/`: Unit and integration tests for the entire application
 - `/.github/`: GitHub Actions workflows
 - `/bootstrap/`: Bootstrapping scripts
 - ...
 
 Inside each **system component**, we have **modules**, e.g.:
-- `/cloudshortener/dao/`: Data Access Objects for our backend code
-- `/cloudshortener/lambdas/`: AWS Lambda Functions' code
-- `/cloudshortener/utils/`: Backed utility functions
-- `/cloudshortener/models/`: Backed data models
+- `/backend/cloudshortener/dao/`: Data Access Objects for our backend code
+- `/backend/cloudshortener/lambdas/`: AWS Lambda Functions' code
+- `/backend/cloudshortener/utils/`: Backed utility functions
+- `/backend/cloudshortener/models/`: Backed data models
 
 We may also have **submodules** inside each **module** which are just specific
 implementations of the **module** for a concrete **system component** / **technology**, etc.:
-- `/cloudshortener/dao/base/`: Abstract Base Classes (Interfaces) for DAOs
-- `/cloudshortener/dao/redis/`: Redis-specific implementation of base DAOs
-- `/cloudshortener/dao/cache/`: Elasticache-specific DAOs
-- `/cloudshortener/dao/dynamodb/`: DynamoDB-specific implementation of base DAOs
-- `/cloudshortener/dao/postgresql/`: PostgreSQL-specific implementation of base DAOs
+- `/backend/cloudshortener/dao/base/`: Abstract Base Classes (Interfaces) for DAOs
+- `/backend/cloudshortener/dao/redis/`: Redis-specific implementation of base DAOs
+- `/backend/cloudshortener/dao/cache/`: Elasticache-specific DAOs
+- `/backend/cloudshortener/dao/dynamodb/`: DynamoDB-specific implementation of base DAOs
+- `/backend/cloudshortener/dao/postgresql/`: PostgreSQL-specific implementation of base DAOs
 
 You may notice that under this logical codebase structure, code spaghettification
 is naturally minimized:
-- `/cloudshortener/utils/` is always going to be imported by other modules / submodules
-- `/cloudshortener/models/` is always going to be imported by other modules / submodules
-- `/cloudshortener/dao/` there's no reason to mix up specific-datastore implementations
-  and cause circular imports; we already have the base interfaces defined in `cloudshortener/dao/base/`
-- `/cloudshortener/lambdas/` is going to import everything. And no other module in
-  `/cloudshortener/` is going to import the lambdas (makes no sense)
+- `/backend/cloudshortener/utils/` is always going to be imported by other modules / submodules
+- `/backend/cloudshortener/models/` is always going to be imported by other modules / submodules
+- `/backend/cloudshortener/dao/` there's no reason to mix up specific-datastore implementations
+  and cause circular imports; we already have the base interfaces defined in `backend/cloudshortener/dao/base/`
+- `/backend/cloudshortener/lambdas/` is going to import everything. And no other module in
+  `/backend/cloudshortener/` is going to import the lambdas (makes no sense)
 
 Inside each Python module / submodule, a few common modules & files are expected:
 - `constants.py`: all hardcoded constants

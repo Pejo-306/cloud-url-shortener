@@ -76,7 +76,8 @@ def guarantee_500_response(lambda_handler: Callable) -> Callable:
     to be handled by a developer.
     """
 
-    def _response_500() -> dict:
+    # TODO: need to extend this to include CORS headers
+    def _response_500() -> LambdaResponse:
         body = {
             'message': 'Internal Server Error',
             'error_code': UNKNOWN_INTERNAL_SERVER_ERROR,

@@ -85,7 +85,7 @@ jobs:
             aws-region:            ${{ vars.AWS_REGION }}
 
       - name: Rebuild for deploy
-        run: sam build --use-container --cached --exclude frontend
+        run: sam build --use-container
 
       - name: Validate
         run: sam validate --lint
