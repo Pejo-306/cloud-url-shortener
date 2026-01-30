@@ -1,14 +1,18 @@
-from enum import IntEnum, StrEnum
+from enum import StrEnum
 
 
-class TTL(IntEnum):
+class TTL:
+    """TTL durations in seconds."""
+
     # Short URL TTL duration (data retention period) (1 year in seconds)
     ONE_YEAR = 31_536_000  # 60 * 60 * 24 * 365
     # Monthly user quota key TTL duration (1 month in seconds)
     ONE_MONTH = 2_592_000  # 60 * 60 * 24 * 30
 
 
-class DefaultQuota(IntEnum):
+class DefaultQuota:
+    """Default quota values."""
+
     LINK_HITS = 10_000  # Default short URL monthly hit quota
     LINK_GENERATION = 20  # Default link generation quota for users
 

@@ -14,6 +14,7 @@ from cloudshortener.dao.cache.constants import CacheTTL
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
 from cloudshortener.dao.redis.helpers import handle_redis_connection_error
 from cloudshortener.utils.helpers import require_environment
+from cloudshortener.constants import ENV
 
 
 class AppConfigCacheDAO(ElastiCacheClientMixin):
@@ -66,7 +67,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         redis_decode_responses: bool = True,
         tls_verify: bool = False,
         ca_bundle_path: str | None = None,
-        ttl: CacheTTL = CacheTTL.COOL,
+        ttl: int | None = CacheTTL.COOL,
     ):
         super().__init__(
             prefix=prefix,

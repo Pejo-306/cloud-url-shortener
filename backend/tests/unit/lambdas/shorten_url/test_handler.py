@@ -226,7 +226,7 @@ class TestShortenUrlHandler:
         self.assert_has_cors_headers(headers)
 
     def test_lambda_handler_with_quota_reached(self, monkeypatch: MonkeyPatch, successful_event_200: LambdaEvent) -> None:
-        class BiggerQuota(IntEnum):
+        class BiggerQuota:
             LINK_HITS = DefaultQuota.LINK_HITS
             LINK_GENERATION = 30
 
