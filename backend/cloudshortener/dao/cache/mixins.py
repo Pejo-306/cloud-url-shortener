@@ -5,12 +5,13 @@ import boto3
 import redis
 from botocore.client import BaseClient
 
+from cloudshortener.constants import ENV
+from cloudshortener.exceptions import MalformedResponseError, BadConfigurationError
 from cloudshortener.dao.cache.types import ElastiCacheParameters, ElastiCacheUserSecret
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.redis.mixins import RedisClientMixin
 from cloudshortener.utils.config import running_locally
 from cloudshortener.utils.helpers import require_environment
-from cloudshortener.constants import ENV
 
 
 class ElastiCacheClientMixin(RedisClientMixin):
@@ -103,14 +104,14 @@ class ElastiCacheClientMixin(RedisClientMixin):
             user = None
             if user_param:
                 user = ssm.get_parameter(Name=user_param)['Parameter']['Value']
-        except KeyError as e:  # TODO: turn these into custom exceptions
-            raise ValueError('Malformed SSM get_parameter response') from e
+        except KeyError as e:
+            raise MalformedResponseError('Malformed SSM get_parameter response') from e
 
         try:
             port = int(port_str)
             db = int(db_str)
         except (TypeError, ValueError) as e:
-            raise ValueError(f'Invalid ElastiCache port/db values: port={port_str!r} db={db_str!r}') from e
+            raise BadConfigurationError(f'Invalid ElastiCache port/db values: port={port_str!r} db={db_str!r}') from e
 
         return host, port, db, user
 
@@ -130,8 +131,8 @@ class ElastiCacheClientMixin(RedisClientMixin):
         try:
             raw = sm.get_secret_value(SecretId=secret_name).get('SecretString')
             payload = json.loads(raw or '{}')
-        except json.JSONDecodeError as e:  # TODO: turn these into custom exceptions
-            raise ValueError('Invalid JSON in ElastiCache secret payload') from e
+        except json.JSONDecodeError as e:
+            raise MalformedResponseError('Invalid JSON in ElastiCache secret payload') from e
 
         username = payload.get('username')  # optional
         password = payload.get('password')  # required
@@ -139,6 +140,6 @@ class ElastiCacheClientMixin(RedisClientMixin):
         # TODO: add feature flags to enable using elasticache locally
         # then patch this monkeypatch out
         if False and not password:
-            raise ValueError('ElastiCache secret must contain a non-empty "password" field')
+            raise BadConfigurationError('ElastiCache secret must contain a non-empty "password" field')
 
         return username, password

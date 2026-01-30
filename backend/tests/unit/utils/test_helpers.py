@@ -9,6 +9,7 @@ from pytest import MonkeyPatch
 from freezegun import freeze_time
 
 from cloudshortener.types import LambdaEvent
+from cloudshortener.exceptions import MissingEnvironmentVariableError
 from cloudshortener.utils.helpers import (
     base_url,
     get_short_url,
@@ -130,7 +131,7 @@ def test_require_environment_with_missing_or_empty_env_vars(
         pass
 
     expected_message = f'Missing required environment variables: {", ".join(missing_names)}'
-    with pytest.raises(KeyError, match=expected_message):
+    with pytest.raises(MissingEnvironmentVariableError, match=expected_message):
         sample_function()
 
 

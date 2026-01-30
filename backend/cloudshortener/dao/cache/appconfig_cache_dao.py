@@ -6,13 +6,14 @@ import boto3
 import redis
 from botocore.client import BaseClient
 
+from cloudshortener.constants import ENV
 from cloudshortener.types import AppConfig, AppConfigMetadata
+from cloudshortener.exceptions import AppConfigError
 from cloudshortener.dao.cache.mixins import ElastiCacheClientMixin
 from cloudshortener.dao.cache.constants import CacheTTL
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
 from cloudshortener.dao.redis.helpers import handle_redis_connection_error
 from cloudshortener.utils.helpers import require_environment
-from cloudshortener.constants import ENV
 
 
 class AppConfigCacheDAO(ElastiCacheClientMixin):
@@ -236,7 +237,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             try:
                 resolved_version = int(version_str)
             except (TypeError, ValueError) as e:
-                raise ValueError(f'Invalid configuration-version header: {version_str!r}') from e
+                raise AppConfigError(f'Invalid configuration-version header: {version_str!r}') from e
 
         metadata = {
             'version': resolved_version,
@@ -267,14 +268,14 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
             )
             versions = response.get('Items', [])
             if not versions:
-                raise ValueError('No hosted configuration versions found for this profile.')
+                raise AppConfigError('No hosted configuration versions found for this profile.')
             # Versions are returned in descending order by default, so first is latest
             latest_version = versions[0].get('VersionNumber')
             if latest_version is None:
-                raise ValueError('Latest configuration version missing VersionNumber field.')
+                raise AppConfigError('Latest configuration version missing VersionNumber field.')
             return int(latest_version)
         except (KeyError, TypeError, ValueError) as e:
-            raise ValueError(f'Failed to determine latest configuration version: {e}') from e
+            raise AppConfigError(f'Failed to determine latest configuration version: {e}') from e
 
     @require_environment(ENV.AppConfig.APP_ID, ENV.AppConfig.PROFILE_ID)
     def _fetch_appconfig(self, version: int) -> tuple[int, AppConfig, AppConfigMetadata]:

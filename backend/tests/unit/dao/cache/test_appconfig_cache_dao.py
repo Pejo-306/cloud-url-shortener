@@ -12,6 +12,7 @@ from cloudshortener.types import AppConfig, AppConfigMetadata, AppConfigDataClie
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.cache.appconfig_cache_dao import AppConfigCacheDAO
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
+from cloudshortener.exceptions import MissingEnvironmentVariableError
 from cloudshortener.constants import ENV
 
 
@@ -328,13 +329,13 @@ class TestAppConfigCacheDAO:
     def test_fetch_latest_env_validation_missing_vars(self, monkeypatch: MonkeyPatch):
         monkeypatch.delenv(ENV.AppConfig.ENV_ID, raising=False)
         expected_message = "Missing required environment variables: 'APPCONFIG_ENV_ID'"
-        with pytest.raises(KeyError, match=expected_message):
+        with pytest.raises(MissingEnvironmentVariableError, match=expected_message):
             self.dao.latest(pull=True)
 
     def test_fetch_version_env_validation_missing_vars(self, monkeypatch: MonkeyPatch):
         monkeypatch.delenv(ENV.AppConfig.PROFILE_ID, raising=False)
         expected_message = "Missing required environment variables: 'APPCONFIG_PROFILE_ID'"
-        with pytest.raises(KeyError, match=expected_message):
+        with pytest.raises(MissingEnvironmentVariableError, match=expected_message):
             self.dao.get(42, pull=True)
 
     @freeze_time('2025-01-03T00:00:00Z')
