@@ -11,13 +11,12 @@ from pytest import MonkeyPatch
 
 from cloudshortener.types import AppConfig
 from cloudshortener.utils import config
-from cloudshortener.utils.constants import APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV
+from cloudshortener.constants import ENV
 from cloudshortener.dao.exceptions import CacheMissError
 from cloudshortener.dao.cache import AppConfigCacheDAO
 
 
 class TestConfigUtilities:
-
     @pytest.fixture
     def appconfig_payload(self) -> AppConfig:
         # fmt: off
@@ -50,9 +49,9 @@ class TestConfigUtilities:
 
     @pytest.fixture(autouse=True)
     def setup(self, monkeypatch: MonkeyPatch, appconfig_payload: AppConfig) -> None:
-        monkeypatch.setenv(APPCONFIG_APP_ID_ENV, 'app123')
-        monkeypatch.setenv(APPCONFIG_ENV_ID_ENV, 'env123')
-        monkeypatch.setenv(APPCONFIG_PROFILE_ID_ENV, 'prof123')
+        monkeypatch.setenv(ENV.AppConfig.APP_ID, 'app123')
+        monkeypatch.setenv(ENV.AppConfig.ENV_ID, 'env123')
+        monkeypatch.setenv(ENV.AppConfig.PROFILE_ID, 'prof123')
         monkeypatch.setattr(config, 'app_prefix', lambda: 'test-app:test')
 
         self.appconfig_payload = appconfig_payload
@@ -70,6 +69,7 @@ class TestConfigUtilities:
         """
         # Patch AppConfigCacheDAO to return a failing instance
         import cloudshortener.dao.cache as cache_module
+
         monkeypatch.setattr(cache_module, 'AppConfigCacheDAO', MagicMock(return_value=failing_cache_dao))
 
         # Mock AppConfig Data client (fallback path)
@@ -111,6 +111,7 @@ class TestConfigUtilities:
         is simulated to raise ClientError.
         """
         import cloudshortener.dao.cache as cache_module
+
         monkeypatch.setattr(cache_module, 'AppConfigCacheDAO', MagicMock(return_value=failing_cache_dao))
 
         mock_appconfig = MagicMock()
@@ -136,6 +137,7 @@ class TestConfigUtilities:
         client must not be called.
         """
         import cloudshortener.dao.cache as cache_module
+
         monkeypatch.setattr(cache_module, 'AppConfigCacheDAO', MagicMock(return_value=healthy_cache_dao))
 
         # Mock AppConfig Data client but ensure it's never used

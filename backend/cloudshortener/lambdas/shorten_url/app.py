@@ -13,7 +13,7 @@ from cloudshortener.utils import (
     guarantee_500_response,
     get_user_id,
 )
-from cloudshortener.utils.constants import DEFAULT_LINK_GENERATION_QUOTA
+from cloudshortener.constants import DefaultQuota
 from cloudshortener.lambdas.shorten_url.constants import (
     MISSING_USER_ID,
     LINK_QUOTA_EXCEEDED,
@@ -105,7 +105,7 @@ def response_200(*, target_url: str, short_url: str, shortcode: str, user_quota:
                 'shortUrl': short_url,
                 'shortcode': shortcode,
                 'userQuota': user_quota,
-                'remainingQuota': DEFAULT_LINK_GENERATION_QUOTA - user_quota,
+                'remainingQuota': DefaultQuota.LINK_GENERATION - user_quota,
             }
         ),
     }
@@ -163,7 +163,7 @@ def lambda_handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse
     # 2- Check if monthly quota is already reached
     user_dao = UserRedisDAO(**redis_config, prefix=app_prefix())
     user_quota = user_dao.quota(user_id=user_id)
-    if user_quota >= DEFAULT_LINK_GENERATION_QUOTA:
+    if user_quota >= DefaultQuota.LINK_GENERATION:
         logger.info('Monthly link generation quota reached. Responding with 429.', extra={'event': LINK_QUOTA_EXCEEDED})
         return response_429(message='monthly quota reached', error_code=LINK_QUOTA_EXCEEDED)
     logger.debug('Monthly link generation quota: %s.', user_quota, extra={'user_quota': user_quota})

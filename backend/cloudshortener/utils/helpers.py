@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 from cloudshortener.types import LambdaEvent, LambdaContext, LambdaResponse
 from cloudshortener.utils.runtime import running_locally
-from cloudshortener.utils.constants import UNKNOWN_INTERNAL_SERVER_ERROR
+from cloudshortener.constants import UNKNOWN_INTERNAL_SERVER_ERROR
 
 
 logger = logging.getLogger(__name__)

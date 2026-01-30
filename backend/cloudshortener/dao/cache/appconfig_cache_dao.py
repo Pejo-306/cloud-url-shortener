@@ -8,15 +8,11 @@ from botocore.client import BaseClient
 
 from cloudshortener.types import AppConfig, AppConfigMetadata
 from cloudshortener.dao.cache.mixins import ElastiCacheClientMixin
-from cloudshortener.dao.cache.constants import COOL_TTL
+from cloudshortener.dao.cache.constants import CacheTTL
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
 from cloudshortener.dao.redis.helpers import handle_redis_connection_error
 from cloudshortener.utils.helpers import require_environment
-from cloudshortener.utils.constants import (
-    APPCONFIG_APP_ID_ENV,
-    APPCONFIG_ENV_ID_ENV,
-    APPCONFIG_PROFILE_ID_ENV,
-)
+from cloudshortener.constants import ENV
 
 
 class AppConfigCacheDAO(ElastiCacheClientMixin):
@@ -69,7 +65,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         redis_decode_responses: bool = True,
         tls_verify: bool = False,
         ca_bundle_path: str | None = None,
-        ttl: int | None = COOL_TTL,
+        ttl: CacheTTL = CacheTTL.COOL,
     ):
         super().__init__(
             prefix=prefix,
@@ -195,7 +191,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                 '(hint: you may be using the read-only replica, ensure you are using the master)'
             ) from e
 
-    @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
+    @require_environment(ENV.AppConfig.APP_ID, ENV.AppConfig.ENV_ID, ENV.AppConfig.PROFILE_ID)
     def _fetch_latest_appconfig(self) -> tuple[int, AppConfig, AppConfigMetadata]:
         """Fetch the latest AppConfig document via the AppConfig Data API.
 
@@ -205,9 +201,9 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
                 If required environment variables are missing, the response lacks a
                 configuration version header, or the version header is invalid.
         """
-        app_id = os.environ[APPCONFIG_APP_ID_ENV]
-        env_id = os.environ[APPCONFIG_ENV_ID_ENV]
-        profile_id = os.environ[APPCONFIG_PROFILE_ID_ENV]
+        app_id = os.environ[ENV.AppConfig.APP_ID]
+        env_id = os.environ[ENV.AppConfig.ENV_ID]
+        profile_id = os.environ[ENV.AppConfig.PROFILE_ID]
 
         # Get latest configuration from AppConfig Data API
         client = boto3.client('appconfigdata')
@@ -250,15 +246,15 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         }
         return resolved_version, document, metadata
 
-    @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
+    @require_environment(ENV.AppConfig.APP_ID, ENV.AppConfig.PROFILE_ID)
     def _get_latest_version_number(self) -> int:
         """Get the latest hosted configuration version number from the control-plane API.
 
         This method is used as a fallback when the Data API doesn't return version
         information in headers.
         """
-        app_id = os.environ[APPCONFIG_APP_ID_ENV]
-        profile_id = os.environ[APPCONFIG_PROFILE_ID_ENV]
+        app_id = os.environ[ENV.AppConfig.APP_ID]
+        profile_id = os.environ[ENV.AppConfig.PROFILE_ID]
 
         # Use control-plane API to list hosted configuration versions
         # Get the latest version (first result when sorted descending)
@@ -280,11 +276,11 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
         except (KeyError, TypeError, ValueError) as e:
             raise ValueError(f'Failed to determine latest configuration version: {e}') from e
 
-    @require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
+    @require_environment(ENV.AppConfig.APP_ID, ENV.AppConfig.PROFILE_ID)
     def _fetch_appconfig(self, version: int) -> tuple[int, AppConfig, AppConfigMetadata]:
         """Fetch a specific hosted AppConfig version via the control-plane API."""
-        app_id = os.environ[APPCONFIG_APP_ID_ENV]
-        profile_id = os.environ[APPCONFIG_PROFILE_ID_ENV]
+        app_id = os.environ[ENV.AppConfig.APP_ID]
+        profile_id = os.environ[ENV.AppConfig.PROFILE_ID]
 
         # Fetch the specific hosted configuration version from AppConfig control-plane API
         client = boto3.client('appconfig')

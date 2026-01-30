@@ -49,31 +49,22 @@ import boto3
 from cloudshortener.types import LambdaConfiguration
 from cloudshortener.utils.helpers import require_environment
 from cloudshortener.utils.runtime import running_locally
-from cloudshortener.utils.constants import (
-    APP_ENV_ENV,
-    APP_NAME_ENV,
-    PROJECT_ROOT_ENV,
-    APPCONFIG_APP_ID_ENV,
-    APPCONFIG_ENV_ID_ENV,
-    APPCONFIG_PROFILE_ID_ENV,
-    APPCONFIG_AGENT_URL_ENV,
-    APPCONFIG_PROFILE_NAME_ENV,
-)
+from cloudshortener.constants import ENV
 
 
 logger = logging.getLogger(__name__)
 
 
 def app_env() -> str:
-    return os.environ.get(APP_ENV_ENV, 'local').lower()
+    return os.environ.get(ENV.App.APP_ENV, 'local').lower()
 
 
 def app_name() -> str | None:
-    return os.environ.get(APP_NAME_ENV)
+    return os.environ.get(ENV.App.APP_NAME)
 
 
 def project_root() -> Path:
-    return Path(os.environ.get(PROJECT_ROOT_ENV, os.path.dirname(__file__)))
+    return Path(os.environ.get(ENV.App.PROJECT_ROOT, os.path.dirname(__file__)))
 
 
 def app_prefix() -> str | None:
@@ -112,11 +103,11 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
 
     @functools.wraps(func)
     def wrapper(lambda_name: str) -> LambdaConfiguration:
-        agent_url = __validate_appconfig_url(os.getenv(APPCONFIG_AGENT_URL_ENV))
+        agent_url = __validate_appconfig_url(os.getenv(ENV.AppConfig.AGENT_URL))
         if not running_locally() or not agent_url:
             return func(lambda_name)
 
-        profile_name = os.getenv(APPCONFIG_PROFILE_NAME_ENV, 'backend-config')
+        profile_name = os.getenv(ENV.AppConfig.PROFILE_NAME, 'backend-config')
         url = f'{agent_url}/applications/{app_name()}/environments/{app_env()}/configurations/{profile_name}'
 
         logger.debug('Trying to load AppConfig from local agent.', extra={'agentUrl': url, 'lambdaName': lambda_name})
@@ -173,7 +164,7 @@ def cache_appconfig(func: Callable) -> Callable:
 
 @_sam_load_local_appconfig
 @cache_appconfig
-@require_environment(APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV)
+@require_environment(ENV.AppConfig.APP_ID, ENV.AppConfig.ENV_ID, ENV.AppConfig.PROFILE_ID)
 def load_config(lambda_name: str) -> LambdaConfiguration:
     """Load configuration for a given Lambda from AWS AppConfig.
 
@@ -186,9 +177,9 @@ def load_config(lambda_name: str) -> LambdaConfiguration:
 
     # Start an AppConfig data session
     session_token = appconfig.start_configuration_session(
-        ApplicationIdentifier=os.environ[APPCONFIG_APP_ID_ENV],
-        EnvironmentIdentifier=os.environ[APPCONFIG_ENV_ID_ENV],
-        ConfigurationProfileIdentifier=os.environ[APPCONFIG_PROFILE_ID_ENV],
+        ApplicationIdentifier=os.environ[ENV.AppConfig.APP_ID],
+        EnvironmentIdentifier=os.environ[ENV.AppConfig.ENV_ID],
+        ConfigurationProfileIdentifier=os.environ[ENV.AppConfig.PROFILE_ID],
     )['InitialConfigurationToken']
 
     # Fetch the configuration

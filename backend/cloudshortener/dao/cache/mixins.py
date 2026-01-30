@@ -10,14 +10,7 @@ from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.redis.mixins import RedisClientMixin
 from cloudshortener.utils.config import running_locally
 from cloudshortener.utils.helpers import require_environment
-from cloudshortener.utils.constants import (
-    ELASTICACHE_HOST_PARAM_ENV,
-    ELASTICACHE_PORT_PARAM_ENV,
-    ELASTICACHE_DB_PARAM_ENV,
-    ELASTICACHE_USER_PARAM_ENV,
-    ELASTICACHE_SECRET_ENV,
-    LOCALSTACK_ENDPOINT_ENV,
-)
+from cloudshortener.constants import ENV
 
 
 class ElastiCacheClientMixin(RedisClientMixin):
@@ -88,17 +81,17 @@ class ElastiCacheClientMixin(RedisClientMixin):
         self.keys = CacheKeySchema(prefix=prefix)
 
     @staticmethod
-    @require_environment(ELASTICACHE_HOST_PARAM_ENV, ELASTICACHE_PORT_PARAM_ENV, ELASTICACHE_DB_PARAM_ENV)
+    @require_environment(ENV.ElastiCache.HOST_PARAM, ENV.ElastiCache.PORT_PARAM, ENV.ElastiCache.DB_PARAM)
     def _resolve_ssm_params(ssm_client: BaseClient | None) -> ElastiCacheParameters:
         """Resolve host, port, db, and optional username from SSM Parameter Store."""
-        host_param = os.environ[ELASTICACHE_HOST_PARAM_ENV]
-        port_param = os.environ[ELASTICACHE_PORT_PARAM_ENV]
-        db_param = os.environ[ELASTICACHE_DB_PARAM_ENV]
-        user_param = os.environ.get(ELASTICACHE_USER_PARAM_ENV)  # optional
+        host_param = os.environ[ENV.ElastiCache.HOST_PARAM]
+        port_param = os.environ[ENV.ElastiCache.PORT_PARAM]
+        db_param = os.environ[ENV.ElastiCache.DB_PARAM]
+        user_param = os.environ.get(ENV.ElastiCache.USER_PARAM)  # optional
 
         # fmt: off
         ssm_client_kwargs = {
-            'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
+            'endpoint_url': os.environ.get(ENV.LocalStack.ENDPOINT, 'http://localhost:4566'),
         } if running_locally() else {}
         # fmt: on
         ssm = ssm_client or boto3.client('ssm', **ssm_client_kwargs)
@@ -121,15 +114,15 @@ class ElastiCacheClientMixin(RedisClientMixin):
 
         return host, port, db, user
 
-    # TODO: decorate this with @require_environment(LOCALSTACK_ENDPOINT_ENV, local_only=True)
+    # TODO: decorate this with @require_environment(ENV.LocalStack.ENDPOINT, local_only=True)
     @staticmethod
-    @require_environment(ELASTICACHE_SECRET_ENV)
+    @require_environment(ENV.ElastiCache.SECRET)
     def _resolve_secret(secrets_client: BaseClient | None) -> ElastiCacheUserSecret:
         """Resolve optional username and required password from Secrets Manager."""
-        secret_name = os.environ[ELASTICACHE_SECRET_ENV]
+        secret_name = os.environ[ENV.ElastiCache.SECRET]
         # fmt: off
         secrets_client_kwargs = {
-            'endpoint_url': os.environ.get(LOCALSTACK_ENDPOINT_ENV, 'http://localhost:4566'),
+            'endpoint_url': os.environ.get(ENV.LocalStack.ENDPOINT, 'http://localhost:4566'),
         } if running_locally() else {}
         # fmt: on
         sm = secrets_client or boto3.client('secretsmanager', **secrets_client_kwargs)

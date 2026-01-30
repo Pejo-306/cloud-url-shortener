@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta, UTC
 
+from cloudshortener.constants import TTL, DefaultQuota
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
 from cloudshortener.dao.redis.mixins import RedisClientMixin
 from cloudshortener.dao.redis.helpers import handle_redis_connection_error
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError, ShortURLNotFoundError
 from cloudshortener.utils.helpers import beginning_of_next_month
-from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_QUOTA  # Add support for configurable TTL and hit quotas.
 
 
 class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
@@ -32,10 +32,10 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         #       (lambda 1): ShortURLRedisDAO.insert() continued...:
         #                   -> SET <app>:links:<shortcode>:hits <monthly link quota> EX <ttl>
         with self.redis.pipeline(transaction=True) as pipe:
-            pipe.set(link_url_key, short_url.target, ex=ONE_YEAR_SECONDS)
+            pipe.set(link_url_key, short_url.target, ex=TTL.ONE_YEAR)
             # fmt: off
             pipe.set(link_hits_key,
-                     DEFAULT_LINK_HITS_QUOTA,
+                     DefaultQuota.LINK_HITS,
                      nx=True,
                      exat=int(beginning_of_next_month().timestamp()))
             # fmt: on
@@ -119,7 +119,7 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
         with self.redis.pipeline(transaction=True) as pipe:
             # fmt: off
             pipe.set(link_hits_key,
-                     DEFAULT_LINK_HITS_QUOTA,
+                     DefaultQuota.LINK_HITS,
                      nx=True,
                      exat=int(beginning_of_next_month().timestamp()))
             # fmt: on

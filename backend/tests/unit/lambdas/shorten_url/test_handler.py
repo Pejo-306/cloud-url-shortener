@@ -1,3 +1,4 @@
+from enum import IntEnum
 import json
 from typing import cast
 from unittest.mock import MagicMock
@@ -6,6 +7,7 @@ import pytest
 from pytest import MonkeyPatch
 
 from cloudshortener.types import LambdaEvent, LambdaContext, LambdaConfiguration, HttpHeaders
+from cloudshortener.constants import DefaultQuota
 from cloudshortener.lambdas.shorten_url import app
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO, UserBaseDAO
@@ -14,44 +16,50 @@ from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError
 
 @pytest.fixture
 def apigw_event() -> LambdaEvent:
-    return cast(LambdaEvent, {
-        'body': '{ "test": "body"}',
-        'resource': '/{proxy+}',
-        'requestContext': {'resourcePath': '/{proxy+}', 'httpMethod': 'POST'},
-        'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
-        'httpMethod': 'POST',
-        'path': '/examplepath',
-        'requestContext': {
-            'resourcePath': '/{proxy+}',
+    return cast(
+        LambdaEvent,
+        {
+            'body': '{ "test": "body"}',
+            'resource': '/{proxy+}',
+            'requestContext': {'resourcePath': '/{proxy+}', 'httpMethod': 'POST'},
+            'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
             'httpMethod': 'POST',
-            'domainName': 'testhost:1000',
-            'stage': 'test',
-            'authorizer': {
-                'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+            'path': '/examplepath',
+            'requestContext': {
+                'resourcePath': '/{proxy+}',
+                'httpMethod': 'POST',
+                'domainName': 'testhost:1000',
+                'stage': 'test',
+                'authorizer': {
+                    'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+                },
             },
         },
-    })
+    )
 
 
 @pytest.fixture
 def successful_event_200() -> LambdaEvent:
-    return cast(LambdaEvent, {
-        'body': json.dumps({'target_url': 'https://example.com/blog/chuck-norris-is-awesome'}),
-        'resource': '/v1/shorten',
-        'requestContext': {'resourcePath': '/v1/shorten', 'httpMethod': 'POST'},
-        'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
-        'httpMethod': 'POST',
-        'path': '/v1/shorten',
-        'requestContext': {
-            'resourcePath': '/v1/shorten',
+    return cast(
+        LambdaEvent,
+        {
+            'body': json.dumps({'target_url': 'https://example.com/blog/chuck-norris-is-awesome'}),
+            'resource': '/v1/shorten',
+            'requestContext': {'resourcePath': '/v1/shorten', 'httpMethod': 'POST'},
+            'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
             'httpMethod': 'POST',
-            'domainName': 'testhost:1000',
-            'stage': 'test',
-            'authorizer': {
-                'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+            'path': '/v1/shorten',
+            'requestContext': {
+                'resourcePath': '/v1/shorten',
+                'httpMethod': 'POST',
+                'domainName': 'testhost:1000',
+                'stage': 'test',
+                'authorizer': {
+                    'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+                },
             },
         },
-    })
+    )
 
 
 @pytest.fixture
@@ -76,26 +84,28 @@ def bad_request_400() -> LambdaEvent:
 
 @pytest.fixture
 def bad_request_400_no_target_url() -> LambdaEvent:
-    return cast(LambdaEvent, {
-        'body': json.dumps({'invalid_json': True}),
-        'resource': '/v1/shorten',
-        'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
-        'httpMethod': 'POST',
-        'path': '/v1/shorten',
-        'requestContext': {
-            'resourcePath': '/v1/shorten',
+    return cast(
+        LambdaEvent,
+        {
+            'body': json.dumps({'invalid_json': True}),
+            'resource': '/v1/shorten',
+            'headers': {'User-Agent': 'pytest', 'Authorization': 'Bearer fake-jwt-token'},
             'httpMethod': 'POST',
-            'domainName': 'testhost:1000',
-            'stage': 'test',
-            'authorizer': {
-                'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+            'path': '/v1/shorten',
+            'requestContext': {
+                'resourcePath': '/v1/shorten',
+                'httpMethod': 'POST',
+                'domainName': 'testhost:1000',
+                'stage': 'test',
+                'authorizer': {
+                    'claims': {'sub': 'user123', 'email': 'pytest@example.com', 'cognito:username': 'pytest-user', 'email_verified': 'true'}
+                },
             },
         },
-    })
+    )
 
 
 class TestShortenUrlHandler:
-
     @pytest.fixture
     def context(self) -> LambdaContext:
         return cast(LambdaContext, {'function_name': 'shorten_url'})
@@ -134,7 +144,7 @@ class TestShortenUrlHandler:
         self.config = config
         self.short_url_dao = short_url_dao
         self.user_dao = user_dao
-    
+
     def assert_has_cors_headers(self, headers: HttpHeaders) -> None:
         assert headers['Access-Control-Allow-Origin'] == '*'  # TODO: this should be a specific frontend domain only
         assert headers['Access-Control-Allow-Headers'] == 'Authorization,Content-Type'
@@ -216,7 +226,11 @@ class TestShortenUrlHandler:
         self.assert_has_cors_headers(headers)
 
     def test_lambda_handler_with_quota_reached(self, monkeypatch: MonkeyPatch, successful_event_200: LambdaEvent) -> None:
-        monkeypatch.setattr(app, 'DEFAULT_LINK_GENERATION_QUOTA', 30)
+        class BiggerQuota(IntEnum):
+            LINK_HITS = DefaultQuota.LINK_HITS
+            LINK_GENERATION = 30
+
+        monkeypatch.setattr(app, 'DefaultQuota', BiggerQuota)
         self.user_dao.quota.return_value = 30
 
         response = app.lambda_handler(successful_event_200, self.context)

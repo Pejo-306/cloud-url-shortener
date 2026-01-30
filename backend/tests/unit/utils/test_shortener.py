@@ -39,11 +39,14 @@ import pytest
 from cloudshortener.utils import generate_shortcode
 
 
-@pytest.mark.parametrize('counter, salt, length, mult, expected', [
-    (123, 'unit_test_salt', 7, 1315423911, '0ilAMe2'),
-    (456, 'unit_test_salt', 7, 1315423911, '70t1SfZ'),
-    (789, 'unit_test_salt', 7, 1315423911, 'fICsYgW'),
-])
+@pytest.mark.parametrize(
+    'counter, salt, length, mult, expected',
+    [
+        (123, 'unit_test_salt', 7, 1315423911, '0ilAMe2'),
+        (456, 'unit_test_salt', 7, 1315423911, '70t1SfZ'),
+        (789, 'unit_test_salt', 7, 1315423911, 'fICsYgW'),
+    ],
+)
 def test_shorten_url(counter, salt, length, mult, expected):
     result = generate_shortcode(counter, salt=salt, length=length, mult=mult)
     assert result == expected
@@ -115,7 +118,7 @@ def test_empty_or_none_salt_raises_error(salt):
 def test_shorten_url_is_base62_safe():
     alphabet = set(string.ascii_letters + string.digits)
     for _ in range(100000):
-        counter = random.randint(0, 62 ** 7 - 1)
+        counter = random.randint(0, 62**7 - 1)  # noqa: S311
         result = generate_shortcode(counter, salt='format_test')
     assert all(character in alphabet for character in result)
 
@@ -130,7 +133,6 @@ def test_known_output_regression():
     """Ensure stable output for known inputs (detect logic drift)."""
     expected = 'ibCJIAD'
     assert generate_shortcode(12345, salt='my_secret', length=7) == expected
-
 
 
 @pytest.mark.parametrize('iterations', [40, 400, 4000, 40000])

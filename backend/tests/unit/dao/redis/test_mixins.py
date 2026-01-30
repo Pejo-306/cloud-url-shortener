@@ -6,7 +6,6 @@ from cloudshortener.dao.redis.mixins import RedisClientMixin
 
 
 class TestRedisClientMixin:
-
     @pytest.fixture
     def unhealthy_redis_client(self, redis_client: redis.Redis):
         redis_client.ping.side_effect = redis.exceptions.ConnectionError('Connection error')
