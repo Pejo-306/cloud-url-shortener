@@ -11,7 +11,6 @@ from cloudshortener.lambdas.warm_appconfig_cache import app
 
 
 class TestWarmAppConfigCache:
-
     @pytest.fixture
     def event(self) -> LambdaEvent:
         return {
@@ -19,7 +18,7 @@ class TestWarmAppConfigCache:
             'detail-type': 'AppConfig Deployment Complete',
             'detail': {},
         }
-    
+
     @pytest.fixture
     def cache_dao(self, monkeypatch: MonkeyPatch) -> AppConfigCacheDAO:
         cache_dao = MagicMock(spec=AppConfigCacheDAO)
@@ -39,7 +38,7 @@ class TestWarmAppConfigCache:
         }
         monkeypatch.setattr(app, 'AppConfigCacheDAO', lambda *a, **kw: cache_dao)
         return cache_dao
-    
+
     def test_lambda_handler_warms_cache(self, event: LambdaEvent, cache_dao: AppConfigCacheDAO):
         result = json.loads(app.lambda_handler(event, None))
 

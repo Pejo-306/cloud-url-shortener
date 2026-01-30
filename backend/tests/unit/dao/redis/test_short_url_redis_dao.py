@@ -9,11 +9,10 @@ from freezegun import freeze_time
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.exceptions import ShortURLAlreadyExistsError, ShortURLNotFoundError
 from cloudshortener.dao.redis import RedisKeySchema, ShortURLRedisDAO
-from cloudshortener.utils.constants import ONE_YEAR_SECONDS, DEFAULT_LINK_HITS_QUOTA
+from cloudshortener.constants import TTL, DefaultQuota
 
 
 class TestShortURLRedisDAO:
-
     @pytest.fixture
     def key_schema(self) -> RedisKeySchema:
         mock = MagicMock(spec=RedisKeySchema)
@@ -38,8 +37,8 @@ class TestShortURLRedisDAO:
         first_moment_of_next_month_ts = int(datetime.strptime('2025-11-01 00:00:00', '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC).timestamp())
         expected_calls = [
             call('testapp:test:links:abc123:url'),
-            call('testapp:test:links:abc123:url', 'https://example.com/test', ex=ONE_YEAR_SECONDS),
-            call('testapp:test:links:abc123:hits:2025-10', DEFAULT_LINK_HITS_QUOTA, nx=True, exat=first_moment_of_next_month_ts),
+            call('testapp:test:links:abc123:url', 'https://example.com/test', ex=TTL.ONE_YEAR),
+            call('testapp:test:links:abc123:hits:2025-10', DefaultQuota.LINK_HITS, nx=True, exat=first_moment_of_next_month_ts),
         ]
 
         short_url = ShortURLModel(target='https://example.com/test', shortcode='abc123')
@@ -60,7 +59,7 @@ class TestShortURLRedisDAO:
 
     @freeze_time('2025-10-15')
     def test_get_short_url(self):
-        self.redis_client.execute.return_value = ('https://example.com/test', 10000, ONE_YEAR_SECONDS)
+        self.redis_client.execute.return_value = ('https://example.com/test', 10000, TTL.ONE_YEAR)
 
         short_url = self.dao.get('abc123')
         assert isinstance(short_url, ShortURLModel)
@@ -108,7 +107,7 @@ class TestShortURLRedisDAO:
         # fmt: off
         self.redis_client.execute.return_value = (
             True,
-            DEFAULT_LINK_HITS_QUOTA - 1
+            DefaultQuota.LINK_HITS - 1
         )
         # fmt: on
 
@@ -116,11 +115,11 @@ class TestShortURLRedisDAO:
 
         result = self.dao.hit('abc123')
 
-        assert result == DEFAULT_LINK_HITS_QUOTA - 1
+        assert result == DefaultQuota.LINK_HITS - 1
         self.redis_client.exists.assert_called_once_with('testapp:test:links:abc123:url')
         self.redis_client.set.assert_called_once_with(
             'testapp:test:links:abc123:hits:2025-10',
-            DEFAULT_LINK_HITS_QUOTA,
+            DefaultQuota.LINK_HITS,
             nx=True,
             exat=expire_at,
         )

@@ -63,12 +63,15 @@ def test_base_url_fallbacks_to_localhost(event: LambdaEvent) -> None:
     ],
 )
 def test_get_short_url(shortcode: str, domain: str, stage: str, expected: str) -> None:
-    event = cast(LambdaEvent, {
-        'requestContext': {
-            'domainName': domain,
-            'stage': stage,
+    event = cast(
+        LambdaEvent,
+        {
+            'requestContext': {
+                'domainName': domain,
+                'stage': stage,
+            },
         },
-    })
+    )
     result = get_short_url(shortcode, event)
     assert result == expected
 

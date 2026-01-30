@@ -4,13 +4,7 @@ import pytest
 import redis
 from pytest import MonkeyPatch
 
-from cloudshortener.utils.constants import (
-    ELASTICACHE_HOST_PARAM_ENV,
-    ELASTICACHE_PORT_PARAM_ENV,
-    ELASTICACHE_DB_PARAM_ENV,
-    ELASTICACHE_USER_PARAM_ENV,
-    ELASTICACHE_SECRET_ENV,
-)
+from cloudshortener.constants import ENV
 
 
 @pytest.fixture
@@ -20,11 +14,11 @@ def app_prefix() -> str:
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch: MonkeyPatch) -> None:
-    monkeypatch.setenv(ELASTICACHE_HOST_PARAM_ENV, '/test/elasticache/host')
-    monkeypatch.setenv(ELASTICACHE_PORT_PARAM_ENV, '/test/elasticache/port')
-    monkeypatch.setenv(ELASTICACHE_DB_PARAM_ENV, '/test/elasticache/db')
-    monkeypatch.setenv(ELASTICACHE_USER_PARAM_ENV, '/test/elasticache/user')
-    monkeypatch.setenv(ELASTICACHE_SECRET_ENV, 'test/elasticache/credentials')
+    monkeypatch.setenv(ENV.ElastiCache.HOST_PARAM, '/test/elasticache/host')
+    monkeypatch.setenv(ENV.ElastiCache.PORT_PARAM, '/test/elasticache/port')
+    monkeypatch.setenv(ENV.ElastiCache.DB_PARAM, '/test/elasticache/db')
+    monkeypatch.setenv(ENV.ElastiCache.USER_PARAM, '/test/elasticache/user')
+    monkeypatch.setenv(ENV.ElastiCache.SECRET, 'test/elasticache/credentials')
 
 
 @pytest.fixture

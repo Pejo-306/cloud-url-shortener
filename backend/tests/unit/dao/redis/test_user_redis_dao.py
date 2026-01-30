@@ -6,11 +6,10 @@ import redis
 
 from cloudshortener.dao.redis import RedisKeySchema, UserRedisDAO
 from cloudshortener.dao.exceptions import UserDoesNotExistError
-from cloudshortener.utils.constants import ONE_MONTH_SECONDS
+from cloudshortener.constants import TTL
 
 
 class TestUserRedisDAO:
-
     @pytest.fixture
     def key_schema(self) -> RedisKeySchema:
         mock = MagicMock(spec=RedisKeySchema)
@@ -64,4 +63,4 @@ class TestUserRedisDAO:
 
         assert quota == 0
         self.redis_client.incrby.assert_called_once_with('testapp:test:users:user123:quota:4000-11', 0)
-        self.redis_client.expire.assert_called_once_with('testapp:test:users:user123:quota:4000-11', ONE_MONTH_SECONDS)
+        self.redis_client.expire.assert_called_once_with('testapp:test:users:user123:quota:4000-11', TTL.ONE_MONTH)

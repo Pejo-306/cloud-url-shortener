@@ -8,14 +8,14 @@ from pytest import MonkeyPatch
 
 from cloudshortener.dao.cache.mixins import ElastiCacheClientMixin
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
-from cloudshortener.utils.constants import ELASTICACHE_USER_PARAM_ENV
+from cloudshortener.constants import ENV
 
 
 type SSMClient = BaseClient
 type SecretsClient = BaseClient
 
-class TestElastiCacheClientMixin:
 
+class TestElastiCacheClientMixin:
     @pytest.fixture
     def ssm_client(self) -> SSMClient:
         client = MagicMock(spec=['get_parameter'])
@@ -113,7 +113,7 @@ class TestElastiCacheClientMixin:
         assert kwargs['password'] == 'p'
 
     def test_username_none_when_no_secret_username_and_no_ssm_user_param(self, monkeypatch: MonkeyPatch):
-        monkeypatch.delenv(ELASTICACHE_USER_PARAM_ENV, raising=False)
+        monkeypatch.delenv(ENV.ElastiCache.USER_PARAM, raising=False)
 
         ElastiCacheClientMixin(
             prefix=self.app_prefix,

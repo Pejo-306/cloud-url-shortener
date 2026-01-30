@@ -12,50 +12,55 @@ from cloudshortener.types import AppConfig, AppConfigMetadata, AppConfigDataClie
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.cache.appconfig_cache_dao import AppConfigCacheDAO
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
-from cloudshortener.utils.constants import APPCONFIG_APP_ID_ENV, APPCONFIG_ENV_ID_ENV, APPCONFIG_PROFILE_ID_ENV
+from cloudshortener.constants import ENV
 
 
-COOL_TTL = 7 * 24 * 60 * 60
+from cloudshortener.dao.cache.constants import CacheTTL
 
 
 class TestAppConfigCacheDAO:
-
     @pytest.fixture(autouse=True)
     def _env(self, monkeypatch: MonkeyPatch) -> None:
-        monkeypatch.setenv(APPCONFIG_APP_ID_ENV, 'app123')
-        monkeypatch.setenv(APPCONFIG_ENV_ID_ENV, 'env123')
-        monkeypatch.setenv(APPCONFIG_PROFILE_ID_ENV, 'prof123')
+        monkeypatch.setenv(ENV.AppConfig.APP_ID, 'app123')
+        monkeypatch.setenv(ENV.AppConfig.ENV_ID, 'env123')
+        monkeypatch.setenv(ENV.AppConfig.PROFILE_ID, 'prof123')
 
     @pytest.fixture
     def default_appconfig_doc(self) -> AppConfig:
-        return cast(AppConfig, {
-            'active_backend': 'redis',
-            'configs': {
-                'shorten_url': {
-                    'redis': {
-                        'host': 'localtest',
-                        'port': 96379,
-                        'db': 42,
-                    }
-                },
-                'redirect_url': {
-                    'redis': {
-                        'host': 'localtest',
-                        'port': 66379,
-                        'db': 24,
-                    }
+        return cast(
+            AppConfig,
+            {
+                'active_backend': 'redis',
+                'configs': {
+                    'shorten_url': {
+                        'redis': {
+                            'host': 'localtest',
+                            'port': 96379,
+                            'db': 42,
+                        }
+                    },
+                    'redirect_url': {
+                        'redis': {
+                            'host': 'localtest',
+                            'port': 66379,
+                            'db': 24,
+                        }
+                    },
                 },
             },
-        })
+        )
 
     @pytest.fixture
     def default_appconfig_metadata(self) -> AppConfigMetadata:
-        return cast(AppConfigMetadata, {
-            'version': 42,
-            'etag': 'W/"etag-latest"',
-            'content_type': 'application/json',
-            'fetched_at': '2025-01-03T00:00:00+00:00',
-        })
+        return cast(
+            AppConfigMetadata,
+            {
+                'version': 42,
+                'etag': 'W/"etag-latest"',
+                'content_type': 'application/json',
+                'fetched_at': '2025-01-03T00:00:00+00:00',
+            },
+        )
 
     @pytest.fixture
     def appconfigdata_client(
@@ -119,7 +124,7 @@ class TestAppConfigCacheDAO:
         _dao = object.__new__(AppConfigCacheDAO)
         _dao.redis = redis_client
         _dao.keys = CacheKeySchema(prefix=app_prefix)
-        _dao.ttl = COOL_TTL
+        _dao.ttl = CacheTTL.COOL
         return _dao
 
     @pytest.fixture(autouse=True)
@@ -156,10 +161,10 @@ class TestAppConfigCacheDAO:
     ):
         # fmt: off
         expected_calls = [
-            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
         ]
         # fmt: on
         self.redis_client.get.return_value = None
@@ -210,8 +215,8 @@ class TestAppConfigCacheDAO:
         written_appconfig_metadata['version'] = 9
         # fmt: off
         expected_calls = [
-            call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
         ]
         # fmt: on
         self.redis_client.get.return_value = None
@@ -259,8 +264,8 @@ class TestAppConfigCacheDAO:
         written_appconfig_metadata['version'] = 9
         # fmt: off
         expected_calls = [
-            call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v9', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:v9:metadata', json.dumps(written_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
         ]
         # fmt: on
         self.redis_client.get.return_value = None
@@ -298,10 +303,10 @@ class TestAppConfigCacheDAO:
     ):
         # fmt: off
         expected_calls = [
-            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
         ]
         # fmt: on
         self.redis_client.get.return_value = None
@@ -319,15 +324,15 @@ class TestAppConfigCacheDAO:
 
         with pytest.raises(CachePutError, match='Failed to write AppConfig v42'):
             self.dao.get(42, pull=True)
-    
+
     def test_fetch_latest_env_validation_missing_vars(self, monkeypatch: MonkeyPatch):
-        monkeypatch.delenv(APPCONFIG_ENV_ID_ENV, raising=False)
+        monkeypatch.delenv(ENV.AppConfig.ENV_ID, raising=False)
         expected_message = "Missing required environment variables: 'APPCONFIG_ENV_ID'"
         with pytest.raises(KeyError, match=expected_message):
             self.dao.latest(pull=True)
 
     def test_fetch_version_env_validation_missing_vars(self, monkeypatch: MonkeyPatch):
-        monkeypatch.delenv(APPCONFIG_PROFILE_ID_ENV, raising=False)
+        monkeypatch.delenv(ENV.AppConfig.PROFILE_ID, raising=False)
         expected_message = "Missing required environment variables: 'APPCONFIG_PROFILE_ID'"
         with pytest.raises(KeyError, match=expected_message):
             self.dao.get(42, pull=True)
@@ -342,10 +347,10 @@ class TestAppConfigCacheDAO:
 
         # fmt: off
         expected_calls = [
-            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
-            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=COOL_TTL),
+            call('cache:testapp:test:appconfig:v42', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:v42:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:latest', json.dumps(default_appconfig_doc, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
+            call('cache:testapp:test:appconfig:latest:metadata', json.dumps(default_appconfig_metadata, separators=(',', ':'), ensure_ascii=False), ex=CacheTTL.COOL),
         ]
         # fmt: on
 

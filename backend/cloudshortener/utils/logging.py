@@ -21,7 +21,7 @@ import logging
 import logging.config
 from datetime import datetime, UTC
 
-from cloudshortener.utils.constants import LOG_LEVEL_ENV
+from cloudshortener.constants import ENV
 
 
 class JsonFormatter(logging.Formatter):
@@ -77,7 +77,7 @@ class JsonFormatter(logging.Formatter):
 
 
 def initialize_logging() -> None:
-    log_level = os.getenv(LOG_LEVEL_ENV, 'INFO').upper()
+    log_level = os.getenv(ENV.App.LOG_LEVEL, 'INFO').upper()
     logging.config.dictConfig(
         {
             'version': 1,

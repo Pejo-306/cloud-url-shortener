@@ -16,42 +16,50 @@ from cloudshortener.dao.exceptions import ShortURLNotFoundError
 
 @pytest.fixture
 def apigw_event() -> LambdaEvent:
-    return cast(LambdaEvent, {
-        'resource': '/{shortcode}',
-        'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
-        'pathParameters': {'apigw': 'event'},
-        'httpMethod': 'GET',
-        'path': '/abc123',
-        'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
-    })
+    return cast(
+        LambdaEvent,
+        {
+            'resource': '/{shortcode}',
+            'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
+            'pathParameters': {'apigw': 'event'},
+            'httpMethod': 'GET',
+            'path': '/abc123',
+            'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
+        },
+    )
 
 
 @pytest.fixture
 def successful_event_302() -> LambdaEvent:
-    return cast(LambdaEvent, {
-        'resource': '/{shortcode}',
-        'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
-        'pathParameters': {'shortcode': 'abc123'},
-        'httpMethod': 'GET',
-        'path': '/abc123',
-        'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
-    })
+    return cast(
+        LambdaEvent,
+        {
+            'resource': '/{shortcode}',
+            'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
+            'pathParameters': {'shortcode': 'abc123'},
+            'httpMethod': 'GET',
+            'path': '/abc123',
+            'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
+        },
+    )
 
 
 @pytest.fixture
 def bad_request_400() -> LambdaEvent:
-    return cast(LambdaEvent, {
-        'resource': '/{shortcode}',
-        'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
-        'pathParameters': {'invalid': 'path'},
-        'httpMethod': 'GET',
-        'path': '/abc123',
-        'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
-    })
+    return cast(
+        LambdaEvent,
+        {
+            'resource': '/{shortcode}',
+            'requestContext': {'resourcePath': '/{shortcode}', 'httpMethod': 'GET'},
+            'pathParameters': {'invalid': 'path'},
+            'httpMethod': 'GET',
+            'path': '/abc123',
+            'requestContext': {'domainName': 'testhost:1000', 'stage': 'test'},
+        },
+    )
 
 
 class TestRedirectUrlHandler:
-
     @pytest.fixture
     def context(self) -> LambdaContext:
         return cast(LambdaContext, {'function_name': 'redirect_url'})
@@ -87,7 +95,7 @@ class TestRedirectUrlHandler:
         self.context = context
         self.config = config
         self.short_url_dao = short_url_dao
-    
+
     def assert_has_cors_headers(self, headers: HttpHeaders) -> None:
         assert headers['Access-Control-Allow-Origin'] == '*'  # TODO: this should be a specific frontend domain only
         assert headers['Access-Control-Allow-Headers'] == 'Content-Type'
@@ -107,7 +115,7 @@ class TestRedirectUrlHandler:
         assert headers['Access-Control-Allow-Origin'] == '*'  # TODO: this should be a specific frontend domain only
         assert headers['Access-Control-Allow-Headers'] == 'Content-Type'
         assert headers['Access-Control-Allow-Methods'] == 'OPTIONS,POST,GET'
-    
+
         # Assert short URL link quota was hit
         self.short_url_dao.hit.assert_called_once_with(shortcode='abc123')
         self.short_url_dao.get.assert_called_once_with(shortcode='abc123')
