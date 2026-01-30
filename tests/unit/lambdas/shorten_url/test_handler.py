@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from pytest import MonkeyPatch
 
-from cloudshortener.types import LambdaEvent, LambdaContext, LambdaConfiguration
+from cloudshortener.types import LambdaEvent, LambdaContext, LambdaConfiguration, HttpHeaders
 from cloudshortener.lambdas.shorten_url import app
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO, UserBaseDAO
@@ -134,12 +134,18 @@ class TestShortenUrlHandler:
         self.config = config
         self.short_url_dao = short_url_dao
         self.user_dao = user_dao
+    
+    def assert_has_cors_headers(self, headers: HttpHeaders) -> None:
+        assert headers['Access-Control-Allow-Origin'] == '*'  # TODO: this should be a specific frontend domain only
+        assert headers['Access-Control-Allow-Headers'] == 'Authorization,Content-Type'
+        assert headers['Access-Control-Allow-Methods'] == 'OPTIONS,POST,GET'
 
     def test_lambda_handler(self, successful_event_200: LambdaEvent) -> None:
         target_url = 'https://example.com/blog/chuck-norris-is-awesome'
 
         response = app.lambda_handler(successful_event_200, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         # Assert Lambda successfully executes
         assert response['statusCode'] == 200
@@ -149,6 +155,7 @@ class TestShortenUrlHandler:
         assert body['shortcode'] == 'abc123'
         assert body['userQuota'] == 11
         assert body['remainingQuota'] == 9
+        self.assert_has_cors_headers(headers)
 
         # Assert Lambda persisted a new short URL
         short_url = ShortURLModel(target=target_url, shortcode='abc123')
@@ -162,18 +169,22 @@ class TestShortenUrlHandler:
     def test_lambda_handler_with_invalid_json(self, bad_request_400: LambdaEvent) -> None:
         response = app.lambda_handler(bad_request_400, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 400
         assert body['message'] == 'Bad Request (invalid JSON body)'
         assert body['errorCode'] == 'INVALID_JSON'
+        self.assert_has_cors_headers(headers)
 
     def test_lambda_handler_with_missing_target_url(self, bad_request_400_no_target_url: LambdaEvent) -> None:
         response = app.lambda_handler(bad_request_400_no_target_url, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 400
         assert body['message'] == "Bad Request (missing 'target_url' or 'targetUrl' in JSON body)"
         assert body['errorCode'] == 'MISSING_TARGET_URL'
+        self.assert_has_cors_headers(headers)
 
     def test_lambda_handler_with_invalid_configuration_file(
         self,
@@ -185,9 +196,11 @@ class TestShortenUrlHandler:
 
         response = app.lambda_handler(apigw_event, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 500
         assert body['message'] == 'Internal Server Error'
+        self.assert_has_cors_headers(headers)
 
     def test_lambda_handler_with_existing_short_url(self, successful_event_200: LambdaEvent) -> None:
         # Assert Short URL DAO won't override an existing short URL
@@ -195,10 +208,12 @@ class TestShortenUrlHandler:
 
         response = app.lambda_handler(successful_event_200, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 409
         assert body['message'] == 'Conflict (short URL already exists)'
         assert body['errorCode'] == 'SHORT_URL_ALREADY_EXISTS'
+        self.assert_has_cors_headers(headers)
 
     def test_lambda_handler_with_quota_reached(self, monkeypatch: MonkeyPatch, successful_event_200: LambdaEvent) -> None:
         monkeypatch.setattr(app, 'DEFAULT_LINK_GENERATION_QUOTA', 30)
@@ -206,17 +221,21 @@ class TestShortenUrlHandler:
 
         response = app.lambda_handler(successful_event_200, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 429
         assert body['message'] == 'Too Many Link Generation Requests (monthly quota reached)'
         assert body['errorCode'] == 'LINK_QUOTA_EXCEEDED'
+        self.assert_has_cors_headers(headers)
 
     def test_lambda_handler_with_unauthorized_access_attempt(self, successful_event_200: LambdaEvent) -> None:
         del successful_event_200['requestContext']['authorizer']
 
         response = app.lambda_handler(successful_event_200, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 401
         assert body['message'] == "Unauthorized (missing 'sub' in JWT claims)"
         assert body['errorCode'] == 'MISSING_USER_ID'
+        self.assert_has_cors_headers(headers)

@@ -7,7 +7,7 @@ import pytest
 from pytest import MonkeyPatch
 from freezegun import freeze_time
 
-from cloudshortener.types import LambdaEvent, LambdaContext, LambdaConfiguration
+from cloudshortener.types import LambdaEvent, LambdaContext, LambdaConfiguration, HttpHeaders
 from cloudshortener.lambdas.redirect_url import app
 from cloudshortener.models import ShortURLModel
 from cloudshortener.dao.base import ShortURLBaseDAO
@@ -87,6 +87,11 @@ class TestRedirectUrlHandler:
         self.context = context
         self.config = config
         self.short_url_dao = short_url_dao
+    
+    def assert_has_cors_headers(self, headers: HttpHeaders) -> None:
+        assert headers['Access-Control-Allow-Origin'] == '*'  # TODO: this should be a specific frontend domain only
+        assert headers['Access-Control-Allow-Headers'] == 'Content-Type'
+        assert headers['Access-Control-Allow-Methods'] == 'OPTIONS,POST,GET'
 
     def test_lambda_handler(self, successful_event_302: LambdaEvent) -> None:
         response = app.lambda_handler(successful_event_302, self.context)
@@ -98,6 +103,11 @@ class TestRedirectUrlHandler:
         assert body == {}
         assert headers['Location'] == 'https://example.com/blog/chuck-norris-is-awesome'
 
+        # Assert CORS headers
+        assert headers['Access-Control-Allow-Origin'] == '*'  # TODO: this should be a specific frontend domain only
+        assert headers['Access-Control-Allow-Headers'] == 'Content-Type'
+        assert headers['Access-Control-Allow-Methods'] == 'OPTIONS,POST,GET'
+    
         # Assert short URL link quota was hit
         self.short_url_dao.hit.assert_called_once_with(shortcode='abc123')
         self.short_url_dao.get.assert_called_once_with(shortcode='abc123')
@@ -105,10 +115,12 @@ class TestRedirectUrlHandler:
     def test_lambda_handler_with_invalid_path_parameters(self, bad_request_400: LambdaEvent) -> None:
         response = app.lambda_handler(bad_request_400, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 400
         assert body['message'] == "Bad Request (missing 'shortcode' in path)"
         assert body['errorCode'] == 'MISSING_SHORTCODE'
+        self.assert_has_cors_headers(headers)
 
     def test_lambda_handler_with_invalid_shortcode(self, successful_event_302: LambdaEvent) -> None:
         # Ensure the DAO raises ShortURLNotFoundError on hit()
@@ -117,10 +129,13 @@ class TestRedirectUrlHandler:
 
         response = app.lambda_handler(successful_event_302, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 400
         assert body['message'] == f"Bad Request (short url {short_url} doesn't exist)"
         assert body['errorCode'] == 'SHORT_URL_NOT_FOUND'
+        self.assert_has_cors_headers(headers)
+
         self.short_url_dao.hit.assert_called_once_with(shortcode='abc123')
         self.short_url_dao.get.assert_not_called()
 
@@ -138,6 +153,8 @@ class TestRedirectUrlHandler:
         assert body['errorCode'] == 'LINK_QUOTA_EXCEEDED'
         assert 'Monthly hit quota exceeded for link' in body['message']
         assert '2025-11-01T00:00:00Z' in body['message']
+        self.assert_has_cors_headers(headers)
+
         self.short_url_dao.hit.assert_called_once_with(shortcode='abc123')
         self.short_url_dao.get.assert_not_called()
 
@@ -180,6 +197,8 @@ class TestRedirectUrlHandler:
 
         response = app.lambda_handler(apigw_event, self.context)
         body = json.loads(response['body'])
+        headers = response['headers']
 
         assert response['statusCode'] == 500
         assert body['message'] == 'Internal Server Error'
+        self.assert_has_cors_headers(headers)

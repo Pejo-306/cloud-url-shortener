@@ -14,3 +14,6 @@ type AppConfigMetadata = dict[str, Any]
 # Type aliases for boto3 clients
 type AppConfigDataClient = BaseClient
 type AppConfigClient = BaseClient
+
+# Type aliases for HTTP objects
+type HttpHeaders = dict[str, str]

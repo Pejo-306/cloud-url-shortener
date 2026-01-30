@@ -18,11 +18,21 @@ from cloudshortener.lambdas.redirect_url.constants import (
 logger = logging.getLogger(__name__)
 
 
+def cors_headers() -> dict[str, str]:
+    """API gateway returns these CORS headers to allow frontend on another domain to process the response."""
+    return {
+        'Access-Control-Allow-Origin': '*',  # TODO: this should be a specific frontend domain only
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
+    }
+
+
 def response_500(message: str | None = None) -> LambdaResponse:
     base = 'Internal Server Error'
     body = {'message': base if not message else f'{base} ({message})'}
     return {
         'statusCode': 500,
+        'headers': cors_headers(),
         'body': json.dumps(body),
     }
 
@@ -34,6 +44,7 @@ def response_400(message: str | None = None, error_code: str | None = None) -> L
         body['errorCode'] = error_code
     return {
         'statusCode': 400,
+        'headers': cors_headers(),
         'body': json.dumps(body),
     }
 
@@ -42,26 +53,22 @@ def response_429(*, retry_after: int, message: str | None = None, error_code: st
     body = {'message': message or 'Too Many Requests'}
     if error_code:
         body['errorCode'] = error_code
+    headers = cors_headers()
+    headers['Content-Type'] = 'application/json'
+    headers['Retry-After'] = str(retry_after)
     return {
         'statusCode': 429,
-        'headers': {
-            'Content-Type': 'application/json',
-            'Retry-After': str(retry_after),
-        },
+        'headers': headers,
         'body': json.dumps(body),
     }
 
 
 def response_302(*, location: str) -> LambdaResponse:
+    headers = cors_headers()
+    headers['Location'] = location
     return {
         'statusCode': 302,
-        'headers': {
-            'Location': location,
-            # TODO: remove later (Needed only for temporary frontend)
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers': 'Content-Type',
-            'Access-Control-Allow-Methods': 'OPTIONS,POST,GET',
-        },
+        'headers': headers,
         'body': json.dumps({}),  # no body needed for redirects
     }
 
