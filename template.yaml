@@ -631,22 +631,6 @@ Resources:
       Port: !Ref ElastiCachePort
 
   ##################################################
-  # Application Insights & Monitoring
-  ##################################################
-  ApplicationResourceGroup:
-    Type: AWS::ResourceGroups::Group
-    Properties:
-      Name: !Sub ApplicationInsights-SAM-${AWS::StackName}
-      ResourceQuery:
-        Type: CLOUDFORMATION_STACK_1_0
-
-  ApplicationInsightsMonitoring:
-    Type: AWS::ApplicationInsights::Application
-    Properties:
-      ResourceGroupName: !Ref ApplicationResourceGroup
-      AutoConfigurationEnabled: true
-
-  ##################################################
   # FrontEnd (S3 Static Website Hosting)
   ##################################################
   FrontendBucket:
