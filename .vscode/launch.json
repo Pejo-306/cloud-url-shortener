@@ -58,7 +58,7 @@
             },
             "sam": {
                 "containerBuild": true,
-                "dockerNetwork": "cloud-url-shortener_default"
+                "dockerNetwork": "cloudshortener_local-net"
             }
         },
         {
@@ -106,7 +106,7 @@
             },
             "sam": {
                 "containerBuild": true,
-                "dockerNetwork": "cloud-url-shortener_default"
+                "dockerNetwork": "cloudshortener_local-net"
             }
         },
         {
@@ -164,7 +164,7 @@
             },
             "sam": {
                 "containerBuild": true,
-                "dockerNetwork": "cloud-url-shortener_default"
+                "dockerNetwork": "cloudshortener_local-net"
             }
         }
     ]
