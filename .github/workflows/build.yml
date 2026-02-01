@@ -9,7 +9,7 @@ on:
       - 'backend/tests/**/*.py'
       - 'backend/requirements*.txt'
       - 'backend/pyproject.toml'
-      - 'template*.yaml'
+      - 'infra/**/template.yaml'
       - '.github/workflows/**'
   push:
     branches:
@@ -20,7 +20,7 @@ on:
       - 'backend/tests/**/*.py'
       - 'backend/requirements*.txt'
       - 'backend/pyproject.toml'
-      - 'template*.yaml'
+      - 'infra/**/template.yaml'
       - '.github/workflows/**'
 
 concurrency:
@@ -64,7 +64,7 @@ jobs:
           pip install aws-sam-cli
 
       - name: SAM build
-        run: sam build --use-container --exclude frontend
+        run: sam build --use-container
 
       - name: Verify build artifacts
         run: |
@@ -78,7 +78,7 @@ jobs:
           du -sh .aws-sam/build/ || echo "❌ Could not calculate size"
 
       - name: SAM validate
-        run: sam validate
+        run: sam validate --lint --region ${{ vars.AWS_REGION }}
 
       # NOTE: Manually installing node.js is only needed on act to upload build artifacts
       - name: Install Node (local/act only)

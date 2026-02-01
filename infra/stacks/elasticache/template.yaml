@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  CloudShortener - ElastiCache Stack
+  Redis replication group for caching and data storage.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: cloudshortener
+    Description: Application name
+
+  AppEnv:
+    Type: String
+    AllowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    Default: local
+    Description: Application environment
+
+  CacheSubnetGroupName:
+    Type: String
+    Description: ElastiCache subnet group name (from Network stack)
+
+  SecurityGroupId:
+    Type: String
+    Description: Security group ID for ElastiCache (from Network stack)
+
+  ElastiCacheNodeType:
+    Type: String
+    Default: cache.t4g.small
+    Description: ElastiCache node type
+
+  ElastiCacheEngineVersion:
+    Type: String
+    Default: '7.1'
+    Description: Redis engine version
+
+  ElastiCachePort:
+    Type: Number
+    Default: 6379
+    Description: ElastiCache Redis port
+
+Resources:
+  ElastiCacheReplicationGroup:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      ReplicationGroupDescription: !Sub ${AppName}-${AppEnv} Redis
+      Engine: redis
+      EngineVersion: !Ref ElastiCacheEngineVersion
+      CacheNodeType: !Ref ElastiCacheNodeType
+      AutomaticFailoverEnabled: true
+      MultiAZEnabled: true
+      NumNodeGroups: 1
+      ReplicasPerNodeGroup: 1
+      AtRestEncryptionEnabled: true
+      TransitEncryptionEnabled: true
+      AuthToken: !Sub '{{resolve:secretsmanager:${AppName}/${AppEnv}/elasticache/credentials:SecretString:password}}'
+      CacheSubnetGroupName: !Ref CacheSubnetGroupName
+      SecurityGroupIds:
+        - !Ref SecurityGroupId
+      Port: !Ref ElastiCachePort
+
+Outputs:
+  PrimaryEndpoint:
+    Description: Redis primary endpoint (host:port)
+    Value: !Sub ${ElastiCacheReplicationGroup.PrimaryEndPoint.Address}:${ElastiCachePort}
+
+  ReaderEndpoint:
+    Description: Redis reader endpoint (host:port)
+    Value: !Sub ${ElastiCacheReplicationGroup.ReaderEndPoint.Address}:${ElastiCachePort}
+
+  PrimaryEndpointAddress:
+    Description: Redis primary endpoint address (host only)
+    Value: !GetAtt ElastiCacheReplicationGroup.PrimaryEndPoint.Address
+
+  ReaderEndpointAddress:
+    Description: Redis reader endpoint address (host only)
+    Value: !GetAtt ElastiCacheReplicationGroup.ReaderEndPoint.Address

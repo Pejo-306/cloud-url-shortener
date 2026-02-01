@@ -1,0 +1,2 @@
+ignore_checks:
+  - W3005  # Obsolete DependsOn - we use explicit DependsOn for readability even when implicit deps exist

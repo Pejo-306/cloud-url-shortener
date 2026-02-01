@@ -98,7 +98,7 @@ jobs:
             --no-confirm-changeset \
             --resolve-s3 \
             --stack-name "${{ vars.APP_NAME }}-${{ vars.APP_ENV }}" \
-            --capabilities CAPABILITY_IAM \
+            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
             --parameter-overrides \
               AppEnv=${{ vars.APP_ENV }} \
               AppName=${{ vars.APP_NAME }} \

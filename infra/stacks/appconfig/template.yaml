@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  CloudShortener - AppConfig Stack
+  Application configuration management with AppConfig.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: cloudshortener
+    Description: Application name
+
+  AppEnv:
+    Type: String
+    AllowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    Default: local
+    Description: Application environment
+
+Resources:
+  AppConfigApplication:
+    Type: AWS::AppConfig::Application
+    Properties:
+      Name: !Sub ${AppName}
+
+  AppConfigEnvironment:
+    Type: AWS::AppConfig::Environment
+    Properties:
+      ApplicationId: !Ref AppConfigApplication
+      Name: !Ref AppEnv
+
+  BackendConfigProfile:
+    Type: AWS::AppConfig::ConfigurationProfile
+    Properties:
+      ApplicationId: !Ref AppConfigApplication
+      Name: backend-config
+      LocationUri: hosted # using AppConfig hosted store
+      Type: AWS.Freeform
+      # Optional: add a JSON schema validator later
+
+  BackendHostedConfigVersion:
+    Type: AWS::AppConfig::HostedConfigurationVersion
+    Properties:
+      ApplicationId: !Ref AppConfigApplication
+      ConfigurationProfileId: !Ref BackendConfigProfile
+      ContentType: application/json
+      Content: !Sub |
+        {
+          "build": 3,
+          "active_backend": "redis",
+          "configs": {
+            "shorten_url": {
+              "redis": {
+                "host": "{{resolve:ssm:/${AppName}/${AppEnv}/shorten_url/redis/host}}",
+                "port": {{resolve:ssm:/${AppName}/${AppEnv}/shorten_url/redis/port}},
+                "db":   {{resolve:ssm:/${AppName}/${AppEnv}/shorten_url/redis/db}},
+                "username": "{{resolve:secretsmanager:${AppName}/${AppEnv}/shorten_url/redis:SecretString:username}}",
+                "password": "{{resolve:secretsmanager:${AppName}/${AppEnv}/shorten_url/redis:SecretString:password}}"
+              }
+            },
+            "redirect_url": {
+              "redis": {
+                "host": "{{resolve:ssm:/${AppName}/${AppEnv}/redirect_url/redis/host}}",
+                "port": {{resolve:ssm:/${AppName}/${AppEnv}/redirect_url/redis/port}},
+                "db":   {{resolve:ssm:/${AppName}/${AppEnv}/redirect_url/redis/db}},
+                "username": "{{resolve:secretsmanager:${AppName}/${AppEnv}/redirect_url/redis:SecretString:username}}",
+                "password": "{{resolve:secretsmanager:${AppName}/${AppEnv}/redirect_url/redis:SecretString:password}}"
+              }
+            }
+          }
+        }
+
+  AppConfigFastDeploymentStrategy:
+    Type: AWS::AppConfig::DeploymentStrategy
+    Properties:
+      Name: cloudshortener.FastDeployment
+      Description: All-at-once deployment with 1 minute bake time
+      DeploymentDurationInMinutes: 0
+      GrowthType: LINEAR
+      GrowthFactor: 100
+      FinalBakeTimeInMinutes: 1
+      ReplicateTo: NONE
+
+  BackendConfigDeployment:
+    Type: AWS::AppConfig::Deployment
+    Properties:
+      ApplicationId: !Ref AppConfigApplication
+      EnvironmentId: !Ref AppConfigEnvironment
+      ConfigurationProfileId: !Ref BackendConfigProfile
+      ConfigurationVersion: !GetAtt BackendHostedConfigVersion.VersionNumber
+      DeploymentStrategyId: !Ref AppConfigFastDeploymentStrategy
+      Description: Deploy backend config
+
+Outputs:
+  AppConfigApplicationId:
+    Description: AppConfig Application ID
+    Value: !Ref AppConfigApplication
+
+  AppConfigEnvironmentId:
+    Description: AppConfig Environment ID
+    Value: !Ref AppConfigEnvironment
+
+  BackendConfigProfileId:
+    Description: AppConfig Configuration Profile ID
+    Value: !Ref BackendConfigProfile
