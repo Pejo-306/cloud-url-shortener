@@ -7,7 +7,7 @@
             "name": "cloud-url-shortener:ShortenUrlFunction",
             "invokeTarget": {
                 "target": "template",
-                "templatePath": "${workspaceFolder}/template.yaml",
+                "templatePath": "${workspaceFolder}/infra/stacks/backend/template.yaml",
                 "logicalId": "ShortenUrlFunction"
             },
             "aws": {
@@ -46,7 +46,7 @@
                     "APP_NAME": "cloudshortener",
                     "PROJECT_ROOT": "/var/task/",
                     "LOG_LEVEL": "DEBUG",
-                    "APPCONFIG_AGENT_URL": "http://host.docker.internal:2772",
+                    "APPCONFIG_AGENT_URL": "http://appconfig-agent:2772",
                     "ELASTICACHE_HOST_PARAM": "/cloudshortener/local/elasticache/host",
                     "ELASTICACHE_PORT_PARAM": "/cloudshortener/local/elasticache/port",
                     "ELASTICACHE_DB_PARAM": "/cloudshortener/local/elasticache/db",
@@ -67,7 +67,7 @@
             "name": "cloud-url-shortener:RedirectUrlFunction",
             "invokeTarget": {
                 "target": "template",
-                "templatePath": "${workspaceFolder}/template.yaml",
+                "templatePath": "${workspaceFolder}/infra/stacks/backend/template.yaml",
                 "logicalId": "RedirectUrlFunction"
             },
             "aws": {
@@ -94,7 +94,7 @@
                     "APP_NAME": "cloudshortener",
                     "PROJECT_ROOT": "/var/task/",
                     "LOG_LEVEL": "DEBUG",
-                    "APPCONFIG_AGENT_URL": "http://host.docker.internal:2772",
+                    "APPCONFIG_AGENT_URL": "http://appconfig-agent:2772",
                     "ELASTICACHE_HOST_PARAM": "/cloudshortener/local/elasticache/host",
                     "ELASTICACHE_PORT_PARAM": "/cloudshortener/local/elasticache/port",
                     "ELASTICACHE_DB_PARAM": "/cloudshortener/local/elasticache/db",
@@ -115,7 +115,7 @@
             "name": "cloud-url-shortener:WarmAppConfigCacheFunction",
             "invokeTarget": {
                 "target": "template",
-                "templatePath": "${workspaceFolder}/template.yaml",
+                "templatePath": "${workspaceFolder}/infra/stacks/backend/template.yaml",
                 "logicalId": "WarmAppConfigCacheFunction"
             },
             "aws": {

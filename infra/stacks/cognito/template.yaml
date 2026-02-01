@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  CloudShortener - Cognito Stack
+  User Pool and User Pool Client for authentication.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: cloudshortener
+    Description: Application name
+
+  AppEnv:
+    Type: String
+    AllowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    Default: local
+    Description: Application environment
+
+Resources:
+  ##################################################
+  # Cognito User Pool
+  ##################################################
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub ${AppName}-${AppEnv}-users
+      AutoVerifiedAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: false
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+          RequireUppercase: false
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+  ##################################################
+  # Cognito User Pool Client
+  ##################################################
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: !Sub ${AppName}-${AppEnv}-web
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      TokenValidityUnits:
+        IdToken: days
+        AccessToken: days
+        RefreshToken: days
+      IdTokenValidity: 1
+      AccessTokenValidity: 1
+      RefreshTokenValidity: 30
+
+Outputs:
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref CognitoUserPool
+
+  UserPoolArn:
+    Description: Cognito User Pool ARN
+    Value: !GetAtt CognitoUserPool.Arn
+
+  UserPoolClientId:
+    Description: Cognito App Client ID
+    Value: !Ref CognitoUserPoolClient

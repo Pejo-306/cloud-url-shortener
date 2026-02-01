@@ -8,12 +8,14 @@ region = "eu-central-1"
 cached = true
 parallel = true
 use_container = true
+template_file = "infra/template.yaml"
 
 [default.validate.parameters]
 lint = true
+template_file = "infra/template.yaml"
 
 [default.deploy.parameters]
-capabilities = "CAPABILITY_IAM"
+capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
 confirm_changeset = true
 
 [default.package]
@@ -21,7 +23,6 @@ parameters = { }
 
 [default.sync.parameters]
 watch = false
-template_file = "template.yaml"
 stack_name = "cloudshortener-dev"
 dependency_layer = false
 code = true

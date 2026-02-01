@@ -1,0 +1,284 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  CloudShortener - URL Shortener Service
+  Two Lambda functions (shorten & redirect) behind an API Gateway,
+  plus a lightweight S3-hosted frontend.
+  This template composes all nested stacks and provides EventBridge integration.
+
+Parameters:
+  AppEnv:
+    Type: String
+    AllowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    Default: local
+    Description: Application environment
+
+  AppName:
+    Type: String
+    Default: cloudshortener
+    Description: Application name
+
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+      - CRITICAL
+    Description: Logging level
+
+  FrontendBucketName:
+    Type: String
+    Default: cloudshortener-frontend
+    Description: S3 bucket for hosting the frontend
+
+  ElastiCacheNodeType:
+    Type: String
+    Default: cache.t4g.small
+    Description: ElastiCache node type
+
+  ElastiCacheEngineVersion:
+    Type: String
+    Default: '7.1'
+    Description: Redis engine version
+
+  ElastiCachePort:
+    Type: Number
+    Default: 6379
+    Description: ElastiCache Redis port
+
+Resources:
+  ##################################################
+  # Foundational Layer - Networking
+  ##################################################
+  NetworkStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./stacks/network/template.yaml
+      Parameters:
+        AppName: !Ref AppName
+        AppEnv: !Ref AppEnv
+        ElastiCachePort: !Ref ElastiCachePort
+
+  ##################################################
+  # Nested Components of the System
+  ##################################################
+  CognitoStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./stacks/cognito/template.yaml
+      Parameters:
+        AppName: !Ref AppName
+        AppEnv: !Ref AppEnv
+
+  AppConfigStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./stacks/appconfig/template.yaml
+      Parameters:
+        AppName: !Ref AppName
+        AppEnv: !Ref AppEnv
+
+  FrontendStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: ./stacks/frontend/template.yaml
+      Parameters:
+        AppName: !Ref AppName
+        AppEnv: !Ref AppEnv
+        FrontendBucketName: !Ref FrontendBucketName
+
+  ElastiCacheStack:
+    Type: AWS::Serverless::Application
+    DependsOn:
+      - NetworkStack
+    Properties:
+      Location: ./stacks/elasticache/template.yaml
+      Parameters:
+        AppName: !Ref AppName
+        AppEnv: !Ref AppEnv
+        CacheSubnetGroupName: !GetAtt NetworkStack.Outputs.CacheSubnetGroupName
+        SecurityGroupId: !GetAtt NetworkStack.Outputs.ElastiCacheSecurityGroupId
+        ElastiCacheNodeType: !Ref ElastiCacheNodeType
+        ElastiCacheEngineVersion: !Ref ElastiCacheEngineVersion
+        ElastiCachePort: !Ref ElastiCachePort
+
+  BackendStack:
+    Type: AWS::Serverless::Application
+    DependsOn:
+      - NetworkStack
+      - CognitoStack
+      - AppConfigStack
+    Properties:
+      Location: ./stacks/backend/template.yaml
+      Parameters:
+        AppName: !Ref AppName
+        AppEnv: !Ref AppEnv
+        LogLevel: !Ref LogLevel
+        # From NetworkStack
+        PrivateSubnetA: !GetAtt NetworkStack.Outputs.PrivateSubnetA
+        PrivateSubnetB: !GetAtt NetworkStack.Outputs.PrivateSubnetB
+        LambdaSecurityGroupId: !GetAtt NetworkStack.Outputs.LambdaSecurityGroupId
+        # From CognitoStack
+        UserPoolId: !GetAtt CognitoStack.Outputs.UserPoolId
+        UserPoolArn: !GetAtt CognitoStack.Outputs.UserPoolArn
+        UserPoolClientId: !GetAtt CognitoStack.Outputs.UserPoolClientId
+        # From AppConfigStack
+        AppConfigApplicationId: !GetAtt AppConfigStack.Outputs.AppConfigApplicationId
+        AppConfigEnvironmentId: !GetAtt AppConfigStack.Outputs.AppConfigEnvironmentId
+        BackendConfigProfileId: !GetAtt AppConfigStack.Outputs.BackendConfigProfileId
+
+  ##################################################
+  # Foundational Layer - Event wiring 
+  ##################################################
+  #------------------------------------------------
+  # EventBridge: AppConfig Deployment -> Cache Warmer
+  #------------------------------------------------
+  AppConfigDeploymentRule:
+    Type: AWS::Events::Rule
+    DependsOn:
+      - AppConfigStack
+      - BackendStack
+    Properties:
+      Description: Trigger cache warm-up on AppConfig deployment complete
+      EventPattern:
+        source:
+          - aws.appconfig
+        detail-type:
+          - On Deployment Complete
+        detail:
+          Type:
+            - OnDeploymentComplete
+          Application:
+            Id:
+              - !GetAtt AppConfigStack.Outputs.AppConfigApplicationId
+          Environment:
+            Id:
+              - !GetAtt AppConfigStack.Outputs.AppConfigEnvironmentId
+          ConfigurationProfile:
+            Id:
+              - !GetAtt AppConfigStack.Outputs.BackendConfigProfileId
+      Targets:
+        - Arn: !GetAtt BackendStack.Outputs.WarmAppConfigCacheFunctionArn
+          Id: WarmAppConfigCacheTarget
+
+  WarmAppConfigCacheInvokePermission:
+    Type: AWS::Lambda::Permission
+    DependsOn:
+      - BackendStack
+      - AppConfigDeploymentRule
+    Properties:
+      FunctionName: !GetAtt BackendStack.Outputs.WarmAppConfigCacheFunctionName
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AppConfigDeploymentRule.Arn
+
+  AppConfigEventBridgeExtension:
+    Type: AWS::AppConfig::Extension
+    Properties:
+      Name: AppConfig-EventBridge
+      Description: Send AppConfig deployment events to EventBridge default bus
+      Actions:
+        ON_DEPLOYMENT_START:
+          - Name: SendToEventBridge
+            Uri: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+        ON_DEPLOYMENT_COMPLETE:
+          - Name: SendToEventBridge
+            Uri: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+        ON_DEPLOYMENT_ROLLED_BACK:
+          - Name: SendToEventBridge
+            Uri: !Sub arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default
+
+  AppConfigEventBridgeExtensionAssociation:
+    Type: AWS::AppConfig::ExtensionAssociation
+    DependsOn:
+      - AppConfigStack
+      - AppConfigEventBridgeExtension
+    Properties:
+      ExtensionIdentifier: !Ref AppConfigEventBridgeExtension
+      ResourceIdentifier: !Sub arn:${AWS::Partition}:appconfig:${AWS::Region}:${AWS::AccountId}:application/${AppConfigStack.Outputs.AppConfigApplicationId}
+
+Outputs:
+  ##################################################
+  # API & Backend Outputs
+  ##################################################
+  ApiUrl:
+    Description: Base URL for the API Gateway
+    Value: !GetAtt BackendStack.Outputs.ApiUrl
+
+  ShortenUrlFunctionArn:
+    Description: ARN of the Shorten URL Lambda Function
+    Value: !GetAtt BackendStack.Outputs.ShortenUrlFunctionArn
+
+  RedirectUrlFunctionArn:
+    Description: ARN of the Redirect URL Lambda Function
+    Value: !GetAtt BackendStack.Outputs.RedirectUrlFunctionArn
+
+  WarmAppConfigCacheFunctionArn:
+    Description: ARN of the Warm AppConfig Cache Lambda Function
+    Value: !GetAtt BackendStack.Outputs.WarmAppConfigCacheFunctionArn
+
+  ##################################################
+  # Frontend Outputs
+  ##################################################
+  FrontendUrl:
+    Description: HTTPS CloudFront URL for the frontend
+    Value: !GetAtt FrontendStack.Outputs.FrontendUrl
+
+  FrontendBucketName:
+    Description: S3 bucket name hosting frontend application
+    Value: !GetAtt FrontendStack.Outputs.FrontendBucketName
+
+  CloudFrontDistributionId:
+    Description: CloudFront Distribution ID (for cache invalidation)
+    Value: !GetAtt FrontendStack.Outputs.CloudFrontDistributionId
+
+  ##################################################
+  # Cognito Outputs
+  ##################################################
+  UserPoolId:
+    Description: Cognito User Pool ID
+    Value: !GetAtt CognitoStack.Outputs.UserPoolId
+
+  UserPoolClientId:
+    Description: Cognito App Client ID
+    Value: !GetAtt CognitoStack.Outputs.UserPoolClientId
+
+  ##################################################
+  # AppConfig Outputs
+  ##################################################
+  AppConfigApplicationId:
+    Description: AppConfig Application ID
+    Value: !GetAtt AppConfigStack.Outputs.AppConfigApplicationId
+
+  AppConfigEnvironmentId:
+    Description: AppConfig Environment ID
+    Value: !GetAtt AppConfigStack.Outputs.AppConfigEnvironmentId
+
+  BackendConfigProfileId:
+    Description: AppConfig Configuration Profile ID
+    Value: !GetAtt AppConfigStack.Outputs.BackendConfigProfileId
+
+  ##################################################
+  # ElastiCache Outputs
+  ##################################################
+  ElastiCachePrimaryEndpoint:
+    Description: Redis primary endpoint (host:port)
+    Value: !GetAtt ElastiCacheStack.Outputs.PrimaryEndpoint
+
+  ElastiCacheReaderEndpoint:
+    Description: Redis reader endpoint (host:port)
+    Value: !GetAtt ElastiCacheStack.Outputs.ReaderEndpoint
+
+  ##################################################
+  # Network Outputs
+  ##################################################
+  VpcId:
+    Description: VPC ID
+    Value: !GetAtt NetworkStack.Outputs.VpcId
