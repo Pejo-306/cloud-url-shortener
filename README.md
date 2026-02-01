@@ -219,7 +219,7 @@ above repeats. The old calendar month's key `2025-12` expires.
 ## Local Deployment
 
 In local deployment, this project uses SAM and Docker to run AWS Lambda Functions in
-docker containers. There's also a [docker compose](docker-compose.yml) which
+docker containers. There's also a [docker compose](local/compose.yaml) which
 creates:
 - a Redis database
 - [Redis Insight](https://redis.io/insight/)
@@ -250,7 +250,7 @@ docker compose up
 - **AppConfig Agent** on port **2772**
 
 If your machine is already using any of the listed ports, either a) stop other
-services using these ports or b) edit [docker-compose.yml](docker-compose.yml)
+services using these ports or b) edit [local/compose.yaml](local/compose.yaml)
 and switch out the ports.
 
 ### Build the SAM app
@@ -262,11 +262,11 @@ sam build --use-container
 ### Invoke functions via an API
 
 ```bash
-export APPCONFIG_AGENT_URL="http://host.docker.internal:2772"
+export APPCONFIG_AGENT_URL="http://appconfig-agent:2772"
 export LOCALSTACK_ENDPOINT="http://localstack:4566"
 sam local start-api \
-  --docker-network cloud-url-shortener_default \
-  --env-vars env.local.json
+  --docker-network cloudshortener_local-net \
+  --env-vars infra/env.local.json
 ```
 
 Then, you can access the following two endpoints:
@@ -284,9 +284,8 @@ Invoke `ShortenURLFunction`:
 ```bash
 sam local invoke ShortenUrlFunction \
   --event events/shorten_url/event.json \
-  --env-vars env.local.json \
-  --use-container \
-  --docker-network cloud-url-shortener_default
+  --env-vars infra/env.local.json \
+  --docker-network cloudshortener_local-net
 ```
 
 Invoke `RedirectUrlFunction`:
@@ -294,9 +293,8 @@ Invoke `RedirectUrlFunction`:
 ```bash
 sam local invoke RedirectUrlFunction \
   --event events/redirect_url/event.json \
-  --env-vars env.local.json \
-  --use-container \
-  --docker-network cloud-url-shortener_default
+  --env-vars infra/env.local.json \
+  --docker-network cloudshortener_local-net
 ```
 
 ## Cloud Deployment
@@ -449,12 +447,12 @@ Happy shortening!
 
 What happens if you get some error related to unsupported `arm64` architecture?
 
-In [template.yaml](template.yaml) you might notice that the Lambda runtimes are
+In [infra/stacks/backend/template.yaml](infra/stacks/backend/template.yaml) you might notice that the Lambda runtimes are
 in `arm64` containers. It's because I'm developing on a Mac which is why native
 `x86_64` didn't work for me well.
 
 If you are developing on `x86_64` architecture (e.g. a Linux distribution), you
-can switch out the architecture inside [template.yaml](template.yaml):
+can switch out the architecture inside [infra/stacks/backend/template.yaml](infra/stacks/backend/template.yaml):
 
 ```yaml
 Globals:

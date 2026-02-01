@@ -84,7 +84,7 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
 
     TODO: use @require_environment decorator and remove this section
     Environment variables used:
-        APPCONFIG_AGENT_URL     : Base URL of the local AppConfig Agent (e.g., http://host.docker.internal:2772).
+        APPCONFIG_AGENT_URL     : Base URL of the local AppConfig Agent (e.g., http://appconfig-agent:2772).
         APPCONFIG_PROFILE_NAME  : Optional profile name (default: "backend-config").
     """
 
@@ -95,7 +95,7 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
         components = urllib.parse.urlparse(url)
         if components.scheme not in {'http', 'https'}:
             raise BadConfigurationError(f'Bad scheme {url}')
-        if components.hostname not in {'localhost', '127.0.0.1', 'host.docker.internal'}:
+        if components.hostname not in {'localhost', '127.0.0.1', 'host.docker.internal', 'appconfig-agent'}:
             raise BadConfigurationError(f'Bad host {url}')
         if components.port not in {2772, None}:
             raise BadConfigurationError(f'Bad port {url}')

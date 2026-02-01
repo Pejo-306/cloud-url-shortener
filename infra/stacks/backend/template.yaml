@@ -1,0 +1,346 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: |
+  CloudShortener - Backend Stack
+  API Gateway, Lambda functions, and IAM role.
+  Can be used standalone for local development with sam local.
+
+Parameters:
+  AppName:
+    Type: String
+    Default: cloudshortener
+    Description: Application name
+
+  AppEnv:
+    Type: String
+    AllowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    Default: local
+    Description: Application environment
+
+  LogLevel:
+    Type: String
+    Default: INFO
+    AllowedValues:
+      - DEBUG
+      - INFO
+      - WARNING
+      - ERROR
+      - CRITICAL
+    Description: Logging level
+
+  AppConfigAgentURL:
+    Type: String
+    Default: http://appconfig-agent:2772
+    Description: AppConfig agent URL for local development
+
+  LocalstackEndpoint:
+    Type: String
+    Default: http://localstack:4566
+    Description: Localstack endpoint for local development
+
+  # Network parameters (from NetworkStack, empty for local dev)
+  PrivateSubnetA:
+    Type: String
+    Default: ''
+    Description: Private Subnet A ID
+
+  PrivateSubnetB:
+    Type: String
+    Default: ''
+    Description: Private Subnet B ID
+
+  LambdaSecurityGroupId:
+    Type: String
+    Default: ''
+    Description: Lambda Security Group ID
+
+  # Cognito parameters (from CognitoStack)
+  UserPoolId:
+    Type: String
+    Default: local-user-pool
+    Description: Cognito User Pool ID
+
+  UserPoolArn:
+    Type: String
+    Default: ''
+    Description: Cognito User Pool ARN
+
+  UserPoolClientId:
+    Type: String
+    Default: local-client
+    Description: Cognito User Pool Client ID
+
+  # AppConfig parameters (from AppConfigStack)
+  AppConfigApplicationId:
+    Type: String
+    Default: local-app
+    Description: AppConfig Application ID
+
+  AppConfigEnvironmentId:
+    Type: String
+    Default: local-env
+    Description: AppConfig Environment ID
+
+  BackendConfigProfileId:
+    Type: String
+    Default: local-profile
+    Description: AppConfig Configuration Profile ID
+
+Conditions:
+  # VPC config is only applied when LambdaSecurityGroupId is provided
+  HasVpcConfig: !Not
+    - !Equals
+      - !Ref LambdaSecurityGroupId
+      - ''
+
+  # Local environment detection
+  IsLocal: !Equals
+    - !Ref AppEnv
+    - local
+
+  # Cognito authorizer only when UserPoolArn is provided
+  HasCognitoAuth: !Not
+    - !Equals
+      - !Ref UserPoolArn
+      - ''
+
+Globals:
+  Function:
+    Timeout: 30
+    Tracing: Active
+    LoggingConfig:
+      LogFormat: JSON
+    CodeUri: ../../../backend/
+    Runtime: python3.13
+    Architectures:
+      - arm64
+    Tags:
+      App: !Ref AppName
+    Environment:
+      Variables:
+        # Project variables
+        APP_ENV: !Ref AppEnv
+        APP_NAME: !Ref AppName
+        PROJECT_ROOT: /var/task
+        LOG_LEVEL: !Ref LogLevel
+        # Cognito variables
+        USER_POOL_ID: !Ref UserPoolId
+        USER_POOL_CLIENT_ID: !Ref UserPoolClientId
+        # AppConfig variables
+        APPCONFIG_APP_ID: !Ref AppConfigApplicationId
+        APPCONFIG_ENV_ID: !Ref AppConfigEnvironmentId
+        APPCONFIG_PROFILE_ID: !Ref BackendConfigProfileId
+        APPCONFIG_AGENT_URL: !Ref AppConfigAgentURL
+        # ElastiCache variables
+        ELASTICACHE_HOST_PARAM: !Sub /${AppName}/${AppEnv}/elasticache/host
+        ELASTICACHE_PORT_PARAM: !Sub /${AppName}/${AppEnv}/elasticache/port
+        ELASTICACHE_DB_PARAM: !Sub /${AppName}/${AppEnv}/elasticache/db
+        ELASTICACHE_USER_PARAM: !Sub /${AppName}/${AppEnv}/elasticache/user
+        ELASTICACHE_SECRET: !Sub ${AppName}/${AppEnv}/elasticache/credentials
+        LOCALSTACK_ENDPOINT: !Ref LocalstackEndpoint
+  Api:
+    TracingEnabled: true
+    Cors:
+      AllowMethods: '''GET,POST,OPTIONS'''
+      AllowHeaders: '''Authorization,Content-Type'''
+      AllowOrigin: '''*'''
+
+Resources:
+  ##################################################
+  # API Gateway with Cognito Authorizer
+  ##################################################
+  ApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: !Ref AppEnv
+      TracingEnabled: true
+      Cors:
+        AllowMethods: '''GET,POST,OPTIONS'''
+        AllowHeaders: '''Authorization,Content-Type'''
+        AllowOrigin: '''*'''
+      Auth:
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !If
+              - HasCognitoAuth
+              - !Ref UserPoolArn
+              # Use a placeholder ARN for local dev - auth is not enforced locally anyway
+              - !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/placeholder
+        DefaultAuthorizer: CognitoAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+
+  ##################################################
+  # Lambda: Common IAM Role
+  ##################################################
+  LambdaFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaFunctionAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - appconfigdata:StartConfigurationSession
+                  - appconfigdata:GetLatestConfiguration
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - appconfig:StartConfigurationSession
+                  - appconfig:GetLatestConfiguration
+                  - appconfig:ListHostedConfigurationVersions
+                  - appconfig:GetHostedConfigurationVersion
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter*
+                Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AppName}/${AppEnv}/*
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${AppName}/${AppEnv}/*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeVpcs
+                Resource: '*'
+
+  ##################################################
+  # Lambda: Shorten URL (protected)
+  ##################################################
+  ShortenUrlFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        Include:
+          - cloudshortener/**
+    Properties:
+      FunctionName: !Sub ${AppName}-ShortenUrlFunction-${AppEnv}
+      Handler: cloudshortener.lambdas.shorten_url.app.lambda_handler
+      Role: !GetAtt LambdaFunctionRole.Arn
+      Description: Shorten long URLs to short codes
+      VpcConfig: !If
+        - HasVpcConfig
+        - SecurityGroupIds:
+            - !Ref LambdaSecurityGroupId
+          SubnetIds:
+            - !Ref PrivateSubnetA
+            - !Ref PrivateSubnetB
+        - !Ref AWS::NoValue
+      Events:
+        ShortenUrlApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /v1/shorten
+            Method: post
+
+  ##################################################
+  # Lambda: Redirect URL (public)
+  ##################################################
+  RedirectUrlFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        Include:
+          - cloudshortener/**
+    Properties:
+      FunctionName: !Sub ${AppName}-RedirectUrlFunction-${AppEnv}
+      Handler: cloudshortener.lambdas.redirect_url.app.lambda_handler
+      Role: !GetAtt LambdaFunctionRole.Arn
+      Description: Redirect short URLs to target URLs
+      VpcConfig: !If
+        - HasVpcConfig
+        - SecurityGroupIds:
+            - !Ref LambdaSecurityGroupId
+          SubnetIds:
+            - !Ref PrivateSubnetA
+            - !Ref PrivateSubnetB
+        - !Ref AWS::NoValue
+      Events:
+        RedirectUrlApi:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /{shortcode}
+            Method: get
+            Auth:
+              Authorizer: NONE
+
+  ##################################################
+  # Lambda: Warm AppConfig Cache
+  ##################################################
+  WarmAppConfigCacheFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: python3.13
+      BuildProperties:
+        Include:
+          - cloudshortener/**
+    Properties:
+      FunctionName: !Sub ${AppName}-WarmAppConfigCacheFunction-${AppEnv}
+      Handler: cloudshortener.lambdas.warm_appconfig_cache.app.lambda_handler
+      Role: !GetAtt LambdaFunctionRole.Arn
+      Description: Proactively warm AppConfig cache in ElastiCache on deployment
+      VpcConfig: !If
+        - HasVpcConfig
+        - SecurityGroupIds:
+            - !Ref LambdaSecurityGroupId
+          SubnetIds:
+            - !Ref PrivateSubnetA
+            - !Ref PrivateSubnetB
+        - !Ref AWS::NoValue
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the API Gateway
+    Value: !Sub https://${ApiGateway}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${AppEnv}/
+
+  ApiGatewayId:
+    Description: API Gateway ID
+    Value: !Ref ApiGateway
+
+  ShortenUrlFunctionArn:
+    Description: ARN of the Shorten URL Lambda Function
+    Value: !GetAtt ShortenUrlFunction.Arn
+
+  RedirectUrlFunctionArn:
+    Description: ARN of the Redirect URL Lambda Function
+    Value: !GetAtt RedirectUrlFunction.Arn
+
+  WarmAppConfigCacheFunctionArn:
+    Description: ARN of the Warm AppConfig Cache Lambda Function
+    Value: !GetAtt WarmAppConfigCacheFunction.Arn
+
+  WarmAppConfigCacheFunctionName:
+    Description: Name of the Warm AppConfig Cache Lambda Function
+    Value: !Ref WarmAppConfigCacheFunction
