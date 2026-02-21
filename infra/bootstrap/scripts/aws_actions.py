@@ -1,71 +1,4 @@
-"""
-AWS action primitives for seeding configuration and CloudFormation stack management.
-
-This module encapsulates AWS SDK calls used by bootstrap CLIs:
-    - SSM Parameter Store upserts
-    - Secrets Manager upserts
-    - CloudFormation deploy/delete using Change Sets with live event streaming
-
-Exposed functions (signatures):
-    put_parameter(
-        ssm_client,
-        name: str,
-        value: str,
-        *,
-        tags: list[dict[str, str]] | None = None,
-        dry_run: bool = False,
-    ) -> None
-
-    create_or_update_secret(
-        secrets_client,
-        name: str,
-        payload: dict[str, Any],
-        *,
-        tags: list[dict[str, str]] | None = None,
-        kms_key_id: str | None = None,
-        dry_run: bool = False,
-    ) -> None
-
-    deploy_stack_with_changeset(
-        cfn_client,
-        *,
-        stack_name: str,
-        template_body: str,
-        parameters: dict[str, str],
-        capabilities: list[str],
-        dry_run: bool = False,
-        watch: bool = True,
-        poll_seconds: int = 5,
-    ) -> None
-
-    delete_stack(
-        cfn_client,
-        *,
-        stack_name: str,
-        dry_run: bool = False,
-        watch: bool = True,
-        poll_seconds: int = 5,
-    ) -> None
-
-Behavior:
-    - `put_parameter`:
-        * Creates or updates a String parameter.
-        * Applies tags only on create (SSM forbids Tags+Overwrite together).
-        * Never returns secret material; prints concise action logs.
-
-    - `create_or_update_secret`:
-        * Creates a secret with optional KMS key and tags, or updates value if it exists.
-        * Applies/overwrites provided tag keys on existing secrets via TagResource.
-        * Never prints secret payload.
-
-    - `deploy_stack_with_changeset`:
-        * Creates a CloudFormation Change Set (CREATE or UPDATE).
-        * Prints planned changes; executes unless dry-run.
-        * Streams live events every few seconds until completion.
-
-    - `delete_stack`:
-        * Deletes an existing stack.
-        * Optionally streams live events until deletion completes.
+"""Procedures to handle AWS actions for seeding configuration and CloudFormation stack management.
 
 Raises:
     botocore.exceptions.BotoCoreError / ClientError: For AWS API failures.
@@ -73,24 +6,26 @@ Raises:
 Examples:
     >>> # SSM example (no dry-run)
     >>> put_parameter(ssm_client=ssm, name="/app/dev/svc/redis/host", value="redis.example")
+    ...
     >>> # Secrets example (dry-run)
     >>> create_or_update_secret(secrets_client=sm, name="app/dev/svc/redis",
     ...                         payload={"username": "u", "password": "p"}, dry_run=True)
+    ...
     >>> # CloudFormation deploy (dry-run)
     >>> deploy_stack_with_changeset(cfn_client=cfn, stack_name="bootstrap", template_body=tmpl,
     ...                             parameters={"Key":"Value"}, capabilities=["CAPABILITY_IAM"], dry_run=True)
+    ...
     >>> # CloudFormation delete (watch events)
     >>> delete_stack(cfn_client=cfn, stack_name="bootstrap", watch=True)
 """
 
-from __future__ import annotations
-
 import json
 import time
-from typing import Any, Optional
+from typing import Any
 
 from botocore.exceptions import ClientError
 
+from scripts.types import SSMClient, SecretsClient, CloudFormationClient, AWSTag
 
 # ---------------------------
 # SSM Parameter Store actions
@@ -98,35 +33,31 @@ from botocore.exceptions import ClientError
 
 
 def put_parameter(
-    ssm_client,
+    ssm_client: SSMClient,
     name: str,
     value: str,
     *,
-    tags: Optional[list[dict[str, str]]] = None,
+    tags: list[AWSTag] | None = None,
     dry_run: bool = False,
 ) -> None:
-    """Create or update a String SSM parameter with correct tagging semantics.
+    """Create or update a String SSM parameter.
 
-    Steps:
-        - Check if the parameter exists (GetParameter).
-        - If new: create with Tags (no Overwrite).
-        - If existing: update value with Overwrite=True (no Tags).
-        - Print a concise action log; never prints sensitive values.
+    Checks if the parameter already exists. If it does, it updates the value with Overwrite=True.
+    Otherwise, it creates a new parameter with the given tags.
+
+    NOTE: SSM forbids Tags with Overwrite=True. Tags can only be applied on create.
 
     Args:
-        ssm_client:
+        ssm_client (SSMClient):
             Boto3 Systems Manager client.
         name (str):
             Full parameter path (e.g., "/cloudshortener/dev/shorten_url/redis/host").
         value (str):
             Parameter value (<= 4 KB). Values are treated as non-secret here.
-        tags (list[dict[str, str]] | None):
+        tags (list[AWSTag] | None):
             Tags to attach on create. SSM does not accept Tags with Overwrite=True.
         dry_run (bool):
             If True, print intent without performing any write.
-
-    Returns:
-        None
 
     Raises:
         botocore.exceptions.BotoCoreError / ClientError: On AWS API failures.
@@ -163,38 +94,34 @@ def put_parameter(
 
 
 def create_or_update_secret(
-    secrets_client,
+    secrets_client: SecretsClient,
     name: str,
     payload: dict[str, Any],
     *,
-    tags: Optional[list[dict[str, str]]] = None,
-    kms_key_id: Optional[str] = None,
+    tags: list[AWSTag] | None = None,
+    kms_key_id: str | None = None,
     dry_run: bool = False,
 ) -> None:
-    """Create or update an AWS Secrets Manager secret (value-only logs).
+    """Create or update an AWS Secrets Manager secret.
 
-    Steps:
-        - Check if the secret exists (DescribeSecret).
-        - If new: CreateSecret(Name, SecretString, KmsKeyId?, Tags?).
-        - If existing: PutSecretValue(SecretId, SecretString), then TagResource.
-        - Never prints secret values; logs the secret name and top-level keys only.
+    Checks if the secret already exists. If it does, it updates the value with PutSecretValue.
+    Otherwise, it creates a new secret with CreateSecret and the given tags.
+
+    NOTE: On existing secrets, tags are overwritten via TagResource.
 
     Args:
-        secrets_client:
+        secrets_client (SecretsClient):
             Boto3 Secrets Manager client.
         name (str):
             Secret name (not ARN), e.g., "cloudshortener/dev/shorten_url/redis".
         payload (dict[str, Any]):
             Secret data serialized to JSON (e.g., {"username": "...", "password": "..."}).
-        tags (list[dict[str, str]] | None):
+        tags (list[AWSTag] | None):
             Tags to apply. On existing secrets, keys are overwritten via TagResource.
         kms_key_id (str | None):
             KMS key ID/ARN/alias. If None, service-managed key is used.
         dry_run (bool):
             If True, print intent without performing any write.
-
-    Returns:
-        None
 
     Raises:
         botocore.exceptions.BotoCoreError / ClientError: On AWS API failures.
@@ -253,7 +180,7 @@ _TERMINAL_STATUSES = {
 }
 
 
-def _stack_exists(cfn_client, stack_name: str) -> bool:
+def _stack_exists(cfn_client: CloudFormationClient, stack_name: str) -> bool:
     """Return True if stack exists, False otherwise."""
     try:
         cfn_client.describe_stacks(StackName=stack_name)
@@ -264,7 +191,7 @@ def _stack_exists(cfn_client, stack_name: str) -> bool:
         raise
 
 
-def _current_status(cfn_client, stack_name: str) -> str | None:
+def _current_status(cfn_client: CloudFormationClient, stack_name: str) -> str | None:
     """Return the stack status string, or None if the stack does not exist."""
     try:
         stacks = cfn_client.describe_stacks(StackName=stack_name)['Stacks']
@@ -318,7 +245,7 @@ def _stream_events(cfn_client, stack_name: str, poll_seconds: int) -> None:
 
 def deploy_stack_with_changeset(
     *,
-    cfn_client,
+    cfn_client: CloudFormationClient,
     stack_name: str,
     template_body: str,
     parameters: dict[str, str],
@@ -337,7 +264,7 @@ def deploy_stack_with_changeset(
         - Stream live stack events until completion.
 
     Args:
-        cfn_client:
+        cfn_client (CloudFormationClient):
             Boto3 CloudFormation client.
         stack_name (str):
             Target CloudFormation stack name.
@@ -353,9 +280,6 @@ def deploy_stack_with_changeset(
             If True, print live stack events every few seconds.
         poll_seconds (int):
             Event polling interval (default: 5 seconds).
-
-    Returns:
-        None
 
     Raises:
         botocore.exceptions.BotoCoreError / ClientError: On AWS API failures.
@@ -422,7 +346,7 @@ def deploy_stack_with_changeset(
 
 def delete_stack(
     *,
-    cfn_client,
+    cfn_client: CloudFormationClient,
     stack_name: str,
     dry_run: bool = False,
     watch: bool = True,

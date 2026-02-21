@@ -1,41 +1,5 @@
-"""
-Common helpers for seeding configuration into AWS.
-
-This module groups utility functions shared by the seeding CLIs.
-
-Exposed functions (signatures):
-    load_yaml(path: pathlib.Path) -> dict[str, Any]
-    yaml_config_files(root: pathlib.Path) -> Iterable[pathlib.Path]
-    normalize_user_tags(tag_str: str) -> list[dict[str, str]]
-    flatten(prefix: str, data: dict[str, Any]) -> dict[str, str]
-    boto3_session(profile: str | None) -> "boto3.Session"
-    parameter_overrides(overrides: str) -> dict[str, str]
-
-Behavior:
-    - `load_yaml` safely loads YAML files, defaulting to {} for empty files.
-    - `yaml_config_files` discovers files shaped as config/<function>/*.yaml.
-    - `normalize_user_tags` converts "K1=V1,K2=V2" into AWS tag dicts.
-    - `flatten` turns nested dicts into SSM-like path/value pairs.
-    - `boto3_session` builds a boto3 session honoring an optional profile.
-    - `parameter_overrides` parses comma-separated key=value pairs into a dict.
-
-Raises:
-    FileNotFoundError: When a provided path does not exist.
-    ValueError: For malformed tag strings in `normalize_user_tags`.
-
-Example:
-    >>> from pathlib import Path
-    >>> for p in yaml_config_files(Path("config")):
-    ...     doc = load_yaml(p)
-    ...     params = doc.get("params") or {}
-    ...     flat = flatten("/app/dev/shorten_url", params)
-    ...     # Do something with 'flat'
-
 # TODO: add stricter YAML schema validation (e.g., pydantic) if needed
 # TODO: add glob filtering to yaml_config_files for targeted functions/environments
-"""
-
-from __future__ import annotations
 
 import pathlib
 from typing import Any
@@ -44,27 +8,12 @@ from collections.abc import Iterator
 import boto3
 import yaml
 
+from scripts.types import AWSTag
+
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent.parent
+
 
 def load_yaml(path: pathlib.Path) -> dict[str, Any]:
-    """Load a YAML file into a Python dictionary.
-
-    Args:
-        path (pathlib.Path):
-            Path to a YAML file.
-
-    Returns:
-        Dict[str, Any]:
-            Parsed YAML document. Returns {} for empty files.
-
-    Raises:
-        FileNotFoundError:
-            If the file does not exist.
-
-    Example:
-        >>> from pathlib import Path
-        >>> load_yaml(Path("config/shorten_url/dev.yaml"))  # doctest: +SKIP
-        {'params': {...}, 'secrets': {...}}
-    """
     if not path.is_file():
         raise FileNotFoundError(f'YAML not found: {path}')
     with path.open('r', encoding='utf-8') as f:
@@ -73,42 +22,19 @@ def load_yaml(path: pathlib.Path) -> dict[str, Any]:
 
 
 def yaml_config_files(root: pathlib.Path) -> Iterator[pathlib.Path]:
-    """Yield config YAML files under `root` following config/<function>/*.yaml.
-
-    Args:
-        root (pathlib.Path):
-            Root folder containing per-function config directories.
-
-    Yields:
-        pathlib.Path:
-            Paths to discovered YAML files.
-
-    Example:
-        >>> from pathlib import Path
-        >>> list(yaml_config_files(Path("config")))  # doctest: +ELLIPSIS +SKIP
-        [PosixPath('config/redirect_url/dev.yaml'), PosixPath('config/shorten_url/dev.yaml')]
-    """
+    """Yield config YAML files under `root` following config/<function>/*.yaml."""
     for function_dir in sorted(p for p in root.iterdir() if p.is_dir()):
         yield from sorted(function_dir.glob('*.yaml'))
 
 
-def normalize_user_tags(tag_str: str) -> list[dict[str, str]]:
+def normalize_user_tags(tag_str: str) -> list[AWSTag]:
     """Normalize a comma-separated tag string into AWS tag dicts.
 
-    Input format:
+    Input format (comma-separated key=value pairs):
         "Key1=Val1,Key2=Val2"
 
-    Args:
-        tag_str (str):
-            Comma-separated tags.
-
-    Returns:
-        list[dict[str, str]]:
-            Items like [{"Key": "Owner", "Value": "Pesho"}, ...].
-
-    Raises:
-        ValueError:
-            If an entry is malformed (missing '=' or empty key).
+    Output format (AWS tag dicts):
+        [{"Key": "Key1", "Value": "Val1"}, {"Key": "Key2", "Value": "Val2"}]
 
     Example:
         >>> normalize_user_tags("Owner=Pesho,Service=cloudshortener")
@@ -137,6 +63,17 @@ def normalize_user_tags(tag_str: str) -> list[dict[str, str]]:
 def flatten(prefix: str, data: dict[str, Any]) -> dict[str, str]:
     """Flatten nested dictionaries into path -> string value pairs.
 
+    Used to construct SSM parameter paths from our config YAML files.
+
+    Input format (nested dictionary):
+        {"redis": {"host": "h", "port": 6379}}
+
+    Output format (SSM-like path -> string value pairs):
+        {
+            "/cloudshortener/dev/shorten_url/redis/host": "h",
+            "/cloudshortener/dev/shorten_url/redis/port": "6379",
+        }
+
     Rules:
         - Nested dicts become path segments: prefix/key/subkey
         - Non-dict values are stringified
@@ -148,13 +85,9 @@ def flatten(prefix: str, data: dict[str, Any]) -> dict[str, str]:
         data (Dict[str, Any]):
             Nested dictionary to flatten.
 
-    Returns:
-        Dict[str, str]:
-            Mapping of full path to value.
-
     Example:
-        >>> flatten("/p/e/f", {"redis": {"host": "h", "port": 6379}})
-        {'/p/e/f/redis/host': 'h', '/p/e/f/redis/port': '6379'}
+        >>> flatten("/path/prefix", {"redis": {"host": "h", "port": 6379}})
+        {"/path/prefix/redis/host": "h", "/path/prefix/redis/port": "6379"}
     """
     out: dict[str, str] = {}
 
@@ -169,16 +102,8 @@ def flatten(prefix: str, data: dict[str, Any]) -> dict[str, str]:
     return out
 
 
-def boto3_session(profile: str | None):
-    """Return a boto3 Session honoring an optional profile.
-
-    Args:
-        profile (str | None):
-            AWS shared config/credentials profile name, or None for default resolution.
-
-    Returns:
-        boto3.Session:
-            A configured boto3 session ready to create service clients.
+def boto3_session(profile: str | None) -> boto3.Session:
+    """Build a boto3 Session honoring an optional profile.
 
     Example:
         >>> session = boto3_session("personal-dev")  # doctest: +SKIP

@@ -313,7 +313,9 @@ all AWS resources.
 1- Deploy OIDC stack (allows GitHub actions and `act` to deploy the stack in AWS):
 
 ```bash
-python -m bootstrap.bootstrap_oidc up \
+cd infra/bootstrap/
+
+uv run python -m scripts.bootstrap_oidc up \
     --stack-name cloudshortener-bootstrap \
     --github-org <your GitHub username> \
     --repo cloud-url-shortener \
@@ -345,15 +347,17 @@ and leaked.
 4- Seed project's SSM parameters & secrets:
 
 ```bash
-python -m bootstrap.seed_ssm_params \
+cd infra/bootstrap/
+
+uv run python -m scripts.seed_ssm_params \
     --app-name cloudshortener \
-    --root config \
+    --root ../config \
     --env-allow dev \
     --aws-profile <your AWS profile name with credentials>
 
-python -m bootstrap.seed_secrets \
+uv run python -m scripts.seed_secrets \
     --app-name cloudshortener \
-    --root config \
+    --root ../config \
     --env-allow dev \
     --aws-profile <your AWS profile name with credentials>
 ```
@@ -363,7 +367,9 @@ python -m bootstrap.seed_secrets \
 !! This step must be executed BEFORE stack deployment.
 
 ```bash
-python -m bootstrap.seed_elasticache \
+cd infra/bootstrap/
+
+uv run python -m scripts.seed_elasticache \
     --secrets-only \
     --app-name cloudshortener --env dev \
     --user default \
@@ -390,7 +396,9 @@ b) via GitHub action (create a `release-X.X.X` branch from `main`)
 !! This step must be executed AFTER successful stack deployment.
 
 ```bash
-python -m bootstrap.seed_elasticache \
+cd infra/bootstrap/
+
+uv run python -m scripts.seed_elasticache \
     --ssm-only \
     --app-name cloudshortener --env dev \
     --host <ElastiCache master endpoint> \

@@ -247,33 +247,6 @@ Resources:
               - arn:aws:s3:::cloudshortener-frontend-*
               - arn:aws:s3:::cloudshortener-frontend-*/*
 
-  CloudshortenerExecObservabilityPolicy:
-    Type: AWS::IAM::ManagedPolicy
-    Properties:
-      ManagedPolicyName: CloudshortenerExecObservability
-      Description: Application Insights and Resource Groups permissions for exec role
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: AppInsightsAndResourceGroups
-            Effect: Allow
-            Action:
-              - resource-groups:CreateGroup
-              - resource-groups:UpdateGroup
-              - resource-groups:DeleteGroup
-              - resource-groups:Get*
-              - resource-groups:List*
-              - resource-groups:Tag
-              - resource-groups:Untag
-              - applicationinsights:CreateApplication
-              - applicationinsights:UpdateApplication
-              - applicationinsights:DeleteApplication
-              - applicationinsights:Describe*
-              - applicationinsights:List*
-              - applicationinsights:TagResource
-              - applicationinsights:UntagResource
-            Resource: '*'
-
   CloudshortenerExecNetworkAndCachePolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -356,7 +329,6 @@ Resources:
       ManagedPolicyArns:
         - !Ref CloudshortenerExecCoreInfraPolicy
         - !Ref CloudshortenerExecIdentityAndEdgePolicy
-        - !Ref CloudshortenerExecObservabilityPolicy
         - !Ref CloudshortenerExecNetworkAndCachePolicy
 
   CloudshortenerDeployPolicy:
@@ -476,12 +448,6 @@ Outputs:
     Value: !Ref CloudshortenerExecIdentityAndEdgePolicy
     Export:
       Name: CloudshortenerExecIdentityAndEdgePolicyArn
-
-  CloudshortenerExecObservabilityPolicyArn:
-    Description: ARN of the observability exec managed policy (AppInsights, Resource Groups)
-    Value: !Ref CloudshortenerExecObservabilityPolicy
-    Export:
-      Name: CloudshortenerExecObservabilityPolicyArn
 
   CloudshortenerExecNetworkAndCachePolicyArn:
     Description: ARN of the network and cache exec managed policy (VPC, NAT, SGs, ElastiCache)

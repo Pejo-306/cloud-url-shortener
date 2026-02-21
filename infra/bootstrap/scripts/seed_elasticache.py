@@ -17,7 +17,7 @@ And creates/updates a Secrets Manager secret:
 
 CLI usage:
     # Full mode: SSM + Secrets (default)
-    $ python -m bootstrap.seed_elasticache \
+    $ python -m scripts.seed_elasticache \
         --app-name cloudshortener --env dev \
         --host redis.example \
         --port 6379 --db 0 \
@@ -25,14 +25,14 @@ CLI usage:
         --tags "Owner=Pesho,Service=cloudshortener"
 
     # Secrets-only mode: only secretsmanager is updated, SSM untouched
-    $ python -m bootstrap.seed_elasticache \
+    $ python -m scripts.seed_elasticache \
         --secrets-only \
         --app-name cloudshortener --env dev \
         --user default \
         --password 'bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD'
 
     # SSM-only mode: only SSM parameters are updated, secret untouched
-    $ python -m bootstrap.seed_elasticache \
+    $ python -m scripts.seed_elasticache \
         --ssm-only \
         --app-name cloudshortener --env dev \
         --host redis.example \
@@ -79,25 +79,16 @@ Args:
         --secrets-only (flag): Update only Secrets Manager, skip SSM.
         --ssm-only (flag): Update only SSM parameters, skip Secrets Manager.
 
-Returns:
-    None
-
-Raises:
-    ValueError: For invalid or missing inputs.
-    botocore.exceptions.BotoCoreError / ClientError: For AWS API failures.
-
 NOTE: The ElastiCache password must be 32-128 printable ASCII characters, no
 spaces, no */*, *"*, *@* characters with at least one uppercase letter and one
 digit. Otherwise, the stack deployment will fail. Example password:
 `bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD`.
 """
 
-from __future__ import annotations
-
 import argparse
 
-from bootstrap.helper import boto3_session, normalize_user_tags
-from bootstrap.aws_actions import put_parameter, create_or_update_secret
+from scripts.helper import boto3_session, normalize_user_tags
+from scripts.aws_actions import put_parameter, create_or_update_secret
 
 
 def _positive_int(name: str, value: str) -> int:
