@@ -2,6 +2,27 @@
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "cloudshortener"
+version = "0.1.0"
+requires-python = ">=3.13.0"
+dependencies = [
+    "redis>=7.0.0,<8.0.0",
+    "xxhash>=3.6.0,<4.0.0",
+    "pyyaml>=6.0.0,<7.0.0",
+    "boto3",
+]
+
+[dependency-groups]
+dev = [
+    "coverage",
+    "freezegun",
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "ty",
+]
+
 [tool.ruff]
 src = ["cloudshortener", "tests"]
 target-version = "py313"

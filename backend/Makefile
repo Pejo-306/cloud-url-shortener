@@ -1,31 +1,38 @@
 .PHONY: install
 install:
-	pip install -r requirements.txt
-	pip install -r requirements-dev.txt
+	uv sync
 
 .PHONY: unittests
 unittests:
-	pytest tests/unit
+	uv run pytest tests/unit
 
 .PHONY: coverage
 coverage:
-	pytest tests/unit --cov=cloudshortener --cov-report=term-missing --cov-fail-under=80
+	uv run pytest tests/unit --cov=cloudshortener --cov-report=term-missing --cov-fail-under=80
 
 .PHONY: lint
 lint:
-	ruff check . --preview
+	uv run ruff check . --preview
 
 .PHONY: lint-fix
 lint-fix:
-	ruff check . --preview --fix
+	uv run ruff check . --preview --fix
 
 .PHONY: format
 format:
-	ruff format .
+	uv run ruff format .
 
 .PHONY: format-diff
 format-diff:
-	ruff format --diff .
+	uv run ruff format --diff .
+
+.PHONY: ty
+ty:
+	uv run ty check .
+
+.PHONY: export-requirements
+export-requirements:
+	uv export --no-dev --no-hashes --format requirements.txt --no-emit-project -o requirements.txt
 
 .PHONY: code-check
-code-check: lint-fix format coverage
+code-check: lint format-diff ty coverage

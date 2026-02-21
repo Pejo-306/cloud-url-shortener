@@ -1,4 +1,3 @@
-from enum import IntEnum
 import json
 from typing import cast
 from unittest.mock import MagicMock
