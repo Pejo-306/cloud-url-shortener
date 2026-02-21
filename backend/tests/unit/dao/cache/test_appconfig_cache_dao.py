@@ -19,6 +19,14 @@ from cloudshortener.dao.cache.constants import CacheTTL
 
 
 class TestAppConfigCacheDAO:
+    app_prefix: str
+    default_appconfig_doc: AppConfig
+    default_appconfig_metadata: AppConfigMetadata
+    appconfigdata_client: AppConfigDataClient
+    appconfig_client: AppConfigClient
+    dao: AppConfigCacheDAO
+    redis_client: redis.Redis
+
     @pytest.fixture(autouse=True)
     def _env(self, monkeypatch: MonkeyPatch) -> None:
         monkeypatch.setenv(ENV.AppConfig.APP_ID, 'app123')
@@ -211,7 +219,7 @@ class TestAppConfigCacheDAO:
         default_appconfig_doc: AppConfig,
         default_appconfig_metadata: AppConfigMetadata,
     ):
-        written_appconfig_metadata = cast(AppConfigMetadata, default_appconfig_metadata.copy())
+        written_appconfig_metadata = default_appconfig_metadata.copy()
         written_appconfig_metadata['version'] = 9
         # fmt: off
         expected_calls = [
@@ -260,7 +268,7 @@ class TestAppConfigCacheDAO:
         default_appconfig_doc: AppConfig,
         default_appconfig_metadata: AppConfigMetadata,
     ):
-        written_appconfig_metadata = cast(AppConfigMetadata, default_appconfig_metadata.copy())
+        written_appconfig_metadata = default_appconfig_metadata.copy()
         written_appconfig_metadata['version'] = 9
         # fmt: off
         expected_calls = [

@@ -42,4 +42,6 @@ def test_get_user_id(event, expected):
 def test_get_user_id_with_local_sam_api(monkeypatch):
     """get_user_id() returns a random user id if the lambda runs locally via sam local invoke."""
     monkeypatch.setenv(ENV.App.AWS_SAM_LOCAL, 'true')
-    assert re.match(r'lambda\d{3}', get_user_id({}))
+    user_id = get_user_id({})
+    assert user_id is not None
+    assert re.match(r'lambda\d{3}', user_id)

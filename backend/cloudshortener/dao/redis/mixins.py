@@ -1,5 +1,3 @@
-from typing import Optional
-
 import redis
 
 from cloudshortener.dao.redis import RedisKeySchema
@@ -20,17 +18,18 @@ class RedisClientMixin:
             Helper class for generating namespaced Redis key names.
     """
 
-    # TODO: change these type hints from Optional to type | None
+    keys: RedisKeySchema
+
     def __init__(
         self,
-        redis_host: Optional[str] = 'localhost',
-        redis_port: Optional[int] = 6379,
-        redis_db: Optional[int] = 0,
-        redis_decode_responses: Optional[bool] = True,
-        redis_username: Optional[str] = None,
-        redis_password: Optional[str] = None,
-        redis_client: Optional[redis.Redis] = None,
-        prefix: Optional[str] = None,
+        redis_host: str = 'localhost',
+        redis_port: int = 6379,
+        redis_db: int = 0,
+        redis_decode_responses: bool = True,
+        redis_username: str | None = None,
+        redis_password: str | None = None,
+        redis_client: redis.Redis | None = None,
+        prefix: str | None = None,
     ):
         if redis_client is None:
             redis_client = redis.Redis(

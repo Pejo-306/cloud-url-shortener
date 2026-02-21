@@ -131,6 +131,6 @@ class ShortURLRedisDAO(RedisClientMixin, ShortURLBaseDAO):
     @handle_redis_connection_error
     def count(self, increment: bool = False, **kwargs) -> int:
         if increment:
-            return self.redis.incr(self.keys.counter_key())
+            return self.redis.incr(self.keys.counter_key())  # ty: ignore[invalid-return-type]
         else:
-            return self.redis.get(self.keys.counter_key())
+            return self.redis.get(self.keys.counter_key())  # ty: ignore[invalid-return-type]

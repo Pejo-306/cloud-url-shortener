@@ -13,6 +13,11 @@ from cloudshortener.constants import TTL, DefaultQuota
 
 
 class TestShortURLRedisDAO:
+    app_prefix: str
+    key_schema: RedisKeySchema
+    dao: ShortURLRedisDAO
+    redis_client: redis.Redis
+
     @pytest.fixture
     def key_schema(self) -> RedisKeySchema:
         mock = MagicMock(spec=RedisKeySchema)

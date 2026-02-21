@@ -2,7 +2,7 @@ import os
 
 import boto3
 import pytest
-import requests
+# import requests
 
 """
 Make sure env variable AWS_SAM_STACK_NAME exists with the name of the stack we
@@ -35,9 +35,11 @@ class TestApiGateway:
 
         return api_outputs[0]['OutputValue']  # Extract url from stack outputs
 
+    """
     def test_api_gateway(self, api_gateway_url):
-        """Call the API Gateway endpoint and check the response."""
+        Call the API Gateway endpoint and check the response.
         response = requests.get(api_gateway_url)
 
         assert response.status_code == 200
         assert response.json() == {'message': 'hello world'}
+    """

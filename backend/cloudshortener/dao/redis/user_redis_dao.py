@@ -12,11 +12,11 @@ class UserRedisDAO(RedisClientMixin, UserBaseDAO):
         monthly_quota = self.redis.incrby(user_quota_key, 0)  # Initialize key if missing
         if monthly_quota == 0:  # Set new quota key to expire after 1 month
             self.redis.expire(user_quota_key, TTL.ONE_MONTH)
-        return monthly_quota
+        return monthly_quota  # ty: ignore[invalid-return-type]
 
     @handle_redis_connection_error
     def increment_quota(self, user_id: str, **kwargs) -> int:
         user_quota_key = self.keys.user_quota_key(user_id)
         if not self.redis.exists(user_quota_key):
             raise UserDoesNotExistError(f"User with ID '{user_id}' does not exist.")
-        return self.redis.incr(user_quota_key)
+        return self.redis.incr(user_quota_key)  # ty: ignore[invalid-return-type]
