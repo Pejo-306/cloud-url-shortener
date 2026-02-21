@@ -10,10 +10,10 @@ This CLI follows this procedure to publish configuration parameters:
     - Step 5: Upsert parameters into AWS Systems Manager Parameter Store
 
 CLI usage:
-    $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --root config --env-allow dev prod
-    $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --dry-run
-    $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --tags "Owner=Pesho,Service=cloudshortener"
-    $ python -m bootstrap.seed_ssm_params --app-name cloudshortener --aws-profile my-profile
+    $ python -m scripts.seed_ssm_params --app-name cloudshortener --root config --env-allow dev prod
+    $ python -m scripts.seed_ssm_params --app-name cloudshortener --dry-run
+    $ python -m scripts.seed_ssm_params --app-name cloudshortener --tags "Owner=Pesho,Service=cloudshortener"
+    $ python -m scripts.seed_ssm_params --app-name cloudshortener --aws-profile my-profile
 
 AWS credentials/region:
     - Use --aws-profile to select a profile from ~/.aws/{credentials,config}.
@@ -35,20 +35,19 @@ Raises:
 # TODO: add per-key SecureString opt-in via an allowlist (kept under params, not secrets)
 """
 
-from __future__ import annotations
-
 import argparse
 import pathlib
 from typing import Any
 
-from bootstrap.helper import (
+from scripts.helper import (
+    PROJECT_ROOT,
     boto3_session,
     flatten,
     load_yaml,
     normalize_user_tags,
     yaml_config_files,
 )
-from bootstrap.aws_actions import put_parameter
+from scripts.aws_actions import put_parameter
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -76,8 +75,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument(
         '--root',
-        default='config',
-        help='Root directory containing <function>/<env>.yaml files (default: config)',
+        default=str(PROJECT_ROOT / 'config'),
+        help='Root directory containing <function>/<env>.yaml files (default: <project_root>/config)',
     )
     parser.add_argument(
         '--env-allow',

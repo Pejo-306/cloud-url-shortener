@@ -9,28 +9,48 @@ This CLI drives a small, idempotent CFN workflow to manage GitHub OIDC identitie
     - Step 4: Support deletion with event streaming
 
 CLI usage:
-    $ python -m bootstrap.bootstrap_oidc up \
+    # Create/Update the OIDC bootstrap CloudFormation stack
+    $ python -m scripts.bootstrap_oidc up \
         --stack-name cloudshortener-bootstrap \
         --aws-profile personal-dev \
         --github-org Pejo-306 \
         --repo cloud-url-shortener
-    $ python -m bootstrap.bootstrap_oidc down --stack-name cloudshortener-bootstrap --aws-profile personal-dev
+    
+    # Delete the OIDC bootstrap CloudFormation stack
+    $ python -m scripts.bootstrap_oidc down --stack-name cloudshortener-bootstrap --aws-profile personal-dev
+
+    # Create with an existing OIDC provider ARN
+    $ python -m scripts.bootstrap_oidc up \
+        --stack-name cloudshortener-bootstrap \
+        --aws-profile personal-dev \
+        --github-org Pejo-306 \
+        --repo cloud-url-shortener \
+        --parameter-overrides "ExistingOidcProviderArn=arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+
+CLI arguments:
+    action (str): Operation to run: up=create/update, down=delete.
+    --aws-profile (str): AWS shared config/credentials profile name.
+    --stack-name (str): Target CloudFormation stack name (required).
+    --template-file (str): Local CloudFormation template file (default: infra/bootstrap/template.yaml).
+    --github-org (str): GitHub organization name (required for up).
+    --repo (str): GitHub repository name (required for up).
+    --parameter-overrides (str): Comma-separated CloudFormation ParameterKey=Value list, e.g. "A=B,C=D,E=".
+    --dry-run (flag): Preview without applying changes.
+    --no-watch (flag): Do not stream stack events.
+    --poll (int): Event polling interval in seconds (default: 5).
 
 AWS credentials/region:
     - Use --aws-profile to select a profile from ~/.aws/{credentials,config}.
     - If omitted, boto3’s default resolution applies (env vars, default profile, etc).
 """
 
-from __future__ import annotations
-
 import argparse
 from pathlib import Path
-from typing import Optional
 
-from bootstrap.helper import boto3_session, parameter_overrides
-from bootstrap.aws_actions import deploy_stack_with_changeset, delete_stack
+from scripts.helper import boto3_session, parameter_overrides
+from scripts.aws_actions import deploy_stack_with_changeset, delete_stack
 
-DEFAULT_TEMPLATE_FILE = 'bootstrap/template.yaml'
+DEFAULT_TEMPLATE_FILE = str(Path(__file__).parent.parent / 'template.yaml')
 DEFAULT_CAPABILITIES = ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM']
 
 DEFAULT_PARAMS: dict[str, str] = {
@@ -54,8 +74,7 @@ def _read_template(template_file: str) -> str:
     return body
 
 
-def main(argv: Optional[list[str]] = None) -> None:
-    """CLI entry point."""
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog='bootstrap_oidc.py',
         description='Create/Update or Delete the OIDC bootstrap CloudFormation stack.',

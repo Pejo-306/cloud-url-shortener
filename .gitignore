@@ -311,7 +311,7 @@ __marimo__/
 
 # IAM managed and trust policies as JSON files 
 # used only for documentation purposes
-bootstrap/.iam
+infra/bootstrap/.iam
 
 # Configuration parameters & secrets for dev/qa/prod environments
 config/**/dev.yaml

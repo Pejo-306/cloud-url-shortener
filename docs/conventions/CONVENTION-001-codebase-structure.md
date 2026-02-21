@@ -21,7 +21,7 @@ Inside the root directory, each folder is a **seperate component of the system**
 - `/backend/tests/`: Unit and integration tests for the backend
 - `/frontend/`: Web application frontend code
 - `/.github/`: GitHub Actions workflows
-- `/bootstrap/`: Bootstrapping scripts
+- `/infra/bootstrap/`: Bootstrapping scripts
 - ...
 
 Inside each **system component**, we have **modules**, e.g.:

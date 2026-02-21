@@ -1,0 +1,25 @@
+[project]
+name = "bootstrap"
+version = "0.1.0"
+description = "Bootstrapping scripts for cloudshortener"
+requires-python = ">=3.13.9"
+dependencies = [
+    "boto3>=1.42.38",
+    "botocore>=1.42.38",
+    "pyyaml>=6.0.3",
+]
+
+[dependency-groups]
+dev = [
+    "ruff",
+    "ty",
+]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+
+[tool.ruff]
+src = ["scripts"]
+target-version = "py313"
+line-length = 120

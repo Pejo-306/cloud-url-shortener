@@ -10,11 +10,11 @@ This CLI follows this procedure to publish application secrets:
     - Step 5: Create or update one Secrets Manager secret per component
 
 CLI usage:
-    $ python -m bootstrap.seed_secrets --app-name cloudshortener --root config --env-allow dev prod
-    $ python -m bootstrap.seed_secrets --app-name cloudshortener --dry-run
-    $ python -m bootstrap.seed_secrets --app-name cloudshortener --tags "Owner=Pesho,Service=cloudshortener"
-    $ python -m bootstrap.seed_secrets --app-name cloudshortener --aws-profile my-profile
-    $ python -m bootstrap.seed_secrets --app-name cloudshortener --kms-key-id alias/aws/secretsmanager
+    $ python -m scripts.seed_secrets --app-name cloudshortener --root config --env-allow dev prod
+    $ python -m scripts.seed_secrets --app-name cloudshortener --dry-run
+    $ python -m scripts.seed_secrets --app-name cloudshortener --tags "Owner=Pesho,Service=cloudshortener"
+    $ python -m scripts.seed_secrets --app-name cloudshortener --aws-profile my-profile
+    $ python -m scripts.seed_secrets --app-name cloudshortener --kms-key-id alias/aws/secretsmanager
 
 AWS credentials/region:
     - Use --aws-profile to select a profile from ~/.aws/{credentials,config}.
@@ -43,19 +43,18 @@ Raises:
 # TODO: add allowlist/denylist of secret components to publish
 """
 
-from __future__ import annotations
-
 import argparse
 import pathlib
 from typing import Any
 
-from bootstrap.helper import (
+from scripts.helper import (
+    PROJECT_ROOT,
     boto3_session,
     load_yaml,
     normalize_user_tags,
     yaml_config_files,
 )
-from bootstrap.aws_actions import create_or_update_secret
+from scripts.aws_actions import create_or_update_secret
 
 
 def _gather_component_secrets(secrets_node: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -67,10 +66,10 @@ def _gather_component_secrets(secrets_node: dict[str, Any]) -> dict[str, dict[st
         - Filters out non-dict components.
 
     Args:
-        secrets_node (Dict[str, Any]): The `secrets:` node from YAML.
+        secrets_node (dict[str, Any]): The `secrets:` node from YAML.
 
     Returns:
-        Dict[str, Dict[str, Any]]: component -> payload
+        dict[str, dict[str, Any]]: component -> payload
     """
     out: dict[str, dict[str, Any]] = {}
     for component, payload in (secrets_node or {}).items():
@@ -103,8 +102,8 @@ def main(argv: list[str] | None = None) -> None:
     )
     parser.add_argument(
         '--root',
-        default='config',
-        help='Root directory containing <function>/<env>.yaml files (default: config)',
+        default=str(PROJECT_ROOT / 'config'),
+        help='Root directory containing <function>/<env>.yaml files (default: <project_root>/config)',
     )
     parser.add_argument(
         '--env-allow',
