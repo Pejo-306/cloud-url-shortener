@@ -60,6 +60,10 @@ def bad_request_400() -> LambdaEvent:
 
 
 class TestRedirectUrlHandler:
+    context: LambdaContext
+    config: LambdaConfiguration
+    short_url_dao: ShortURLBaseDAO
+
     @pytest.fixture
     def context(self) -> LambdaContext:
         return cast(LambdaContext, {'function_name': 'redirect_url'})

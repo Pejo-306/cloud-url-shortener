@@ -105,6 +105,11 @@ def bad_request_400_no_target_url() -> LambdaEvent:
 
 
 class TestShortenUrlHandler:
+    context: LambdaContext
+    config: LambdaConfiguration
+    short_url_dao: ShortURLBaseDAO
+    user_dao: UserBaseDAO
+
     @pytest.fixture
     def context(self) -> LambdaContext:
         return cast(LambdaContext, {'function_name': 'shorten_url'})

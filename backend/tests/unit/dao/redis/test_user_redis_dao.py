@@ -10,6 +10,11 @@ from cloudshortener.constants import TTL
 
 
 class TestUserRedisDAO:
+    app_prefix: str
+    key_schema: RedisKeySchema
+    dao: UserRedisDAO
+    redis_client: redis.Redis
+
     @pytest.fixture
     def key_schema(self) -> RedisKeySchema:
         mock = MagicMock(spec=RedisKeySchema)

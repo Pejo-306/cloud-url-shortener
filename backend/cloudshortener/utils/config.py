@@ -39,8 +39,9 @@ TODO:
 import os
 import json
 import functools
-import urllib
 import logging
+from urllib.parse import urlparse
+from urllib.request import urlopen
 from pathlib import Path
 from collections.abc import Callable
 
@@ -92,7 +93,7 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
     def __validate_appconfig_url(url: str) -> str:
         if not url:
             return ''
-        components = urllib.parse.urlparse(url)
+        components = urlparse(url)
         if components.scheme not in {'http', 'https'}:
             raise BadConfigurationError(f'Bad scheme {url}')
         if components.hostname not in {'localhost', '127.0.0.1', 'host.docker.internal', 'appconfig-agent'}:
@@ -105,7 +106,7 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
 
     @functools.wraps(func)
     def wrapper(lambda_name: str) -> LambdaConfiguration:
-        agent_url = __validate_appconfig_url(os.getenv(ENV.AppConfig.AGENT_URL))
+        agent_url = __validate_appconfig_url(os.getenv(ENV.AppConfig.AGENT_URL) or '')
         if not running_locally() or not agent_url:
             return func(lambda_name)
 
@@ -113,7 +114,7 @@ def _sam_load_local_appconfig(func: Callable) -> Callable:  # pragma: no cover
         url = f'{agent_url}/applications/{app_name()}/environments/{app_env()}/configurations/{profile_name}'
 
         logger.debug('Trying to load AppConfig from local agent.', extra={'agentUrl': url, 'lambdaName': lambda_name})
-        with urllib.request.urlopen(url, timeout=5) as r:  # noqa: S310
+        with urlopen(url, timeout=5) as r:  # noqa: S310
             config = json.load(r)
 
         backend = config['active_backend']

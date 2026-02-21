@@ -3,19 +3,21 @@ from unittest.mock import MagicMock
 
 import pytest
 import redis
-from botocore.client import BaseClient
 from pytest import MonkeyPatch
 
+from cloudshortener.types import SSMClient, SecretsClient
 from cloudshortener.dao.cache.mixins import ElastiCacheClientMixin
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.constants import ENV
 
 
-type SSMClient = BaseClient
-type SecretsClient = BaseClient
-
-
 class TestElastiCacheClientMixin:
+    app_prefix: str
+    ssm_client: SSMClient
+    secrets_client: SecretsClient
+    secrets_client_without_username: SecretsClient
+    redis_client: redis.Redis
+
     @pytest.fixture
     def ssm_client(self) -> SSMClient:
         client = MagicMock(spec=['get_parameter'])

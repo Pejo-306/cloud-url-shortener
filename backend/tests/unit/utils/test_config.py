@@ -5,8 +5,8 @@ from io import BytesIO
 from typing import cast
 from unittest.mock import MagicMock
 
-import botocore
 import pytest
+from botocore.exceptions import ClientError
 from pytest import MonkeyPatch
 
 from cloudshortener.types import AppConfig
@@ -17,6 +17,10 @@ from cloudshortener.dao.cache import AppConfigCacheDAO
 
 
 class TestConfigUtilities:
+    appconfig_payload: AppConfig
+    healthy_cache_dao: AppConfigCacheDAO
+    failing_cache_dao: AppConfigCacheDAO
+
     @pytest.fixture
     def appconfig_payload(self) -> AppConfig:
         # fmt: off
@@ -115,12 +119,12 @@ class TestConfigUtilities:
         monkeypatch.setattr(cache_module, 'AppConfigCacheDAO', MagicMock(return_value=failing_cache_dao))
 
         mock_appconfig = MagicMock()
-        mock_appconfig.start_configuration_session.side_effect = botocore.exceptions.ClientError(
+        mock_appconfig.start_configuration_session.side_effect = ClientError(
             {'Error': {'Code': 'ResourceNotFoundException'}}, 'StartConfigurationSession'
         )
         monkeypatch.setattr(config.boto3, 'client', lambda service: mock_appconfig)
 
-        with pytest.raises(botocore.exceptions.ClientError):
+        with pytest.raises(ClientError):
             config.load_config('test_lambda')
 
         cache_module.AppConfigCacheDAO.assert_called_once_with(prefix='test-app:test')

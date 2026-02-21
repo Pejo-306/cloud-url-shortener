@@ -1,13 +1,13 @@
 import json
 import os
 from datetime import datetime, UTC
+from typing import cast
 
 import boto3
 import redis
-from botocore.client import BaseClient
 
 from cloudshortener.constants import ENV
-from cloudshortener.types import AppConfig, AppConfigMetadata
+from cloudshortener.types import AppConfig, AppConfigMetadata, SSMClient, SecretsClient
 from cloudshortener.exceptions import AppConfigError
 from cloudshortener.dao.cache.mixins import ElastiCacheClientMixin
 from cloudshortener.dao.cache.constants import CacheTTL
@@ -62,8 +62,8 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
     def __init__(
         self,
         prefix: str | None = None,
-        ssm_client: BaseClient | None = None,
-        secrets_client: BaseClient | None = None,
+        ssm_client: SSMClient | None = None,
+        secrets_client: SecretsClient | None = None,
         redis_decode_responses: bool = True,
         tls_verify: bool = False,
         ca_bundle_path: str | None = None,
@@ -103,7 +103,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
         # CACHE HIT: load appconfig document as deserialized JSON object (Python dictionary)
         if appconfig_document_blob is not None:
-            return json.loads(appconfig_document_blob)
+            return json.loads(cast(str | bytes, appconfig_document_blob))
 
         # CACHE MISS: raise CacheMissError if pull=False
         #             otherwise fetch the document from AppConfig
@@ -129,7 +129,7 @@ class AppConfigCacheDAO(ElastiCacheClientMixin):
 
         # CACHE HIT: load appconfig metadata as deserialized JSON object (Python dictionary)
         if appconfig_metadata_blob is not None:
-            return json.loads(appconfig_metadata_blob)
+            return json.loads(cast(str | bytes, appconfig_metadata_blob))
 
         # CACHE MISS: raise CacheMissError if pull=False
         #             otherwise fetch the metadata from AppConfig

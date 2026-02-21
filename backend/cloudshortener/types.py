@@ -7,6 +7,7 @@ from botocore.client import BaseClient
 type LambdaEvent = dict[str, Any]
 type LambdaContext = Any
 type LambdaResponse = dict[str, Any]
+type LambdaDiagnosticResponse = str
 type LambdaConfiguration = dict[str, Any]
 type AppConfig = dict[str, Any]
 type AppConfigMetadata = dict[str, Any]
@@ -14,6 +15,8 @@ type AppConfigMetadata = dict[str, Any]
 # Type aliases for boto3 clients
 type AppConfigDataClient = BaseClient
 type AppConfigClient = BaseClient
+type SSMClient = BaseClient
+type SecretsClient = BaseClient
 
 # Type aliases for HTTP objects
 type HttpHeaders = dict[str, str]

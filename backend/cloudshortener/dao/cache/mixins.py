@@ -1,11 +1,12 @@
 import json
 import os
+from typing import Any
 
 import boto3
 import redis
-from botocore.client import BaseClient
 
 from cloudshortener.constants import ENV
+from cloudshortener.types import SSMClient, SecretsClient
 from cloudshortener.exceptions import MalformedResponseError, BadConfigurationError
 from cloudshortener.dao.cache.types import ElastiCacheParameters, ElastiCacheUserSecret
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
@@ -35,11 +36,13 @@ class ElastiCacheClientMixin(RedisClientMixin):
         - `password`: required string (the AuthToken)
     """
 
+    keys: CacheKeySchema
+
     def __init__(
         self,
         prefix: str | None = None,
-        ssm_client: BaseClient | None = None,
-        secrets_client: BaseClient | None = None,
+        ssm_client: SSMClient | None = None,
+        secrets_client: SecretsClient | None = None,
         redis_decode_responses: bool = True,
         tls_verify: bool = False,
         ca_bundle_path: str | None = None,
@@ -52,7 +55,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
         # Build Redis client:
         # - In AWS: TLS enabled by default (ssl=True).
         # - In local mode: connect to local Redis without TLS (ssl=False).
-        client_kwargs = dict(
+        client_kwargs: dict[str, Any] = dict(
             host=host,
             port=port,
             db=db,
@@ -84,7 +87,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
 
     @staticmethod
     @require_environment(ENV.ElastiCache.HOST_PARAM, ENV.ElastiCache.PORT_PARAM, ENV.ElastiCache.DB_PARAM)
-    def _resolve_ssm_params(ssm_client: BaseClient | None) -> ElastiCacheParameters:
+    def _resolve_ssm_params(ssm_client: SSMClient | None) -> ElastiCacheParameters:
         """Resolve host, port, db, and optional username from SSM Parameter Store."""
         host_param = os.environ[ENV.ElastiCache.HOST_PARAM]
         port_param = os.environ[ENV.ElastiCache.PORT_PARAM]
@@ -119,7 +122,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
     # TODO: decorate this with @require_environment(ENV.LocalStack.ENDPOINT, local_only=True)
     @staticmethod
     @require_environment(ENV.ElastiCache.SECRET)
-    def _resolve_secret(secrets_client: BaseClient | None) -> ElastiCacheUserSecret:
+    def _resolve_secret(secrets_client: SecretsClient | None) -> ElastiCacheUserSecret:
         """Resolve optional username and required password from Secrets Manager."""
         secret_name = os.environ[ENV.ElastiCache.SECRET]
         # fmt: off

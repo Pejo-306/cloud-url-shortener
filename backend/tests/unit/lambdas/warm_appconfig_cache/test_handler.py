@@ -11,6 +11,9 @@ from cloudshortener.lambdas.warm_appconfig_cache import app
 
 
 class TestWarmAppConfigCache:
+    event: LambdaEvent
+    cache_dao: AppConfigCacheDAO
+
     @pytest.fixture
     def event(self) -> LambdaEvent:
         return {
