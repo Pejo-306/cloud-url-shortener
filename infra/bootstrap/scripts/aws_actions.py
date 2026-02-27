@@ -216,7 +216,11 @@ def _stream_events(cfn_client, stack_name: str, poll_seconds: int) -> None:
         try:
             events = cfn_client.describe_stack_events(StackName=stack_name)['StackEvents']
         except ClientError:
-            # During creation/deletion, describe_stack_events may briefly fail; retry.
+            # When stack is fully deleted, describe_stack_events fails (stack no longer exists).
+            # Check status; if stack is gone, we're done.
+            if _current_status(cfn_client, stack_name) is None:
+                return
+            # Transient failure during creation/deletion; retry.
             time.sleep(poll_seconds)
             continue
 
