@@ -108,6 +108,7 @@ class ElastiCacheClientMixin(RedisClientMixin):
             user = None
             if user_param:
                 user = ssm.get_parameter(Name=user_param)['Parameter']['Value']
+        # TODO: handle ParameterNotFoundError
         except KeyError as e:
             raise MalformedResponseError('Malformed SSM get_parameter response') from e
 
