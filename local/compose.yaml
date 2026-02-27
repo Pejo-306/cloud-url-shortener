@@ -5,7 +5,7 @@ services:
     image: redis:8.2
     container_name: redis
     ports:
-      - 6379:6379
+      - ${REDIS_PORT:-6379}:6379
     networks:
       - local-net
     volumes:
@@ -26,7 +26,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - 5540:5540
+      - ${REDISINSIGHT_PORT:-5540}:5540
     networks:
       - local-net
     healthcheck:
@@ -43,7 +43,7 @@ services:
     # On Apple Silicon, force x86_64 if needed:
     # platform: linux/amd64
     ports:
-      - 2772:2772
+      - ${APPCONFIG_AGENT_PORT:-2772}:2772
     networks:
       - local-net
     environment:
@@ -66,8 +66,8 @@ services:
     image: localstack/localstack:latest
     container_name: localstack
     ports:
-      - 4566:4566           # main edge port
-      - 4571:4571
+      - ${LOCALSTACK_EDGE_PORT:-4566}:4566           # main edge port
+      - ${LOCALSTACK_AUX_PORT:-4571}:4571
     networks:
       - local-net
     environment:
