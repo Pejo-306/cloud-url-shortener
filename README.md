@@ -229,18 +229,29 @@ creates:
 **NOTE**: Localstack is not used in fully local deployment. It's needed for hybrid
 deployment (see below).
 
+All commands below assume you run from the **repository root**. Use the root
+[Makefile](Makefile) (`make help` for targets).
+
 ### Prerequisites
 
 - [Python](https://www.python.org/) 3.13+
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- [Node.js](https://nodejs.org/) (for frontend)
 - [Docker](https://www.docker.com/) v 29.1+ and [Docker Compose](https://docs.docker.com/compose/) v2.40+
 - [SAM](https://aws.amazon.com/serverless/sam/)
 
 ### Setup
 
-Deploy Docker Compose stack:
+1. Install dependencies:
 
 ```bash
-docker compose up
+make install
+```
+
+2. Start the Docker Compose stack:
+
+```bash
+make up
 ```
 
 **NOTE**: The Docker Compose stack uses the following ports on your machine:
@@ -249,24 +260,19 @@ docker compose up
 - **Localstack** on ports **4566** and **4571**
 - **AppConfig Agent** on port **2772**
 
-If your machine is already using any of the listed ports, either a) stop other
-services using these ports or b) edit [local/compose.yaml](local/compose.yaml)
-and switch out the ports.
+If your machine is already using any of the listed ports, override them, e.g.
+`make up REDIS_PORT=7000`. See `make help` for configurable variables.
 
-### Build the SAM app
+3. Build the app (backend, frontend, and infra):
 
 ```bash
-sam build --use-container
+make build
 ```
 
-### Invoke functions via an API
+4. Start the local SAM API and Vite dev server:
 
 ```bash
-export APPCONFIG_AGENT_URL="http://appconfig-agent:2772"
-export LOCALSTACK_ENDPOINT="http://localstack:4566"
-sam local start-api \
-  --docker-network cloudshortener_local-net \
-  --env-vars infra/env.local.json
+make dev
 ```
 
 Then, you can access the following two endpoints:
@@ -277,24 +283,18 @@ You can use a tool like [curl](https://curl.se/) or [Postman](https://www.postma
 to interact with the API. Check [events](events/) directory for sample JSON 
 events you can send to both lambdas.
 
-### Invoke functions via SAM
+### Invoke functions directly
 
-Invoke `ShortenURLFunction`:
+Invoke `ShortenUrlFunction`:
 
 ```bash
-sam local invoke ShortenUrlFunction \
-  --event events/shorten_url/event.json \
-  --env-vars infra/env.local.json \
-  --docker-network cloudshortener_local-net
+make invoke FUNCTION=ShortenUrlFunction EVENT_FILE=events/shorten_url/event.json
 ```
 
 Invoke `RedirectUrlFunction`:
 
 ```bash
-sam local invoke RedirectUrlFunction \
-  --event events/redirect_url/event.json \
-  --env-vars infra/env.local.json \
-  --docker-network cloudshortener_local-net
+make invoke FUNCTION=RedirectUrlFunction EVENT_FILE=events/redirect_url/event.json
 ```
 
 ## Cloud Deployment
@@ -302,151 +302,99 @@ sam local invoke RedirectUrlFunction \
 In cloud deployment, an AWS CloudFormation stack is used to create and manage
 all AWS resources.
 
+All commands below assume you run from the **repository root**. Use the root
+[Makefile](Makefile) (`make help` for targets).
+
 ### Prerequisites
 
 - [AWS Free Tier account](https://aws.amazon.com/free/) (paid one also works)
-- [Redis Cloud free database](https://redis.io/try-free/)
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [act](https://github.com/nektos/act) and/or [GitHub](https://github.com/) repo with [GitHub actions](https://github.com/features/actions)
 
 ### Setup
 
-1- Deploy OIDC stack (allows GitHub actions and `act` to deploy the stack in AWS):
+1. Deploy OIDC stack (allows GitHub Actions and `act` to deploy to AWS):
 
 ```bash
-cd infra/bootstrap/
-
-uv run python -m scripts.bootstrap_oidc up \
-    --stack-name cloudshortener-bootstrap \
-    --github-org <your GitHub username> \
-    --repo cloud-url-shortener \
-    --aws-profile <your AWS profile name with credentials>
+make bootstrap
 ```
 
-2- Create a free Redis database after registering at [Redis Cloud](https://redis.io/try-free/)
-
-3- Create dev environment configuration files by editting and renaming the files:
-- [config/shorten_url/dev.example.yaml](config/shorten_url/dev.example.yaml) -> `config/shorten_url/dev.yaml`
-- [config/redirect_url/dev.example.yaml](config/redirect_url/dev.example.yaml) -> `config/redirect_url/dev.yaml`
+To use an existing OIDC provider:
 
 ```bash
-cd config/shorten_url/
-cp dev.example.yaml dev.yaml
-vim dev.yaml  # edit the values with your Redis parameters / secrets and save the file
+make bootstrap EXISTING_OIDC_PROVIDER_ARN=arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com
 ```
+
+Override `GITHUB_ORG` and `REPO_NAME` if needed (see `make -C infra/bootstrap help`).
+
+2. Create dev environment configuration files by editing and renaming the files:
+- [config/shorten_url/dev.example.yaml](config/shorten_url/dev.example.yaml) → `config/shorten_url/dev.yaml`
+- [config/redirect_url/dev.example.yaml](config/redirect_url/dev.example.yaml) → `config/redirect_url/dev.yaml`
 
 ```bash
-cd config/redirect_url/
-cp dev.example.yaml dev.yaml
-vim dev.yaml  # edit the values with your Redis parameters / secrets and save the file
+cp config/shorten_url/dev.example.yaml config/shorten_url/dev.yaml
+cp config/redirect_url/dev.example.yaml config/redirect_url/dev.yaml
+# Edit both files with your config values
 ```
 
-**NOTE:** dev.yaml / staging.yaml / prod.yaml are files used to bootstrap different
-project environments. They are all in *.gitignore*, so your secrets won't be committed
-and leaked.
+**NOTE:** dev.yaml / staging.yaml / prod.yaml are in *.gitignore*, so your secrets won't be committed.
 
-4- Seed project's SSM parameters & secrets:
+3. Deploy the orchestrator stack. This runs pre-deploy (seed SSM, secrets, ElastiCache credentials), deploys the SAM stack, then post-deploy (seed ElastiCache SSM params, sync frontend):
 
 ```bash
-cd infra/bootstrap/
-
-uv run python -m scripts.seed_ssm_params \
-    --app-name cloudshortener \
-    --root ../config \
-    --env-allow dev \
-    --aws-profile <your AWS profile name with credentials>
-
-uv run python -m scripts.seed_secrets \
-    --app-name cloudshortener \
-    --root ../config \
-    --env-allow dev \
-    --aws-profile <your AWS profile name with credentials>
+export ELASTICACHE_PASSWORD='<your ElastiCache password>'
+make deploy
 ```
 
-5- Generate a password for ElastiCache cache in the stack and bootstrap it:
+**NOTE:** The ElastiCache password must be 32–128 printable ASCII characters, no spaces, no `/*`, `"`, `@`, with at least one uppercase letter and one digit. Example: `bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD`.
 
-!! This step must be executed BEFORE stack deployment.
+Override `APP_NAME`, `APP_ENV`, `AWS_REGION`, `AWS_PROFILE` as needed (e.g. `make deploy APP_ENV=staging AWS_PROFILE=prod`).
 
-```bash
-cd infra/bootstrap/
-
-uv run python -m scripts.seed_elasticache \
-    --secrets-only \
-    --app-name cloudshortener --env dev \
-    --user default \
-    --password '<your ElastiCache password>' \
-    --aws-profile <your AWS profile name with credentials>
-```
-
-**NOTE:** The ElastiCache password must be 32-128 printable ASCII characters, no
-spaces, no */*, *"*, *@* characters with at least one uppercase letter & one digit.
-Otherwise, the stack deployment will fail. Example password: `bP7f2Qk9LxN4Rz8TgH3mVw6YcJ5pK1sD`.
-
-6- Deploy SAM stack
-
-a) via local act
-
-```bash
-act create -W .github/workflows/act/deploy.yml -e .github/events/create_release.json -j deploy
-```
-
-b) via GitHub action (create a `release-X.X.X` branch from `main`)
-
-7- Seed ElastiCache parameters
-
-!! This step must be executed AFTER successful stack deployment.
-
-```bash
-cd infra/bootstrap/
-
-uv run python -m scripts.seed_elasticache \
-    --ssm-only \
-    --app-name cloudshortener --env dev \
-    --host <ElastiCache master endpoint> \
-    --port 6379 \
-    --db 0 \
-    --user default \
-    --aws-profile <your AWS profile name with credentials>
-```
-
-8- Create frontend configuration
-
-Create the frontend config file from the example:
+4. Create frontend configuration (after first deploy, to get stack outputs):
 
 ```bash
 cp frontend/config/dev/example.app.config.json frontend/config/dev/app.config.json
 ```
 
-Edit `app.config.json` and fill in the values from the stack outputs:
-- `backend.host`: Use the `ApiUrl` output (e.g., `https://xxx.execute-api.eu-central-1.amazonaws.com/dev`)
-- `aws.cognito.userPoolId`: Use the `UserPoolId` output
-- `aws.cognito.clientId`: Use the `UserPoolClientId` output
+Edit `app.config.json` and fill in values from the stack outputs:
+- `backend.host`: `ApiUrl` output
+- `aws.cognito.userPoolId`: `UserPoolId` output
+- `aws.cognito.clientId`: `UserPoolClientId` output
 
-You can retrieve these values with:
+Retrieve outputs:
 
 ```bash
 aws cloudformation describe-stacks \
   --stack-name cloudshortener-dev \
   --query "Stacks[0].Outputs" \
   --output table \
-  --aws-profile <your AWS profile name with credentials>
+  --profile <your AWS profile>
 ```
 
-9- Upload frontend to S3
+5. Sync frontend to S3 (if you updated `app.config.json` after deploy):
 
 ```bash
-act push -W .github/workflows/act/frontend/deploy.yml -e .github/events/push_main.json -j deploy
+make -C infra sync-frontend APP_NAME=cloudshortener APP_ENV=dev
 ```
+
+Alternatively, run `make deploy` again; post-deploy includes frontend sync.
 
 ### Access the app
 
-Visit the `FrontendUrl` in your browser which you can find in the stack's outputs:
+Visit the `FrontendUrl` in your browser:
 
 ```bash
 aws cloudformation describe-stacks \
   --stack-name cloudshortener-dev \
   --query "Stacks[0].Outputs[?OutputKey=='FrontendUrl'].OutputValue" \
   --output text \
-  --aws-profile <your AWS profile name with credentials>
+  --profile <your AWS profile>
+```
+
+### Destroy the stack
+
+```bash
+make destroy
 ```
 
 Happy shortening!
