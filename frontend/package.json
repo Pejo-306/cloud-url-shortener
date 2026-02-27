@@ -10,9 +10,11 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --fix --cache",
+    "lint": "eslint . --cache",
+    "lint-fix": "eslint . --fix --cache",
     "format": "prettier --write --experimental-cli src/",
-    "json-server": "json-server --watch data/db.json --port 3000 --routes data/routes.json --middlewares data/middleware.cjs"
+    "format-diff": "prettier --check --experimental-cli src/",
+    "json-server": "json-server --watch data/db.json --port ${JSON_SERVER_PORT:-3000} --routes data/routes.json --middlewares data/middleware.cjs"
   },
   "dependencies": {
     "amazon-cognito-identity-js": "^6.3.16",
