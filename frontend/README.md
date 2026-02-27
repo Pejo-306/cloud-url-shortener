@@ -1,44 +1,33 @@
-# frontend
+# Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Vite-based frontend for CloudShortener. Build, dev server, linting (ESLint), formatting (Prettier), and json-server mock API.
 
-## Recommended IDE Setup
+You can manage the frontend via the [frontend Makefile](./Makefile).
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Prerequisites
 
-## Recommended Browser Setup
+- [Node.js](https://nodejs.org/) v20+ (LTS)
+- [npm](https://www.npmjs.com/) (bundled with Node)
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## Targets
 
-## Customize configuration
+Run from the `frontend/` directory:
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+| Target          | Description                                 |
+|-----------------|----------------------------------------------|
+| `make install`  | Install npm packages (npm ci)                |
+| `make clean`    | Remove node_modules, dist, .eslintcache      |
+| `make dev`      | Run Vite dev server                          |
+| `make code-check` | Run lint and format-diff (safe, no changes) |
+| `make build`    | Build into dist/                             |
 
-## Project Setup
+For other code quality and local development targets, inspect `make help`.
 
-```sh
-npm install
-```
+## Usage
 
-### Compile and Hot-Reload for Development
+Local day-to-day development looks like:
 
-```sh
-npm run dev
-```
-
-### Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+1. `make install` to install all npm dependencies
+2. `make dev` combined with a running json-server or local SAM API. Check config files in `frontend/config/` to configure
+3. Run a code-check with `make code-check` and inspect `make help` to fix any linting/formatting
+4. `make build` to build into `dist/` and preview with `make preview`
