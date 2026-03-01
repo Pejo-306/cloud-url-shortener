@@ -21,6 +21,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ vars.APP_ENV }}
     steps:
       - uses: actions/checkout@v4
 
@@ -47,10 +48,19 @@ jobs:
           aws --version
 
       - name: Configure AWS credentials (OIDC)
+        if: env.ACT != 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
             role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
             aws-region:     ${{ vars.AWS_REGION }}
+
+      - name: Configure AWS credentials (local)
+        if: env.ACT == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+            aws-access-key-id:     ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+            aws-region:            ${{ vars.AWS_REGION }}
 
       - name: Extract frontend bucket name
         id: get_bucket

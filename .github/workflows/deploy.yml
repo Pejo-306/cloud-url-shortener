@@ -46,7 +46,7 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-24.04-arm
-    environment: ${{ inputs.environment || 'dev' }}  # uses the inputted environment variable OR defaults to 'dev'
+    environment: ${{ inputs.environment || vars.APP_ENV || 'dev' }}
     permissions:
       contents: read
       id-token: write
@@ -58,12 +58,31 @@ jobs:
         with:
           use-installer: true
           token: ${{ secrets.GITHUB_TOKEN }}
-    
+
+      - name: Install Node (local/act only)
+        if: env.ACT == 'true'
+        run: |
+          set -eux
+          apt-get update
+          apt-get install -y ca-certificates curl gnupg
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
+          node -v
+
       - name: Configure AWS credentials (OIDC)
+        if: env.ACT != 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
             role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
             aws-region:     ${{ vars.AWS_REGION }}
+
+      - name: Configure AWS credentials (local)
+        if: env.ACT == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+            aws-access-key-id:     ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+            aws-region:            ${{ vars.AWS_REGION }}
 
       - name: Rebuild for deploy
         run: sam build --use-container
@@ -83,5 +102,5 @@ jobs:
             AppEnv=${{ vars.APP_ENV }} \
             AppName=${{ vars.APP_NAME }} \
             FrontendBucketName=${{ vars.FRONTEND_BUCKET_NAME }} \
-            --role-arn "${{ secrets.CLOUDFORMATION_EXEC_ROLE_ARN }}"
+            ${{ env.ACT != 'true' && format('--role-arn "{0}"', secrets.CLOUDFORMATION_EXEC_ROLE_ARN) || '' }}
 
