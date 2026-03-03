@@ -97,11 +97,6 @@ Conditions:
       - !Ref LambdaSecurityGroupId
       - ''
 
-  # Local environment detection
-  IsLocal: !Equals
-    - !Ref AppEnv
-    - local
-
   # Cognito authorizer only when UserPoolArn is provided
   HasCognitoAuth: !Not
     - !Equals
