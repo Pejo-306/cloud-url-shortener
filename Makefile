@@ -2,30 +2,31 @@
 # Run from repository root. Delegates to backend/, frontend/, local/, infra/, infra/bootstrap/.
 
 # Primary configurable variables (pass-through to infra and sub-makes)
-APP_NAME           ?= cloudshortener
-APP_ENV            ?= dev
-LOG_LEVEL          ?= INFO
-AWS_REGION         ?= eu-central-1
-AWS_PROFILE        ?= personal-dev
-ORCHESTRATOR_STACK ?= $(APP_NAME)-$(APP_ENV)
+APP_NAME                  ?= cloudshortener
+APP_ENV                   ?= dev
+LOG_LEVEL                 ?= INFO
+AWS_REGION                ?= eu-central-1
+AWS_PROFILE               ?= personal-dev
+ORCHESTRATOR_STACK 	      ?= $(APP_NAME)-$(APP_ENV)
+INFRA_DIR                 ?= infra
 
 # Recipe-specific (not documented in help)
 ## OIDC stack
 EXISTING_OIDC_PROVIDER_ARN ?=
 ## Local SAM invoke
-FUNCTION                  ?=
-EVENT_FILE                ?=
+FUNCTION                   ?=
+EVENT_FILE                 ?=
 ## Deploy (required for pre-deploy seeding)
-ELASTICACHE_PASSWORD      ?=
+ELASTICACHE_PASSWORD       ?=
 
 # Local Docker Compose stack ports
-REDIS_PORT                ?= 6379
-REDISINSIGHT_PORT         ?= 5540
-APPCONFIG_AGENT_PORT      ?= 2772
-LOCALSTACK_EDGE_PORT      ?= 4566
-LOCALSTACK_AUX_PORT       ?= 4571
+REDIS_PORT                 ?= 6379
+REDISINSIGHT_PORT          ?= 5540
+APPCONFIG_AGENT_PORT       ?= 2772
+LOCALSTACK_EDGE_PORT       ?= 4566
+LOCALSTACK_AUX_PORT        ?= 4571
 
-.PHONY: help install clean code-check up down dev invoke bootstrap build deploy destroy pre-deploy post-deploy
+.PHONY: help install clean code-check up down dev invoke bootstrap build deploy destroy pre-deploy post-deploy lint-templates
 
 help:
 	@echo "CloudShortener tooling"
@@ -42,6 +43,7 @@ help:
 	@echo "\033[1mDeployment to AWS:\033[0m"
 	@echo "  make bootstrap                           		   - Deploy OIDC stack (GitHub Actions)"
 	@echo "  make build                               		   - Build backend + frontend + infra"
+	@echo "  make lint-templates                      		   - Validate and lint SAM templates (cfn-lint)"
 	@echo "  make deploy ELASTICACHE_PASSWORD='...'   		   - Deploy orchestrator stack (ELASTICACHE_PASSWORD required)"
 	@echo "  make destroy                             		   - Destroy orchestrator stack"
 	@echo ""
@@ -114,6 +116,20 @@ build:
 		AWS_REGION="$(AWS_REGION)" \
 		AWS_PROFILE="$(AWS_PROFILE)"
 
+# `.cfnlintrc` can only be in our root directory, that's why we lint SAM templates from the root
+# Also, the rules allow you to lint templates in parallel with `make -j lint-templates`
+SAM_TEMPLATES := $(INFRA_DIR)/template.yaml $(wildcard $(INFRA_DIR)/stacks/*/template.yaml)
+LINT_TARGETS  := $(addprefix lint-template--,$(SAM_TEMPLATES))
+
+define lint_template_rule
+.PHONY: lint-template--$(1)
+lint-template--$(1):
+	@echo "sam validate --lint --region $(AWS_REGION) -t $(1)"
+	@sam validate --lint --region $(AWS_REGION) -t $(1)
+endef
+$(foreach t,$(SAM_TEMPLATES),$(eval $(call lint_template_rule,$(t))))
+
+lint-templates: $(LINT_TARGETS)
 
 pre-deploy:
 	$(MAKE) -C infra/bootstrap seed-ssm \
