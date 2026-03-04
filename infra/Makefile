@@ -10,8 +10,12 @@ AWS_REGION         ?= eu-central-1
 AWS_PROFILE        ?= personal-dev
 S3_BUCKET          ?= aws-sam-cli-managed-default-samclisourcebucket-4nqd7tupxtzl
 
+# Orchestrator targets (full stack) - samconfig at project root
+SAM_CONFIG         := ../samconfig.toml
+TEMPLATE           := template.yaml
+CAPABILITIES       ?= CAPABILITY_IAM CAPABILITY_AUTO_EXPAND
 ORCHESTRATOR_STACK ?= $(APP_NAME)-$(APP_ENV)
-BACKEND_DIR        ?= stacks/backend
+SAM_DEPLOY_ARGS    ?=
 
 define confirm_destroy
 	@read -p "Destroy stack $(1)? [y/N]: " ans && [ "$$ans" = "y" ] || [ "$$ans" = "Y" ] || (echo "Aborted." && exit 1)
@@ -134,10 +138,6 @@ deploy-backend:
 build-backend:; $(MAKE) -C stacks/backend build
 destroy-backend:; $(MAKE) -C stacks/backend destroy
 
-# Orchestrator targets (full stack) - samconfig at project root
-SAM_CONFIG   := ../samconfig.toml
-TEMPLATE     := template.yaml
-CAPABILITIES ?= CAPABILITY_IAM CAPABILITY_AUTO_EXPAND
 
 build:
 	sam build \
@@ -145,8 +145,9 @@ build:
 		-t $(TEMPLATE) \
 		--use-container
 
-deploy: build build-frontend
+deploy:
 	sam deploy \
+		$(SAM_DEPLOY_ARGS) \
 		--config-file $(SAM_CONFIG) \
 		--stack-name $(ORCHESTRATOR_STACK) \
 		--region $(AWS_REGION) \

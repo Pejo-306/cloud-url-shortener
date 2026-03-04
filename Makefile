@@ -16,7 +16,9 @@ EXISTING_OIDC_PROVIDER_ARN ?=
 ## Local SAM invoke
 FUNCTION                   ?=
 EVENT_FILE                 ?=
-## Deploy (required for pre-deploy seeding)
+## Deploy
+BUILD                      ?= true
+SAM_DEPLOY_ARGS            ?=
 ELASTICACHE_PASSWORD       ?=
 
 # Local Docker Compose stack ports
@@ -162,7 +164,10 @@ post-deploy:
 		ELASTICACHE_PORT="$$PORT" \
 		AWS_PROFILE="$(AWS_PROFILE)"
 
-deploy: build
+deploy:
+ifeq ($(BUILD),true)
+	$(MAKE) build
+endif
 	@if [ -z "$(ELASTICACHE_PASSWORD)" ]; then \
 		echo "ERROR: ELASTICACHE_PASSWORD is required for deploy."; \
 		echo ""; \
@@ -175,7 +180,8 @@ deploy: build
 		APP_ENV="$(APP_ENV)" \
 		LOG_LEVEL="$(LOG_LEVEL)" \
 		AWS_REGION="$(AWS_REGION)" \
-		AWS_PROFILE="$(AWS_PROFILE)"
+		AWS_PROFILE="$(AWS_PROFILE)" \
+		SAM_DEPLOY_ARGS="$(SAM_DEPLOY_ARGS)"
 	$(MAKE) post-deploy
 
 destroy:
