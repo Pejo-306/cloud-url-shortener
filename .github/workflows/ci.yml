@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        type: choice
+        required: false
+        options: [dev, staging, prod]
+        default: staging
+      python-version:
+        type: string
+        required: false
+        default: '3.13'
+      node-version:
+        type: string
+        required: false
+        default: '25.6'
+      coverage-threshold:
+        type: number
+        required: false
+        default: 80
+  push:
+    branches:
+      - main
+      - 'release-*.*.*'
+
+permissions:
+  contents: read
+  id-token: write  # so GitHub can assume OIDC deploy role in AWS
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  template-check:
+    uses: ./.github/workflows/lint-templates.yml
+
+  code-check:
+    uses: ./.github/workflows/code-check.yml
+    with:
+      python-version: ${{ inputs.python-version || '3.13' }}
+      node-version: ${{ inputs.node-version || '25.6' }}
+      coverage-threshold: ${{ inputs.coverage-threshold || 80 }}
+  
+  build:
+    needs: 
+      - template-check
+      - code-check
+    runs-on: ubuntu-24.04-arm
+    environment: ${{ inputs.environment || 'staging' }}
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v4
+      
+      - name: Install Runner Dependencies
+        uses: ./.github/actions/install-runner-dependencies
+        with:
+          github-token:   ${{ secrets.GITHUB_TOKEN }}
+          python-version: ${{ inputs.python-version || '3.13' }}
+
+      - name: Configure AWS credentials
+        uses: ./.github/actions/setup-aws-credentials
+        with:
+          profile-name:                 ci
+          aws-region:                   ${{ vars.AWS_REGION }}
+          oidc-deploy-role:             ${{ secrets.AWS_ROLE_ARN }}
+          local-aws-access-key-id:      ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
+          local-aws-secret-access-key:  ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+
+      - name: Install Project Dependencies
+        run: make install
+      
+      - name: Build Project
+        run: |
+          make build \
+            AWS_PROFILE=ci \
+            APP_ENV=${{ vars.APP_ENV }}
+      
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: build-artifacts
+          path: |
+            backend/requirements.txt
+            frontend/dist/
+            infra/.aws-sam/build/
+          retention-days: 7

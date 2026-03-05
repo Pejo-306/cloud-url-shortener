@@ -1,0 +1,70 @@
+name: Setup AWS Credentials
+description: |
+  Configure AWS credentials (OIDC or local) and create a named AWS profile.
+  `act` uses local credentials (access key and secret access key).
+  GitHub actions use OIDC credentials from the bootstrap OIDC stack.
+
+inputs:
+  profile-name:
+    description: AWS profile name (e.g. "ci", "cd", etc.)
+    required: true
+  aws-region:
+    description: AWS region
+    required: true
+    default: eu-central-1
+  local-aws-access-key-id:
+    description: AWS access key for local runs with `act`
+    required: false
+  local-aws-secret-access-key:
+    description: AWS secret access key for local runs with `act`
+    required: false
+  oidc-deploy-role:
+    description: GitHub OIDC deploy role from bootstrap OIDC stack
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Validate credentials
+      shell: bash
+      run: |
+        HAS_OIDC=$([ -n "${OIDC_ROLE:-}" ] && echo 1 || echo 0)
+        HAS_LOCAL=$([ -n "${LOCAL_ACCESS_KEY:-}" ] && [ -n "${LOCAL_SECRET_KEY:-}" ] && echo 1 || echo 0)
+        if [ "$HAS_OIDC" = 1 ] || [ "$HAS_LOCAL" = 1 ]; then
+          echo "Credentials precheck passed."
+        else
+          echo "::error::Either oidc-deploy-role or (local-aws-access-key-id and local-aws-secret-access-key) must be provided."
+          exit 1
+        fi
+      env:
+        OIDC_ROLE: ${{ inputs.oidc-deploy-role }}
+        LOCAL_ACCESS_KEY: ${{ inputs.local-aws-access-key-id }}
+        LOCAL_SECRET_KEY: ${{ inputs.local-aws-secret-access-key }}
+
+    - name: Configure AWS credentials (OIDC)
+      if: env.ACT != 'true'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+          role-to-assume: ${{ inputs.oidc-deploy-role }}
+          aws-region:     ${{ inputs.aws-region }}
+
+    - name: Configure AWS credentials (local)
+      if: env.ACT == 'true'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+          aws-access-key-id:     ${{ inputs.local-aws-access-key-id }}
+          aws-secret-access-key: ${{ inputs.local-aws-secret-access-key }}
+          aws-region:            ${{ inputs.aws-region }}
+
+    - name: Create AWS CLI profile
+      shell: bash
+      run: |
+        mkdir -p ~/.aws
+        printf '[%s]\naws_access_key_id = %s\naws_secret_access_key = %s\n' \
+          "$PROFILE" "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY" >> ~/.aws/credentials
+        if [ -n "$AWS_SESSION_TOKEN" ]; then
+          printf 'aws_session_token = %s\n' "$AWS_SESSION_TOKEN" >> ~/.aws/credentials
+        fi
+        printf '[profile %s]\nregion = %s\n' "$PROFILE" "${AWS_DEFAULT_REGION:-eu-central-1}" >> ~/.aws/config
+      env:
+        PROFILE: ${{ inputs.profile-name }}

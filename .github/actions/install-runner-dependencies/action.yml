@@ -1,0 +1,55 @@
+name: Install Runner Dependencies
+description: |
+  Installs dependencies which are not available by default in GitHub runners
+  (like `uv` and `sam` CLI). May also install some dependencies which are not available
+  in `act` runners like `aws` CLI (which is available in GitHub actions runners).
+
+  NOTE: this action should install **only** dependencies which are shared by all workflows.
+        Add any workflow-specific dependencies as a step in your workflow.
+
+inputs:
+  github-token:
+    description: |
+      GitHub token for SAM CLI to fetch templates and dependencies.
+      Pass `secrets.GITHUB_TOKEN` from the calling workflow.
+    required: true
+  python-version:
+    description: uv Python version used in backend
+    required: false
+    default: '3.13'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+        enable-cache: true
+        cache-dependency-glob: |
+          backend/uv.lock
+          backend/pyproject.toml
+    
+    - name: Install SAM CLI
+      uses: aws-actions/setup-sam@v2
+      with:
+        use-installer: true
+        token: ${{ inputs.github-token }}
+
+    - name: Install AWS CLI
+      shell: bash
+      run: |
+        if command -v aws &>/dev/null; then
+          echo "AWS CLI already installed: $(aws --version)"
+          exit 0
+        fi
+        ARCH=$(uname -m)
+        case "$ARCH" in
+          aarch64|arm64) URL="https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" ;;
+          *)             URL="https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" ;;
+        esac
+        curl -sSL "$URL" -o awscliv2.zip
+        unzip -q awscliv2.zip
+        sudo ./aws/install
+        rm -rf aws awscliv2.zip
+        echo "Installed: $(aws --version)"

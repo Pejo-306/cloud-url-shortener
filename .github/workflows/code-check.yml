@@ -1,0 +1,93 @@
+name: Code Check
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        type: string
+        required: false
+        default: '3.13'
+      node-version:
+        type: string
+        required: false
+        default: '25.6'
+      coverage-threshold:
+        type: number
+        required: false
+        default: 80
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: code-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-code-check:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: ${{ inputs.python-version || '3.13' }}
+          enable-cache: true
+          cache-dependency-glob: |
+            backend/uv.lock
+            backend/pyproject.toml
+      
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: make install
+      
+      - name: Lint
+        working-directory: backend
+        run: make lint
+
+      - name: Format Diff
+        working-directory: backend
+        run: make format-diff
+
+      - name: Type Check
+        working-directory: backend
+        run: make ty
+      
+      - name: Coverage
+        working-directory: backend
+        run: make coverage COV_FAIL_UNDER=${{ inputs.coverage-threshold || 80 }}
+
+  frontend-code-check:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version || '25.6' }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: make install
+
+      - name: Lint
+        working-directory: frontend
+        run: make lint
+
+      - name: Format Diff
+        working-directory: frontend
+        run: make format-diff
+  
+  code-check:
+    runs-on: ubuntu-24.04-arm
+    needs:
+      - backend-code-check
+      - frontend-code-check
