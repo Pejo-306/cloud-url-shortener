@@ -11,7 +11,8 @@ COMPOSE_ENV = REDIS_PORT=$(REDIS_PORT) \
 			  LOCALSTACK_EDGE_PORT=$(LOCALSTACK_EDGE_PORT) \
 			  LOCALSTACK_AUX_PORT=$(LOCALSTACK_AUX_PORT)
 
-.PHONY: up down destroy restart help
+.PHONY: help
+.PHONY: up down destroy restart
 
 help:
 	@echo "Local Docker Compose stack management"

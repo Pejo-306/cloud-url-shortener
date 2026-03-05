@@ -24,7 +24,9 @@ define confirm_destroy
 	@read -p "Destroy stack $(1)? [y/N]: " ans && [ "$$ans" = "y" ] || [ "$$ans" = "Y" ] || (echo "Aborted." && exit 1)
 endef
 
-.PHONY: oidc-up oidc-down seed-ssm seed-secrets seed-elasticache-secrets seed-elasticache-ssm help
+.PHONY: help
+.PHONY: oidc-up oidc-down
+.PHONY: seed-ssm seed-secrets seed-elasticache-secrets seed-elasticache-ssm
 
 help:
 	@echo "Bootstrap stack and seeding scripts for cloudshortener"

@@ -4,7 +4,13 @@ JSON_SERVER_PORT	?= 3000
 VITE_PORT			?= 5173
 PREVIEW_PORT		?= 4173
 
-.PHONY: install clean dev preview lint lint-fix format format-diff code-check build json-server help
+.PHONY: help
+.PHONY: install clean
+.PHONY: dev preview
+.PHONY: lint lint-fix format format-diff code-check
+.PHONY: tests
+.PHONY: build
+.PHONY: json-server
 
 help:
 	@echo "Frontend build and development"
@@ -22,6 +28,7 @@ help:
 	@echo "  make format                              - Prettier write"
 	@echo "  make format-diff                         - Prettier check"
 	@echo "  make code-check                          - Run lint and format-diff (safe, no changes)"
+	@echo "  make tests                               - Run tests"
 	@echo "  make build                               - Build into dist/"
 	@echo "  make json-server                         - Run json-server mock API"
 	@echo "  make help                                - Show this message"
@@ -63,6 +70,9 @@ format-diff:
 	npm run format-diff
 
 code-check: lint format-diff
+
+tests:
+	@echo "Frontend: no tests configured yet (placeholder)."
 
 build:
 	npm run build -- --mode $(MODE)

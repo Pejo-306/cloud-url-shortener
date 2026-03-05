@@ -2,7 +2,11 @@
 TEST_DIR	   ?= tests/unit/
 COV_FAIL_UNDER ?= 80
 
-.PHONY: help install clean lint lint-fix format format-diff ty unittests integration-tests tests coverage code-check build
+.PHONY: help
+.PHONY: install clean
+.PHONY: lint lint-fix format format-diff ty code-check
+.PHONY: unittests integration-tests tests coverage
+.PHONY: build
 
 help:
 	@echo "Backend Python build and development"

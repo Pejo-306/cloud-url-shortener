@@ -21,13 +21,15 @@ define confirm_destroy
 	@read -p "Destroy stack $(1)? [y/N]: " ans && [ "$$ans" = "y" ] || [ "$$ans" = "Y" ] || (echo "Aborted." && exit 1)
 endef
 
-.PHONY: build deploy destroy pre-destroy help local-api invoke
+.PHONY: help
+.PHONY: build deploy destroy pre-destroy
 .PHONY: build-network deploy-network destroy-network
 .PHONY: build-cognito deploy-cognito destroy-cognito
 .PHONY: build-appconfig deploy-appconfig destroy-appconfig
 .PHONY: build-frontend deploy-frontend sync-frontend destroy-frontend
 .PHONY: build-elasticache deploy-elasticache destroy-elasticache
 .PHONY: build-backend deploy-backend destroy-backend
+.PHONY: local-api invoke
 
 help:
 	@echo "AWS SAM infrastructure - Orchestrator for CloudShortener's AWS SAM stacks."
