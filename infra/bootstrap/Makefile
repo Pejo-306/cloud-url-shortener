@@ -115,7 +115,15 @@ seed-elasticache-secrets:
 ifeq ($(or $(ELASTICACHE_PASSWORD),$(PASSWORD)),)
 	$(error ELASTICACHE_PASSWORD or PASSWORD is required. Example: make seed-elasticache-secrets ELASTICACHE_PASSWORD='your-password')
 endif
-	uv run python -m scripts.seed_elasticache \
+	@echo 'uv run python -m scripts.seed_elasticache \'
+	@echo '		--secrets-only \'
+	@echo '		--app-name $(APP_NAME) \'
+	@echo '		--env $(APP_ENV) \'
+	@echo '		--user $(ELASTICACHE_USER) \'
+	@echo '		--password ****** \'
+	@echo '		--aws-profile $(AWS_PROFILE) \'
+	@echo '		$(or $(ARGS),$(DEFAULT_ARGS))'
+	@uv run python -m scripts.seed_elasticache \
 		--secrets-only \
 		--app-name $(APP_NAME) \
 		--env $(APP_ENV) \
