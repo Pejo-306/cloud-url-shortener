@@ -28,7 +28,9 @@ APPCONFIG_AGENT_PORT       ?= 2772
 LOCALSTACK_EDGE_PORT       ?= 4566
 LOCALSTACK_AUX_PORT        ?= 4571
 
-.PHONY: help install clean code-check up down dev invoke bootstrap build deploy destroy pre-deploy post-deploy lint-templates
+.PHONY: help
+.PHONY: install clean code-check tests up down dev invoke
+.PHONY: bootstrap build deploy destroy pre-deploy post-deploy lint-templates
 
 help:
 	@echo "CloudShortener tooling"
@@ -37,6 +39,7 @@ help:
 	@echo "  make install                             		   - Install backend + frontend dependencies"
 	@echo "  make clean                               		   - Clean backend + frontend"
 	@echo "  make code-check                          		   - Run code-check (backend + frontend)"
+	@echo "  make tests                               		   - Run tests (backend + frontend)"
 	@echo "  make up                                  		   - Start local Docker Compose stack"
 	@echo "  make down                                		   - Stop local Docker Compose stack"
 	@echo "  make dev                                 		   - Start local SAM API + Vite dev server"
@@ -76,6 +79,10 @@ clean:
 code-check:
 	$(MAKE) -C backend code-check
 	$(MAKE) -C frontend code-check
+
+tests:
+	$(MAKE) -C backend tests
+	$(MAKE) -C frontend tests
 
 up:
 	$(MAKE) -C local up \
