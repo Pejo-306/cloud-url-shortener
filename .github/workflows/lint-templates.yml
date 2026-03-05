@@ -1,0 +1,20 @@
+name: Lint SAM Templates
+
+on:
+  workflow_call:
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v4
+
+      - name: Install SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lint SAM template
+        run: make -j lint-templates

@@ -1,0 +1,10 @@
+{
+  "action": "created",
+  "deployment": {
+    "id": 1234567890,
+    "ref": "release-1.2.3",
+    "environment": "staging",
+    "payload": {}
+  }
+}
+

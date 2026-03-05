@@ -1,0 +1,86 @@
+name: CD
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (must match an Environment name)"
+        type: choice
+        required: true
+        options: [dev, staging, prod]
+        default: staging
+      python-version:
+        type: string
+        required: false
+        default: '3.13'
+  deployment:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches:
+      - main
+      - 'release-*.*.*'
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write  # so GitHub can assume OIDC deploy role in AWS
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+# NOTE: this GHA assumes the bootstrap OIDC stack is up and setup
+jobs:
+  template-check:
+    uses: ./.github/workflows/lint-templates.yml
+      
+  deploy:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    needs:
+      - template-check
+    runs-on: ubuntu-24.04-arm
+    environment: ${{ inputs.environment || github.event.deployment.environment || 'staging' }}
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v4
+      
+      - name: Install Runner Dependencies
+        uses: ./.github/actions/install-runner-dependencies
+        with:
+          github-token:   ${{ secrets.GITHUB_TOKEN }}
+          python-version: ${{ inputs.python-version || '3.13' }}
+      
+      - name: Configure AWS credentials
+        uses: ./.github/actions/setup-aws-credentials
+        with:
+          profile-name:                 cd
+          aws-region:                   ${{ vars.AWS_REGION }}
+          oidc-deploy-role:             ${{ secrets.AWS_ROLE_ARN }}
+          local-aws-access-key-id:      ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
+          local-aws-secret-access-key:  ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+
+      - name: Download CI Build Artifacts
+        id: download-ci-artifacts
+        uses: ./.github/actions/download-ci-artifacts
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Deployment Artifacts (fallback)
+        if: steps.download-ci-artifacts.outputs.outcome != 'success'
+        run: |
+          make install
+          make build \
+            AWS_PROFILE=cd \
+            APP_ENV=${{ vars.APP_ENV }}
+
+      - name: Deploy to AWS
+        run: |
+          make deploy \
+            BUILD='false' \
+            AWS_PROFILE=cd \
+            APP_ENV=${{ vars.APP_ENV }} \
+            ELASTICACHE_PASSWORD=${{ secrets.ELASTICACHE_PASSWORD }} \
+            SAM_DEPLOY_ARGS="--no-confirm-changeset"

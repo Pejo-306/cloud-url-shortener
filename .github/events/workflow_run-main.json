@@ -1,0 +1,8 @@
+{
+  "action": "completed",
+  "workflow_run": {
+    "id": 12345,
+    "conclusion": "success",
+    "head_branch": "main"
+  }
+}
