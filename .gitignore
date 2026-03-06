@@ -313,9 +313,9 @@ __marimo__/
 # used only for documentation purposes
 infra/bootstrap/.iam
 
-# Configuration parameters & secrets for dev/qa/prod environments
+# Configuration parameters & secrets for dev/staging/prod environments
 config/**/dev.yaml
-config/**/qa.yaml
+config/**/staging.yaml
 config/**/prod.yaml
 
 # Frontend configuration files

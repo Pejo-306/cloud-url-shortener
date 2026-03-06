@@ -142,6 +142,15 @@ def main(argv: list[str] | None = None) -> None:
     if not root.is_dir():
         raise FileNotFoundError(f'Bad config root: {root}')
 
+    # Fail fast if env filter matches no config files (before touching AWS)
+    if args.env_allow:
+        matching = [p for p in yaml_config_files(root) if p.stem in args.env_allow]
+        if not matching:
+            raise SystemExit(
+                f'ERROR: --env-allow {args.env_allow} matched 0 config files under {root}. '
+                f'Expected files like: config/<function>/{args.env_allow[0]}.yaml'
+            )
+
     extra_tags = normalize_user_tags(args.tags)
     session = boto3_session(args.aws_profile)
     sm = session.client('secretsmanager')
