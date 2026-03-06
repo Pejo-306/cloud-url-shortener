@@ -42,7 +42,7 @@ help:
 	@echo "\033[1mLocal development:\033[0m"
 	@echo "  make install                             		   - Install backend + frontend dependencies"
 	@echo "  make clean                               		   - Clean backend + frontend"
-	@echo "  make code-check                          		   - Run code-check (backend + frontend)"
+	@echo "  make code-check                          		   - Run code-check (backend + frontend + infra/bootstrap)"
 	@echo "  make tests                               		   - Run tests (backend + frontend)"
 	@echo "  make up                                  		   - Start local Docker Compose stack"
 	@echo "  make down                                		   - Stop local Docker Compose stack"
@@ -83,6 +83,7 @@ clean:
 code-check:
 	$(MAKE) -C backend code-check
 	$(MAKE) -C frontend code-check
+	$(MAKE) -C infra/bootstrap code-check
 
 tests:
 	$(MAKE) -C backend tests
