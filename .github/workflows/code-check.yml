@@ -123,3 +123,5 @@ jobs:
       - backend-code-check
       - frontend-code-check
       - bootstrap-code-check
+    steps:
+      - run: echo "All code checks passed"  # required GitHub actions syntax
