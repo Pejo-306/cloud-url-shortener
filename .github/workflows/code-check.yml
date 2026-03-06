@@ -85,9 +85,41 @@ jobs:
       - name: Format Diff
         working-directory: frontend
         run: make format-diff
-  
+
+  bootstrap-code-check:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check Out
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: ${{ inputs.python-version || '3.13' }}
+          enable-cache: true
+          cache-dependency-glob: |
+            infra/bootstrap/uv.lock
+            infra/bootstrap/pyproject.toml
+
+      - name: Install infra/bootstrap Dependencies
+        working-directory: infra/bootstrap
+        run: uv sync
+
+      - name: Lint
+        working-directory: infra/bootstrap
+        run: make lint
+
+      - name: Format Diff
+        working-directory: infra/bootstrap
+        run: make format-diff
+
+      - name: Type Check
+        working-directory: infra/bootstrap
+        run: make ty
+
   code-check:
     runs-on: ubuntu-24.04-arm
     needs:
       - backend-code-check
       - frontend-code-check
+      - bootstrap-code-check

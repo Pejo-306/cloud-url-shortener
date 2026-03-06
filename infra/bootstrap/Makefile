@@ -27,6 +27,7 @@ endef
 .PHONY: help
 .PHONY: oidc-up oidc-down
 .PHONY: seed-ssm seed-secrets seed-elasticache-secrets seed-elasticache-ssm
+.PHONY: lint lint-fix format format-diff ty code-check
 
 help:
 	@echo "Bootstrap stack and seeding scripts for cloudshortener"
@@ -34,13 +35,24 @@ help:
 	@echo "OIDC stack: GitHub OIDC provider, deploy role, CloudFormation exec role."
 	@echo "Seeding: SSM params, Secrets Manager, ElastiCache creds from config YAMLs."
 	@echo ""
-	@echo "\033[1mTargets:\033[0m"
+	@echo "\033[1mCode quality:\033[0m"
+	@echo "  make lint                         - Ruff check only"
+	@echo "  make lint-fix                     - Ruff check with --fix"
+	@echo "  make format                       - Ruff format write"
+	@echo "  make format-diff                  - Ruff format check"
+	@echo "  make ty                           - Ty type check"
+	@echo "  make code-check                   - Run lint, format-diff, ty (safe, no changes)"
+	@echo ""
+	@echo "\033[1mOIDC stack:\033[0m"
 	@echo "  make oidc-up                      - Deploy OIDC bootstrap stack"
 	@echo "  make oidc-down                    - Delete OIDC bootstrap stack"
+	@echo ""
+	@echo "\033[1mSeeding:\033[0m"
 	@echo "  make seed-ssm                     - Seed SSM parameters from config/"
 	@echo "  make seed-secrets                 - Seed Secrets Manager from config/"
 	@echo "  make seed-elasticache-secrets     - Seed ElastiCache password (pre-deploy)"
 	@echo "  make seed-elasticache-ssm         - Seed ElastiCache SSM params (post-deploy)"
+	@echo ""
 	@echo "  make help                         - Show this message"
 	@echo ""
 	@echo "\033[1mConfigurable variables:\033[0m (override via: make oidc-up GITHUB_ORG=my-org)"
@@ -72,6 +84,24 @@ help:
 	@echo "  make oidc-up ARGS=\"--dry-run --no-watch\""
 	@echo "  make oidc-up EXISTING_OIDC_PROVIDER_ARN=arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
 	@echo ""
+
+# Code quality targets (mirror backend/Makefile)
+lint:
+	uv run ruff check . --preview
+
+lint-fix:
+	uv run ruff check . --preview --fix
+
+format:
+	uv run ruff format .
+
+format-diff:
+	uv run ruff format --diff .
+
+ty:
+	uv run ty check .
+
+code-check: lint format-diff ty
 
 # OIDC stack targets
 # EXISTING_OIDC_PROVIDER_ARN: optional, no default. When set, passed as --parameter-overrides ExistingOidcProviderArn=...
