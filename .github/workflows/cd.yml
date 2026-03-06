@@ -13,7 +13,6 @@ on:
         type: string
         required: false
         default: '3.13'
-  deployment:
   workflow_run:
     workflows: [CI]
     types: [completed]
