@@ -15,8 +15,6 @@ on:
         type: number
         required: false
         default: 80
-  pull_request:
-    branches: [main]
 
 permissions:
   contents: read
