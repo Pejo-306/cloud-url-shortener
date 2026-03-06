@@ -8,6 +8,9 @@ LOG_LEVEL                 ?= INFO
 AWS_REGION                ?= eu-central-1
 AWS_PROFILE               ?= personal-dev
 ORCHESTRATOR_STACK 	      ?= $(APP_NAME)-$(APP_ENV)
+
+# Directories
+CONFIG_DIR                ?= config
 INFRA_DIR                 ?= infra
 
 # Recipe-specific (not documented in help)
@@ -30,7 +33,8 @@ LOCALSTACK_AUX_PORT        ?= 4571
 
 .PHONY: help
 .PHONY: install clean code-check tests up down dev invoke
-.PHONY: bootstrap build deploy destroy pre-deploy post-deploy lint-templates
+.PHONY: bootstrap build deploy destroy pre-deploy post-deploy lint-templates check-config
+
 
 help:
 	@echo "CloudShortener tooling"
@@ -117,7 +121,7 @@ bootstrap:
 
 build:
 	$(MAKE) -C backend build
-	$(MAKE) -C frontend build
+	$(MAKE) -C frontend build MODE="$(APP_ENV)"
 	$(MAKE) -C infra build \
 		APP_NAME="$(APP_NAME)" \
 		APP_ENV="$(APP_ENV)" \
@@ -140,7 +144,19 @@ $(foreach t,$(SAM_TEMPLATES),$(eval $(call lint_template_rule,$(t))))
 
 lint-templates: $(LINT_TARGETS)
 
-pre-deploy:
+check-config:
+	@missing=""; \
+	for dir in $(CONFIG_DIR)/*/; do \
+		f="$${dir}$(APP_ENV).yaml"; \
+		if [ ! -f "$$f" ]; then missing="$$missing $$f"; fi; \
+	done; \
+	if [ -n "$$missing" ]; then \
+		echo "ERROR: Missing config files for APP_ENV=$(APP_ENV):"; \
+		for f in $$missing; do echo "  - $$f"; done; \
+		exit 1; \
+	fi
+
+pre-deploy: check-config
 	$(MAKE) -C infra/bootstrap seed-ssm \
 		APP_NAME="$(APP_NAME)" \
 		APP_ENV="$(APP_ENV)" \
