@@ -1,0 +1,7 @@
+# SOPS config for encrypted config values.
+# Generate an age key pair: age-keygen -o key.txt
+# Replace the placeholder below with your public key (age1...).
+creation_rules:
+  - path_regex: ^config/values\..*\.enc\.yaml$
+    age: age1qup79rgqv50ngx5xkueamfdvrgnjdlvxx42n8ysmxtw6v25tju3q4tuqwc
+    encrypted_regex: ^secrets$

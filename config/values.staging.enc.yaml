@@ -1,0 +1,25 @@
+# Replace placeholders with real values, then run: sops -e -i config/values.dev.enc.yaml
+params:
+  redis:
+    host: redis-17531.c263.us-east-1-2.ec2.cloud.redislabs.com
+    port: 17531
+    db: 0
+secrets:
+  redis:
+    username: ENC[AES256_GCM,data:Nd8CXVTcSA==,iv:vzsebF9C4RjGQxFxaSPhdk1ADkKmnXIecyBu6FUk+IQ=,tag:4vhbHPrrIGBBu375xeC7SQ==,type:str]
+    password: ENC[AES256_GCM,data:E9spzZOsodJaRSoTbyWFAlfojNS+wkJ46VY0S8RqXfA=,iv:poQmCem4IL8LLncT7KElzAS6vdj0boF8V4PD7LEVpBg=,tag:TVX3VztBJ37jq/ya6JvGuQ==,type:str]
+sops:
+  age:
+    - recipient: age1qup79rgqv50ngx5xkueamfdvrgnjdlvxx42n8ysmxtw6v25tju3q4tuqwc
+      enc: |
+        -----BEGIN AGE ENCRYPTED FILE-----
+        YWdlLWVuY3J5cHRpb24ub3JnL3YxCi0+IFgyNTUxOSBsRlVTUjhlSnVOMUFKT1NM
+        MmF6elhQZDFNSlI5ZFBPbml5Y29rZlQvQXpNCjZFejlSd1hVRDdzdUt4MVp2SjhJ
+        ZGg2b0V0dlRJUnliT2hJbDZSUFp0R2cKLS0tIHY3N3dvL3Q4RW9DNFVFbGxSV1Ru
+        UXVvS1F4cnJ1bGdIUGNwUm82bUtoYncK/mzElnz8h/yYVtXzD/U/HtBl8u3ZqrfJ
+        T/A9spYj09xYuSt+RLHGr4Jv6dvQswce4HHfp4vf3qsx2DPCw+bzhw==
+        -----END AGE ENCRYPTED FILE-----
+  lastmodified: "2026-03-08T10:23:21Z"
+  mac: ENC[AES256_GCM,data:lLFr+GwyqX9+xtrjdiApe3cH6Yb0Q9gV7Sh9QJbOkhArhA7+IR5IDiy5Ob1w8qvEpJFmTB3CfFCG7LJvZslyr67guUYyQK1AHQhS6OsH27eIF81jK9tjtRFMfTinXe7i//ndWnqVAo5JEA0XXoF0jkyz/4rkG4LgMZmYiJdlWF0=,iv:3WzO/ahrusGDMIJcUusOUS4MGWr7IBsP79oQB0JBXe0=,tag:lK0abKfubrPwNWwVy6+NMg==,type:str]
+  encrypted_regex: ^secrets$
+  version: 3.12.1
