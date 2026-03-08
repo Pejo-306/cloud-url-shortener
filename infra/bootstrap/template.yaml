@@ -340,6 +340,8 @@ Resources:
               - ec2:CreateTags
               - ec2:DeleteTags
               - ec2:DescribeTags
+              - ec2:DescribeAccountAttributes
+              - ec2:DescribeNetworkInterfaces
             Resource: '*'
 
           - Sid: ElastiCacheCrud
