@@ -28,6 +28,7 @@ endef
 .PHONY: oidc-up oidc-down
 .PHONY: seed-ssm seed-secrets seed-elasticache-secrets seed-elasticache-ssm
 .PHONY: lint lint-fix format format-diff ty code-check
+.PHONY: lint-template
 
 help:
 	@echo "Bootstrap stack and seeding scripts for cloudshortener"
@@ -44,6 +45,7 @@ help:
 	@echo "  make code-check                   - Run lint, format-diff, ty (safe, no changes)"
 	@echo ""
 	@echo "\033[1mOIDC stack:\033[0m"
+	@echo "  make lint-template                - Validate and lint bootstrap template"
 	@echo "  make oidc-up                      - Deploy OIDC bootstrap stack"
 	@echo "  make oidc-down                    - Delete OIDC bootstrap stack"
 	@echo ""
@@ -104,6 +106,10 @@ ty:
 code-check: lint format-diff ty
 
 # OIDC stack targets
+lint-template:
+	@echo "sam validate --lint --region $(AWS_REGION) -t template.yaml"
+	@sam validate --lint --region $(AWS_REGION) -t template.yaml
+
 # EXISTING_OIDC_PROVIDER_ARN: optional, no default. When set, passed as --parameter-overrides ExistingOidcProviderArn=...
 oidc-up: DEFAULT_ARGS :=
 oidc-up:

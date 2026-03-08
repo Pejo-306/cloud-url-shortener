@@ -120,6 +120,7 @@ invoke:
 		AWS_PROFILE="$(AWS_PROFILE)"
 
 bootstrap:
+	$(MAKE) -C infra/bootstrap lint-template
 	$(MAKE) -C infra/bootstrap oidc-up EXISTING_OIDC_PROVIDER_ARN="$(EXISTING_OIDC_PROVIDER_ARN)"
 
 build:
