@@ -108,6 +108,10 @@ Resources:
               - iam:DetachRolePolicy
               - iam:TagRole
               - iam:UntagRole
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListRolePolicies
+              - iam:ListAttachedRolePolicies
             Resource: '*'
 
           - Sid: LambdaCrud
@@ -121,6 +125,10 @@ Resources:
               - lambda:RemovePermission
               - lambda:TagResource
               - lambda:UntagResource
+              - lambda:GetFunction
+              - lambda:GetFunctionConfiguration
+              - lambda:GetPolicy
+              - lambda:ListTags
             Resource: '*'
           
           - Sid: IamPassLambdaExecutionRole
@@ -135,12 +143,6 @@ Resources:
             Effect: Allow
             Action: iam:PassRole
             Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/${ExecRoleName}
-
-          - Sid: IamReadLambdaExecutionRole
-            Effect: Allow
-            Action: iam:GetRole
-            Resource:
-              - !Sub arn:aws:iam::${AWS::AccountId}:role/cloudshortener-*-LambdaFunctionRole-*
 
           - Sid: ApiGatewayCrud
             Effect: Allow
@@ -178,6 +180,36 @@ Resources:
               - appconfig:CreateExtensionAssociation
               - appconfig:UpdateExtensionAssociation
               - appconfig:DeleteExtensionAssociation
+              - appconfig:CreateDeploymentStrategy
+              - appconfig:UpdateDeploymentStrategy
+              - appconfig:DeleteDeploymentStrategy
+            Resource: '*'
+
+          - Sid: EventBridgeCrud
+            Effect: Allow
+            Action:
+              - events:PutRule
+              - events:DeleteRule
+              - events:DescribeRule
+              - events:EnableRule
+              - events:DisableRule
+              - events:PutTargets
+              - events:RemoveTargets
+              - events:ListTargetsByRule
+              - events:ListRules
+              - events:TagResource
+              - events:UntagResource
+            Resource: '*'
+
+          - Sid: CloudWatchLogsCrud
+            Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:DeleteLogGroup
+              - logs:DescribeLogGroups
+              - logs:PutRetentionPolicy
+              - logs:TagResource
+              - logs:UntagResource
             Resource: '*'
 
           - Sid: SamArtifacts
@@ -231,6 +263,7 @@ Resources:
               - s3:GetBucketLocation
               - s3:PutBucketTagging
               - s3:GetBucketTagging
+              - s3:GetBucketPolicy
             Resource: '*'
 
           - Sid: CloudFrontCrud
