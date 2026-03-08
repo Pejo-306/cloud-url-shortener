@@ -313,7 +313,8 @@ __marimo__/
 # used only for documentation purposes
 infra/bootstrap/.iam
 
-# Configuration parameters & secrets for dev/staging/prod environments
+# Local configuration parameters & secrets for dev/staging/prod environments.
+# Deployment jobs auto-generate these files.
 config/**/dev.yaml
 config/**/staging.yaml
 config/**/prod.yaml

@@ -75,6 +75,15 @@ jobs:
             AWS_PROFILE=cd \
             APP_ENV=${{ vars.APP_ENV }}
 
+      - name: Generate Configuration Files
+        uses: ./.github/actions/generate-configuration-files
+        with:
+          sops-age-key: ${{ secrets.SOPS_AGE_KEY }}
+          environment:  ${{ vars.APP_ENV }}
+          function-dirs: |
+            - redirect_url
+            - shorten_url
+
       - name: Deploy to AWS
         run: |
           make deploy \
