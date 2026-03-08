@@ -131,6 +131,11 @@ Resources:
               StringEquals:
                 aws:ResourceTag/App: !Ref AppName
 
+          - Sid: PassSelfForNestedStacks
+            Effect: Allow
+            Action: iam:PassRole
+            Resource: !Sub arn:aws:iam::${AWS::AccountId}:role/${ExecRoleName}
+
           - Sid: IamReadLambdaExecutionRole
             Effect: Allow
             Action: iam:GetRole
@@ -167,6 +172,12 @@ Resources:
               - appconfig:Get*
               - appconfig:TagResource
               - appconfig:UntagResource
+              - appconfig:CreateExtension
+              - appconfig:UpdateExtension
+              - appconfig:DeleteExtension
+              - appconfig:CreateExtensionAssociation
+              - appconfig:UpdateExtensionAssociation
+              - appconfig:DeleteExtensionAssociation
             Resource: '*'
 
           - Sid: SamArtifacts
