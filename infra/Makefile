@@ -160,7 +160,6 @@ deploy:
 			AppEnv=$(APP_ENV) \
 			AppName=$(APP_NAME) \
 			LogLevel=$(LOG_LEVEL)
-	$(MAKE) -C stacks/frontend sync STACK_NAME=$(ORCHESTRATOR_STACK)
 
 pre-destroy:
 	$(MAKE) -C stacks/appconfig pre-destroy STACK_NAME=$(ORCHESTRATOR_STACK)

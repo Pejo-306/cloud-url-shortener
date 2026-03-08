@@ -91,4 +91,5 @@ jobs:
             AWS_PROFILE=cd \
             APP_ENV=${{ vars.APP_ENV }} \
             ELASTICACHE_PASSWORD=${{ secrets.ELASTICACHE_PASSWORD }} \
+            GENERATE_FRONTEND_CONFIG=true \
             SAM_DEPLOY_ARGS="--no-confirm-changeset"

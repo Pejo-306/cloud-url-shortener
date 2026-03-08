@@ -23,6 +23,7 @@ EVENT_FILE                 ?=
 BUILD                      ?= true
 SAM_DEPLOY_ARGS            ?=
 ELASTICACHE_PASSWORD       ?=
+GENERATE_FRONTEND_CONFIG   ?= false
 
 # Local Docker Compose stack ports
 REDIS_PORT                 ?= 6379
@@ -34,6 +35,7 @@ LOCALSTACK_AUX_PORT        ?= 4571
 .PHONY: help
 .PHONY: install clean code-check tests up down dev invoke
 .PHONY: bootstrap build deploy destroy pre-deploy post-deploy lint-templates check-config
+.PHONY: _seed_elasticache_ssm _build_frontend
 
 
 help:
@@ -122,7 +124,6 @@ bootstrap:
 
 build:
 	$(MAKE) -C backend build
-	$(MAKE) -C frontend build MODE="$(APP_ENV)"
 	$(MAKE) -C infra build \
 		APP_NAME="$(APP_NAME)" \
 		APP_ENV="$(APP_ENV)" \
@@ -172,7 +173,7 @@ pre-deploy: check-config
 		ELASTICACHE_PASSWORD="$(ELASTICACHE_PASSWORD)" \
 		AWS_PROFILE="$(AWS_PROFILE)"
 
-post-deploy:
+_seed_elasticache_ssm:
 	@ENDPOINT=$$(aws cloudformation describe-stacks \
 		--stack-name $(ORCHESTRATOR_STACK) \
 		--query 'Stacks[0].Outputs[?OutputKey==`ElastiCachePrimaryEndpoint`].OutputValue' \
@@ -187,6 +188,34 @@ post-deploy:
 		ELASTICACHE_HOST="$$HOST" \
 		ELASTICACHE_PORT="$$PORT" \
 		AWS_PROFILE="$(AWS_PROFILE)"
+
+_build_frontend:
+ifeq ($(GENERATE_FRONTEND_CONFIG),true)
+	@OUTPUTS=$$(aws cloudformation describe-stacks \
+		--stack-name $(ORCHESTRATOR_STACK) \
+		--query 'Stacks[0].Outputs' \
+		--output json \
+		--region $(AWS_REGION) \
+		--profile $(AWS_PROFILE)); \
+	API_URL=$$(echo "$$OUTPUTS" | jq -r '.[] | select(.OutputKey=="ApiUrl") | .OutputValue'); \
+	USER_POOL_ID=$$(echo "$$OUTPUTS" | jq -r '.[] | select(.OutputKey=="UserPoolId") | .OutputValue'); \
+	CLIENT_ID=$$(echo "$$OUTPUTS" | jq -r '.[] | select(.OutputKey=="UserPoolClientId") | .OutputValue'); \
+	mkdir -p frontend/config/$(APP_ENV); \
+	jq \
+		--arg host "$$API_URL" \
+		--arg type "aws-lambda" \
+		--arg poolId "$$USER_POOL_ID" \
+		--arg clientId "$$CLIENT_ID" \
+		'.backend.host = ($$host | rtrimstr("/")) | .backend._type = $$type | .aws.cognito.userPoolId = $$poolId | .aws.cognito.clientId = $$clientId' \
+		frontend/config/base.config.json > frontend/config/$(APP_ENV)/app.config.json
+endif
+	$(MAKE) -C frontend build MODE="$(APP_ENV)"
+	$(MAKE) -C infra sync-frontend \
+		ORCHESTRATOR_STACK="$(ORCHESTRATOR_STACK)" \
+		AWS_REGION="$(AWS_REGION)" \
+		AWS_PROFILE="$(AWS_PROFILE)"
+
+post-deploy: _seed_elasticache_ssm _build_frontend
 
 deploy:
 ifeq ($(BUILD),true)

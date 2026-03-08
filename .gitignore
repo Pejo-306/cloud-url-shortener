@@ -319,9 +319,9 @@ config/**/dev.yaml
 config/**/staging.yaml
 config/**/prod.yaml
 
-# Frontend configuration files
+# Frontend configuration files. Deployment jobs auto-generate these files.
 frontend/config/dev/app.config.json
-frontend/config/qa/app.config.json
+frontend/config/staging/app.config.json
 frontend/config/prod/app.config.json
 
 # =====================================
