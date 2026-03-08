@@ -174,9 +174,6 @@ Resources:
   LambdaFunctionRole:
     Type: AWS::IAM::Role
     Properties:
-      Tags:
-        - Key: App
-          Value: !Ref AppName
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
