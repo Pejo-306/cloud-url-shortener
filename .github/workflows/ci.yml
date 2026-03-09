@@ -58,6 +58,8 @@ jobs:
     steps:
       - name: Check Out
         uses: actions/checkout@v4
+        with:
+          lfs: true
       
       - name: Install Runner Dependencies
         uses: ./.github/actions/install-runner-dependencies
