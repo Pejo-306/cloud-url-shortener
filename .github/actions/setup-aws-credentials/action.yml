@@ -8,6 +8,12 @@ inputs:
   profile-name:
     description: AWS profile name (e.g. "ci", "cd", etc.)
     required: true
+  dummy:
+    description: >-
+      Create a profile with dummy credentials (no real AWS access).
+      Use for jobs like sam build that need a profile but don't call AWS APIs.
+    required: false
+    default: 'false'
   aws-region:
     description: AWS region
     required: true
@@ -26,6 +32,7 @@ runs:
   using: composite
   steps:
     - name: Validate credentials
+      if: inputs.dummy != 'true'
       shell: bash
       run: |
         HAS_OIDC=$([ -n "${OIDC_ROLE:-}" ] && echo 1 || echo 0)
@@ -42,19 +49,28 @@ runs:
         LOCAL_SECRET_KEY: ${{ inputs.local-aws-secret-access-key }}
 
     - name: Configure AWS credentials (OIDC)
-      if: env.ACT != 'true'
+      if: inputs.dummy != 'true' && env.ACT != 'true'
       uses: aws-actions/configure-aws-credentials@v4
       with:
           role-to-assume: ${{ inputs.oidc-deploy-role }}
           aws-region:     ${{ inputs.aws-region }}
 
     - name: Configure AWS credentials (local)
-      if: env.ACT == 'true'
+      if: inputs.dummy != 'true' && env.ACT == 'true'
       uses: aws-actions/configure-aws-credentials@v4
       with:
           aws-access-key-id:     ${{ inputs.local-aws-access-key-id }}
           aws-secret-access-key: ${{ inputs.local-aws-secret-access-key }}
           aws-region:            ${{ inputs.aws-region }}
+
+    - name: Set dummy credentials
+      if: inputs.dummy == 'true'
+      shell: bash
+      run: |
+        # Official AWS example credential values
+        echo "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE" >> "$GITHUB_ENV"
+        echo "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" >> "$GITHUB_ENV"
+        echo "AWS_DEFAULT_REGION=${{ inputs.aws-region }}" >> "$GITHUB_ENV"
 
     - name: Create AWS CLI profile
       shell: bash

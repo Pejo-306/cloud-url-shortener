@@ -3,12 +3,6 @@ name: CI
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Target environment"
-        type: choice
-        required: false
-        options: [dev, staging, prod]
-        default: staging
       python-version:
         type: string
         required: false
@@ -32,7 +26,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write  # so GitHub can assume OIDC deploy role in AWS
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -50,17 +43,16 @@ jobs:
       coverage-threshold: ${{ inputs.coverage-threshold || 80 }}
   
   build:
-    needs: 
+    needs:
       - template-check
       - code-check
     runs-on: ubuntu-24.04-arm
-    environment: ${{ inputs.environment || 'staging' }}
     steps:
       - name: Check Out
         uses: actions/checkout@v4
         with:
           lfs: true
-      
+
       - name: Install Runner Dependencies
         uses: ./.github/actions/install-runner-dependencies
         with:
@@ -70,20 +62,14 @@ jobs:
       - name: Configure AWS credentials
         uses: ./.github/actions/setup-aws-credentials
         with:
-          profile-name:                 ci
-          aws-region:                   ${{ vars.AWS_REGION }}
-          oidc-deploy-role:             ${{ secrets.AWS_ROLE_ARN }}
-          local-aws-access-key-id:      ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
-          local-aws-secret-access-key:  ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+          profile-name: ci
+          dummy: true
 
       - name: Install Project Dependencies
         run: make install
-      
+
       - name: Build Project
-        run: |
-          make build \
-            AWS_PROFILE=ci \
-            APP_ENV=${{ vars.APP_ENV }}
+        run: make build AWS_PROFILE=ci
       
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
