@@ -1,0 +1,97 @@
+name: Test Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment (must match an Environment name)"
+        type: choice
+        required: true
+        options: [dev, staging, prod]
+        default: staging
+      python-version:
+        type: string
+        required: false
+        default: '3.13'
+      run-integration-tests:
+        description: "Run integration tests"
+        type: boolean
+        required: false
+        default: true
+      teardown-bastion:
+        description: "Teardown bastion host after tests"
+        type: boolean
+        required: false
+        default: true
+  workflow_run:
+    workflows: [CD]
+    types: [completed]
+    branches:
+      - main
+      - 'release-*.*.*'
+
+permissions:
+  contents: read
+  id-token: write  # so GitHub can assume OIDC deploy role in AWS
+
+concurrency:
+  group: test-suite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Configure
+        id: configure
+        run: |
+          echo "run-integration-tests=${{ inputs.run-integration-tests || true }}" >> "$GITHUB_OUTPUT"
+          echo "teardown-bastion=${{ inputs.teardown-bastion || true }}" >> "$GITHUB_OUTPUT"
+
+      - name: Check Out
+        uses: actions/checkout@v4
+
+      - name: Install Runner Dependencies
+        uses: ./.github/actions/install-runner-dependencies
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          python-version: ${{ inputs.python-version || '3.13' }}
+
+      - name: Configure AWS credentials
+        uses: ./.github/actions/setup-aws-credentials
+        with:
+          profile-name:                test-suite
+          aws-region:                  ${{ vars.AWS_REGION }}
+          oidc-deploy-role:            ${{ secrets.AWS_ROLE_ARN }}
+          local-aws-access-key-id:     ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
+          local-aws-secret-access-key: ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+
+      - name: Setup Bastion Host
+        run: |
+          make bastion-up \
+            APP_ENV=${{ vars.APP_ENV }} \
+            AWS_PROFILE=test-suite \
+            SAM_DEPLOY_ARGS="--no-confirm-changeset"
+
+      - name: Install Project Dependencies
+        run: make -C backend install
+
+      - name: Run Integration Tests
+        id: integration-tests
+        if: steps.configure.outputs.run-integration-tests == 'true'
+        continue-on-error: true
+        run: make -C backend integration-tests
+
+      - name: Test Results
+        run: |
+          echo "Results:"
+          echo "- Integration tests (run: ${{ steps.configure.outputs.run-integration-tests }}): ${{ steps.integration-tests.outcome || 'skipped' }}"
+
+      - name: Teardown Bastion Host
+        if: steps.configure.outputs.teardown-bastion == 'true'
+        run: make bastion-down \
+          APP_ENV=${{ vars.APP_ENV }} \
+          AWS_PROFILE=test-suite
