@@ -75,7 +75,7 @@ jobs:
           make bastion-up \
             APP_ENV=${{ vars.APP_ENV }} \
             AWS_PROFILE=test-suite \
-            SAM_DEPLOY_ARGS="--no-confirm-changeset"
+            SAM_DEPLOY_ARGS="--no-confirm-changeset --role-arn ${{ secrets.CLOUDFORMATION_EXEC_ROLE_ARN }}"
 
       - name: Install Project Dependencies
         run: make -C backend install

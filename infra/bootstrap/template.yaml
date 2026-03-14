@@ -112,6 +112,11 @@ Resources:
               - iam:GetRolePolicy
               - iam:ListRolePolicies
               - iam:ListAttachedRolePolicies
+              - iam:CreateInstanceProfile
+              - iam:DeleteInstanceProfile
+              - iam:AddRoleToInstanceProfile
+              - iam:RemoveRoleFromInstanceProfile
+              - iam:GetInstanceProfile
             Resource: '*'
 
           - Sid: LambdaCrud
@@ -339,6 +344,11 @@ Resources:
               - ec2:DescribeTags
               - ec2:DescribeAccountAttributes
               - ec2:DescribeNetworkInterfaces
+              - ec2:RunInstances
+              - ec2:TerminateInstances
+              - ec2:DescribeInstances
+              - ec2:DescribeInstanceStatus
+              - ec2:DescribeImages
             Resource: '*'
 
           - Sid: ElastiCacheCrud
