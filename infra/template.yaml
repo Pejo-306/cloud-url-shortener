@@ -182,7 +182,7 @@ Resources:
   AppConfigEventBridgeExtension:
     Type: AWS::AppConfig::Extension
     Properties:
-      Name: AppConfig-EventBridge
+      Name: !Sub "${AppName}.${AppEnv}.AppConfig-EventBridge"
       Description: Send AppConfig deployment events to EventBridge default bus
       Actions:
         ON_DEPLOYMENT_START:

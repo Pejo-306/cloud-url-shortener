@@ -23,7 +23,7 @@ Resources:
   AppConfigApplication:
     Type: AWS::AppConfig::Application
     Properties:
-      Name: !Sub ${AppName}
+      Name: !Sub ${AppName}.${AppEnv}
 
   AppConfigEnvironment:
     Type: AWS::AppConfig::Environment
@@ -75,7 +75,7 @@ Resources:
   AppConfigFastDeploymentStrategy:
     Type: AWS::AppConfig::DeploymentStrategy
     Properties:
-      Name: cloudshortener.FastDeployment
+      Name: !Sub ${AppName}.${AppEnv}.FastDeployment
       Description: All-at-once deployment with 1 minute bake time
       DeploymentDurationInMinutes: 0
       GrowthType: LINEAR
