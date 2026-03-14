@@ -112,10 +112,12 @@ TL;DR: Option (2) provides the best balance between native AWS security, setup s
 
 ### Tooling
 
-In `backend/Makefile` we would like to add the following recipes:
-- `setup-bastion`: sets up a minimal EC2 bastion host with AWS SSM agent
+In [backend/Makefile](../../backend/Makefile) we would like to add the following recipes:
 - `integration-tests`: runs `pytest` integration tests; requires bastion host parameters as `make` variables
-- `teardown-bastion`: destroys EC2 bastion host
+
+In the root [Makefile](../../Makefile) we would like to add the following recipes:
+- `bastion-up`: sets up a minimal EC2 bastion host with AWS SSM agent
+- `bastion-down`: destroys EC2 bastion host
 
 Recipes should be *idempotent* and output all needed parameters to connect via bastion host.
 

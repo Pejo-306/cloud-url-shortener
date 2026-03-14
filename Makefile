@@ -8,6 +8,7 @@ LOG_LEVEL                 ?= INFO
 AWS_REGION                ?= eu-central-1
 AWS_PROFILE               ?= personal-dev
 ORCHESTRATOR_STACK 	      ?= $(APP_NAME)-$(APP_ENV)
+# TODO: export these make variables and implicitly pass them through
 
 # Directories
 CONFIG_DIR                ?= config
@@ -34,7 +35,8 @@ LOCALSTACK_AUX_PORT        ?= 4571
 
 .PHONY: help
 .PHONY: install clean code-check tests up down dev invoke
-.PHONY: bootstrap build deploy destroy pre-deploy post-deploy lint-templates check-config
+.PHONY: bootstrap bastion-up bastion-connect bastion-down
+.PHONY: build deploy destroy pre-deploy post-deploy lint-templates check-config
 .PHONY: _seed_elasticache_ssm _build_frontend
 
 
@@ -57,6 +59,9 @@ help:
 	@echo "  make lint-templates                      		   - Validate and lint SAM templates (cfn-lint)"
 	@echo "  make deploy ELASTICACHE_PASSWORD='...'   		   - Deploy orchestrator stack (ELASTICACHE_PASSWORD required)"
 	@echo "  make destroy                             		   - Destroy orchestrator stack"
+	@echo "  make bastion-up                           		   - Deploy bastion host"
+	@echo "  make bastion-connect                      		   - Start SSM port-forward to bastion host"
+	@echo "  make bastion-down                         		   - Destroy bastion host"
 	@echo ""
 	@echo "\033[1mConfigurable variables:\033[0m (override via: make <target> VAR=value)"
 	@echo "  APP_NAME                                 		   - Application name"
@@ -122,6 +127,35 @@ invoke:
 bootstrap:
 	$(MAKE) -C infra/bootstrap lint-template
 	$(MAKE) -C infra/bootstrap oidc-up EXISTING_OIDC_PROVIDER_ARN="$(EXISTING_OIDC_PROVIDER_ARN)"
+
+bastion-up:
+	$(MAKE) -C infra/bastion lint-template \
+		APP_NAME="$(APP_NAME)" \
+		APP_ENV="$(APP_ENV)" \
+		AWS_REGION="$(AWS_REGION)" \
+		AWS_PROFILE="$(AWS_PROFILE)"
+	$(MAKE) -C infra/bastion up \
+		APP_NAME="$(APP_NAME)" \
+		APP_ENV="$(APP_ENV)" \
+		ORCHESTRATOR_STACK="$(ORCHESTRATOR_STACK)" \
+		AWS_REGION="$(AWS_REGION)" \
+		AWS_PROFILE="$(AWS_PROFILE)" \
+		SAM_DEPLOY_ARGS="$(SAM_DEPLOY_ARGS)"
+
+bastion-connect:
+	$(MAKE) -C infra/bastion connect \
+		APP_NAME="$(APP_NAME)" \
+		APP_ENV="$(APP_ENV)" \
+		AWS_REGION="$(AWS_REGION)" \
+		AWS_PROFILE="$(AWS_PROFILE)" \
+		ORCHESTRATOR_STACK="$(ORCHESTRATOR_STACK)"
+
+bastion-down:
+	$(MAKE) -C infra/bastion down \
+		APP_NAME="$(APP_NAME)" \
+		APP_ENV="$(APP_ENV)" \
+		AWS_REGION="$(AWS_REGION)" \
+		AWS_PROFILE="$(AWS_PROFILE)"
 
 build:
 	$(MAKE) -C backend build
@@ -244,3 +278,4 @@ destroy:
 		APP_ENV="$(APP_ENV)" \
 		AWS_REGION="$(AWS_REGION)" \
 		AWS_PROFILE="$(AWS_PROFILE)"
+
