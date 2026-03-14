@@ -12,9 +12,9 @@ S3_BUCKET            ?= aws-sam-cli-managed-default-samclisourcebucket-4nqd7tupx
 SAM_DEPLOY_ARGS      ?=
 
 # Configuration variables
-STACK_NAME           ?= cloudshortener-bastion-dev
 APP_NAME             ?= cloudshortener
 APP_ENV              ?= dev
+STACK_NAME           ?= $(APP_NAME)-bastion-$(APP_ENV)
 AWS_REGION           ?= eu-central-1
 AWS_PROFILE          ?= personal-dev
 
