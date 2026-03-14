@@ -44,6 +44,7 @@ jobs:
       github.event_name != 'workflow_run' ||
       github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04-arm
+    environment: ${{ inputs.environment || github.event.deployment.environment || 'staging' }}
     steps:
       - name: Configure
         id: configure
