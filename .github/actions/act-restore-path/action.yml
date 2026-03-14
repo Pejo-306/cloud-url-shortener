@@ -1,0 +1,19 @@
+name: "Restore PATH (act workaround)"
+description: |
+  Works around a nektos/act bug where ::add-path:: directives drop the
+  original container PATH. Re-adds the node binary directory so that
+  subsequent Node-based actions can execute.
+  
+  Only has an effect when env.ACT is set (i.e. running under act).
+  See README.md in this directory for details.
+
+runs:
+  using: composite
+  steps:
+    - name: Re-add node to PATH
+      if: ${{ env.ACT }}
+      shell: bash
+      run: |
+        for dir in /opt/acttoolcache/node/*/x64/bin; do
+          [ -x "$dir/node" ] && echo "$dir" >> "$GITHUB_PATH"
+        done

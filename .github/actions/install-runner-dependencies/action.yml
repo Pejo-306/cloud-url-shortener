@@ -29,12 +29,18 @@ runs:
         cache-dependency-glob: |
           backend/uv.lock
           backend/pyproject.toml
-    
+
+    - name: Restore PATH (act workaround)
+      uses: ./.github/actions/act-restore-path
+
     - name: Install SAM CLI
       uses: aws-actions/setup-sam@v2
       with:
         use-installer: true
         token: ${{ inputs.github-token }}
+
+    - name: Restore PATH (act workaround)
+      uses: ./.github/actions/act-restore-path
 
     - name: Install AWS CLI
       shell: bash
