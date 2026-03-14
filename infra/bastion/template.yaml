@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  CloudShortener - Bastion Stack
+  Ephemeral EC2 bastion host with SSM. Used to port-forward to VPC resources (e.g. ElastiCache).
+
+Parameters:
+  AppName:
+    Type: String
+    Default: cloudshortener
+    Description: Application name
+
+  AppEnv:
+    Type: String
+    AllowedValues:
+      - local
+      - dev
+      - staging
+      - prod
+    Default: local
+    Description: Application environment
+
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet for the bastion host (from Network stack)
+
+  SecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: |
+      Security group for VPC resource access (from Network stack)
+      Requires access to ElastiCache Redis on port 6379 and
+      allowed egress to the internet (for SSM).
+      Best to reuse the Lambda security group from the Network stack.
+
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type for the bastion host
+
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-01f79b1e4a5c64257
+    Description: (Default) Ubuntu Server 24.04 LTS AMI (x86_64, eu-central-1)
+
+Resources:
+  ##################################################
+  # IAM - SSM access for bastion host
+  ##################################################
+  BastionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-${AppEnv}-bastion-role
+
+  BastionInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref BastionRole
+
+  ##################################################
+  # EC2 - Bastion host
+  ##################################################
+  BastionInstance:
+    Type: AWS::EC2::Instance
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT10M
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      SubnetId: !Ref SubnetId
+      SecurityGroupIds:
+        - !Ref SecurityGroupId
+      IamInstanceProfile: !Ref BastionInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub ${AppName}-${AppEnv}-bastion
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          apt-get update -y
+          apt-get install -y python3-pip
+          pip3 install --break-system-packages https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-py3-latest.tar.gz
+          while ! systemctl is-active --quiet snap.amazon-ssm-agent.amazon-ssm-agent; do sleep 5; done
+          /usr/local/bin/cfn-signal -e 0 --stack ${AWS::StackName} --resource BastionInstance --region ${AWS::Region}
+
+Outputs:
+  BastionInstanceId:
+    Description: EC2 instance ID for SSM sessions
+    Value: !Ref BastionInstance
