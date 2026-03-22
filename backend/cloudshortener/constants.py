@@ -17,6 +17,23 @@ class DefaultQuota:
     LINK_GENERATION = 20  # Default link generation quota for users
 
 
+class SSMParameterPaths:
+    """SSM parameter paths."""
+
+    class ElastiCache(StrEnum):
+        HOST = '/{app_name}/{app_env}/elasticache/host'
+        PORT = '/{app_name}/{app_env}/elasticache/port'
+        DB = '/{app_name}/{app_env}/elasticache/db'
+        USER = '/{app_name}/{app_env}/elasticache/user'
+
+
+class SecretsManagerNames:
+    """Secrets Manager names."""
+
+    class ElastiCache(StrEnum):
+        CREDENTIALS = '{app_name}/{app_env}/elasticache/credentials'
+
+
 class ENV:
     """Environment variable names."""
 
@@ -26,6 +43,10 @@ class ENV:
         PROJECT_ROOT = 'PROJECT_ROOT'
         AWS_SAM_LOCAL = 'AWS_SAM_LOCAL'
         LOG_LEVEL = 'LOG_LEVEL'
+
+    class AWS(StrEnum):
+        AWS_PROFILE = 'AWS_PROFILE'
+        ORCHESTRATOR_STACK = 'ORCHESTRATOR_STACK'
 
     class AppConfig(StrEnum):
         APP_ID = 'APPCONFIG_APP_ID'
@@ -45,6 +66,10 @@ class ENV:
 
     class LocalStack(StrEnum):
         ENDPOINT = 'LOCALSTACK_ENDPOINT'  # usually http://localstack:4566
+
+    class PortForwarding(StrEnum):
+        HOST = 'PORT_FORWARDING_HOST'
+        PORT = 'PORT_FORWARDING_PORT'
 
 
 # Error codes
