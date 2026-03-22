@@ -8,6 +8,18 @@ Accepted
 
 2026-03-12
 
+---
+
+## Updates
+
+### 2026-03-22: Drop DAO contract tests
+
+DAO contracts tests would assert that our code can use specific data stores to fulfill the contract's interface. This responsibility is handled by unit tests.
+
+Since we are not testing how infra components interact and communciate, we drop these tests.
+
+---
+
 ## Context
 
 We would like to add integration tests to assert components interact **as expected** in real AWS infrastructure. This saves us a lot of manual infrastructure deploying and testing we would need to do to verify new features / initiatives work. Also saves us from component regressions.
@@ -30,7 +42,7 @@ For integration tests we assume the perspective of a developer who wants to asse
 | Config warming | Deploy new AWS AppConfig version -> cache warmer lambda is triggered -> ElastiCache seeded | Critical reliability and optimization mechanism |
 | User quota tracking | shorten URL -> assert quota key is present & changed | Proper handler & DB wiring + real time |
 | Link hit quota tracking | redirect URL -> assert quota key is present & changed | Proper handler & DB wiring + real time |
-| DAO contract fulfillment | shorten & redirect handlers with different DAOs -> different DB states | DAO contract is fulfilled |
+| ~~DAO contract fulfillment~~ | shorten & redirect handlers with different DAOs -> different DB states | DAO contract is fulfilled |
 | Non conflicts | Shorten same URL twice (duplicate request) -> get 2 different responses with different shortlinks | Doesn't introduce hidden caching mechanism |
 
 ### What are we NOT testing
