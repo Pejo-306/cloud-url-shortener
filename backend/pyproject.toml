@@ -19,8 +19,12 @@ dev = [
     "freezegun",
     "pytest",
     "pytest-cov",
+    "requests>=2.32.5",
     "ruff",
     "ty",
+    "types-boto3-cloudformation>=1.42.3",
+    "types-boto3-cognito-idp>=1.42.59",
+    "types-boto3-elasticache>=1.42.3",
 ]
 
 [tool.ruff]

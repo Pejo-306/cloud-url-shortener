@@ -1,6 +1,20 @@
+# backend/Makefile - Backend Python build and development
+# Run from backend/: make install, make clean, etc.
+
+# Deployment config (used for integration tests)
+APP_NAME                  ?= cloudshortener
+APP_ENV                   ?= dev
+AWS_REGION                ?= eu-central-1
+AWS_PROFILE               ?= personal-dev
+ORCHESTRATOR_STACK 	      ?= $(APP_NAME)-$(APP_ENV)
+
+# Port-forwarding (for make integration-tests)
+PORT_FORWARDING_HOST      ?= localhost
+PORT_FORWARDING_PORT      ?= 16379
+
 # Configurable variables (override via: make coverage TEST_DIR=tests/)
-TEST_DIR	   ?= tests/unit/
-COV_FAIL_UNDER ?= 80
+TEST_DIR	   			  ?= tests/unit/
+COV_FAIL_UNDER 			  ?= 80
 
 .PHONY: help
 .PHONY: install clean
@@ -12,10 +26,9 @@ help:
 	@echo "Backend Python build and development"
 	@echo ""
 	@echo "\033[1mSetup:\033[0m"
-	@echo "  make install                             # creates/syncs uv venv"
+	@echo "  make install                             - creates/syncs uv venv"
 	@echo ""
 	@echo "\033[1mTargets:\033[0m"
-	@echo "  make install                             - Create/sync uv venv"
 	@echo "  make clean                               - Remove .venv, caches (asks for confirmation)"
 	@echo "  make lint                                - Ruff check only"
 	@echo "  make lint-fix                            - Ruff check with --fix"
@@ -65,6 +78,10 @@ unittests:
 	uv run pytest tests/unit
 
 integration-tests:
+	AWS_PROFILE=$(AWS_PROFILE) \
+	ORCHESTRATOR_STACK=$(ORCHESTRATOR_STACK) \
+	PORT_FORWARDING_HOST=$(PORT_FORWARDING_HOST) \
+	PORT_FORWARDING_PORT=$(PORT_FORWARDING_PORT) \
 	uv run pytest tests/integration/
 
 tests: unittests integration-tests

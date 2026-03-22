@@ -161,6 +161,7 @@ def lambda_handler(event: LambdaEvent, context: LambdaContext) -> LambdaResponse
                 'reason': 'Possible race condition encountered (short URL record just expired)',
             },
         )
+        # TODO: shouldn't this be a 404 error?
         return response_400(message=f"short url {get_short_url(shortcode, event)} doesn't exist", error_code=SHORT_URL_NOT_FOUND)
     else:
         target_url = short_url.target

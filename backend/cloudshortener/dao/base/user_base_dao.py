@@ -42,9 +42,6 @@ class UserBaseDAO(ABC):
                 The user's monthly quota.
 
         Raises:
-            UserDoesNotExistError:
-                If the user does not exist.
-
             DataStoreError:
                 If there is an error in the data store.
         """
