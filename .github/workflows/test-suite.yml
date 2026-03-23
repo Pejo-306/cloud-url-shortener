@@ -60,11 +60,12 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           python-version: ${{ inputs.python-version || '3.13' }}
+          with_aws_session_manager_plugin: 'true'
 
-      - name: Configure AWS credentials
+      - name: Configure AWS deployment credentials
         uses: ./.github/actions/setup-aws-credentials
         with:
-          profile-name:                test-suite
+          profile-name:                test-suite 
           aws-region:                  ${{ vars.AWS_REGION }}
           oidc-deploy-role:            ${{ secrets.AWS_ROLE_ARN }}
           local-aws-access-key-id:     ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
@@ -77,6 +78,15 @@ jobs:
             AWS_PROFILE=test-suite \
             SAM_DEPLOY_ARGS="--no-confirm-changeset --role-arn ${{ secrets.CLOUDFORMATION_EXEC_ROLE_ARN }}"
 
+      - name: Configure AWS integration tests credentials
+        uses: ./.github/actions/setup-aws-credentials
+        with:
+          profile-name:                integration-tests
+          aws-region:                  ${{ vars.AWS_REGION }}
+          oidc-deploy-role:            ${{ secrets.INTEGRATION_TESTS_EXECUTOR_ROLE_ARN }}
+          local-aws-access-key-id:     ${{ secrets.LOCAL_AWS_ACCESS_KEY_ID }}
+          local-aws-secret-access-key: ${{ secrets.LOCAL_AWS_SECRET_ACCESS_KEY }}
+
       - name: Install Project Dependencies
         run: make -C backend install
 
@@ -84,7 +94,17 @@ jobs:
         id: integration-tests
         if: steps.configure.outputs.run-integration-tests == 'true'
         continue-on-error: true
-        run: make -C backend integration-tests
+        run: |
+          nohup make bastion-connect \
+            APP_NAME=${{ vars.APP_NAME }} \
+            APP_ENV=${{ vars.APP_ENV }} \
+            AWS_PROFILE=integration-tests &
+          make -C backend integration-tests \
+            APP_NAME=${{ vars.APP_NAME }} \
+            APP_ENV=${{ vars.APP_ENV }} \
+            AWS_PROFILE=integration-tests \
+            PORT_FORWARDING_HOST=localhost \
+            PORT_FORWARDING_PORT=16379
 
       - name: Test Results
         run: |
