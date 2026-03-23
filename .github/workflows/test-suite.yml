@@ -111,8 +111,12 @@ jobs:
           echo "Results:"
           echo "- Integration tests (run: ${{ steps.configure.outputs.run-integration-tests }}): ${{ steps.integration-tests.outcome || 'skipped' }}"
 
+          if [[ "${{ steps.integration-tests.outcome }}" == "failure" ]]; then
+            exit 1
+          fi
+
       - name: Teardown Bastion Host
-        if: steps.configure.outputs.teardown-bastion == 'true'
+        if: always() && steps.configure.outputs.teardown-bastion == 'true'
         run: make bastion-down \
           APP_ENV=${{ vars.APP_ENV }} \
           AWS_PROFILE=test-suite
