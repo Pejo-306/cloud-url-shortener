@@ -46,6 +46,10 @@ Parameters:
     Type: String
     Default: cloudformation-exec-cloudshortener
 
+  IntegrationTestsRoleName:
+    Type: String
+    Default: integration-tests-cloudshortener
+
 Conditions:
   CreateOidcProvider:
     Fn::Equals:
@@ -478,6 +482,93 @@ Resources:
       ManagedPolicyArns:
         - !Ref CloudshortenerDeployPolicy
 
+  CloudshortenerIntegrationTestsPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: CloudshortenerIntegrationTestsExecutor
+      Description: Permissions required by integration tests to interact with cloudshortener AWS resources
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudFormationDescribe
+            Effect: Allow
+            Action:
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackResources
+            Resource: '*'
+
+          - Sid: SsmRead
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+            Resource:
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cloudshortener/*
+
+          - Sid: SecretsRead
+            Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource:
+              - !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:cloudshortener/*
+
+          - Sid: AppConfigReadAndDeploy
+            Effect: Allow
+            Action:
+              - appconfig:StartConfigurationSession
+              - appconfig:GetLatestConfiguration
+              - appconfig:CreateHostedConfigurationVersion
+              - appconfig:StartDeployment
+              - appconfig:GetDeployment
+            Resource: '*'
+
+          - Sid: CognitoUserLifecycle
+            Effect: Allow
+            Action:
+              - cognito-idp:AdminCreateUser
+              - cognito-idp:AdminSetUserPassword
+              - cognito-idp:AdminDeleteUser
+            Resource: '*'
+
+          - Sid: SsmStartSession
+            Effect: Allow
+            Action:
+              - ssm:StartSession
+            Resource:
+              - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/*
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/AWS-StartPortForwardingSessionToRemoteHost
+
+          - Sid: SsmTerminateSession
+            Effect: Allow
+            Action:
+              - ssm:TerminateSession
+            Resource:
+              - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:session/*
+
+  IntegrationTestsExecutorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref IntegrationTestsRoleName
+      Description: Allow integration tests to interact with cloudshortener AWS resources
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !If
+                - CreateOidcProvider
+                - !Ref GitHubOidcProvider
+                - !Ref ExistingOidcProviderArn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              ForAnyValue:StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - !Sub repo:${GitHubOrg}/${RepoName}:environment:*
+                  - !Sub repo:${GitHubOrg}/${RepoName}:ref:refs/heads/${AllowedBranchGlob}
+      ManagedPolicyArns:
+        - !Ref CloudshortenerIntegrationTestsPolicy
+
 Outputs:
   GitHubOidcProviderArn:
     Description: ARN of the GitHub OIDC provider (existing or created)
@@ -499,6 +590,12 @@ Outputs:
     Value: !GetAtt CloudFormationExecRole.Arn
     Export:
       Name: CloudFormationExecRoleArn
+
+  IntegrationTestsExecutorRoleArn:
+    Description: ARN of the integration tests executor role
+    Value: !GetAtt IntegrationTestsExecutorRole.Arn
+    Export:
+      Name: IntegrationTestsExecutorRoleArn
 
   CloudshortenerDeployPolicyArn:
     Description: ARN of the GitHub deploy managed policy
