@@ -10,12 +10,14 @@ not to duplicate code-level details.
 many of the decisions have been retroactively documented. I.e. it's already implemented 
 in code.
 
+**NOTE:** This documentation evolves with the system and may reflect trade-offs that are no longer optimal
+
 ## How to read these docs
 
 If you are new to the system, read in this order:
 
 1. **requirements.md**
-   Defines functional and non functional constraints to the system.
+   Defines functional and non functional requrements and constraints to the system.
 
 2. **architecture.md**
    Describes the high-level system components and their responsibilities.
@@ -29,11 +31,10 @@ If you are new to the system, read in this order:
 - High-level system structure
 - Design constraints and assumptions
 - Major architectural decisions and trade-offs
-- Failure considerations and operational intent (at a high level)
-- Codebase maintainability conventions
+- Failure considerations and operational intent
 
 ### Explicitly excluded
-- Code walkthroughs
+- Code walkthroughs / conventions
 - Line-by-line logic explanations
 - Configuration values
 - Environment-specific instructions
@@ -49,21 +50,7 @@ Each ADR captures:
 - The **context** in which the decision was made
 - The **decision** itself
 - The **alternatives** that were considered
-- The **consequences** of the decision
+- The **implications** of the decision
 
 ADRs are (supposed to be...) written at the time the decision is made. Some of the
 starting ADRs are documented retroactively.
-
-## Conventions
-
-- Documents favor clarity and intent over exhaustiveness
-- Diagrams, if present, are illustrative, not authoritative
-- This documentation evolves with the system and may reflect trade-offs that are no longer optimal
-
-## Audience
-
-These documents are intended for:
-- Myself, learning about what software architects document and take into consideration
-- People who've taken an interest in this repository and have somehow stumbled here
-
-They assume familiarity with backend systems but not with this specific codebase.
