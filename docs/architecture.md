@@ -24,8 +24,6 @@ The architecture is designed to favor:
 
 ![Architecture Diagram](/docs/assets/png/architecture-diagram.png)
 
-
-
 ### 2.1 API Gateway (Ingress)
 
 The system exposes HTTP endpoints via a single API ingress layer.
@@ -95,10 +93,11 @@ Responsibilities:
 
 ### 2.7 Caching Layer
 
-A high-speed cache is used to reduce lambda execution time by caching HOT values. See [ADR-007](/docs/decisions/ADR-007-caching-strategy.md) for details.
+A high-speed cache is used to reduce lambda execution time by caching HOT values and configurations. See [ADR-007](/docs/decisions/ADR-007-caching-strategy.md) for details.
 
 Responsibilities:
 - Cache application configurations for fast access
+- Optionally cache other HOT values
 
 The caching layer implements a two-phase strategy:
 - **Phase 1**: Lazy, on-demand caching during Lambda execution
@@ -152,6 +151,10 @@ The system depends on the following external services:
 
 These dependencies are treated as **highly available and scalable** components.
 
+**CRITICAL DEPENDENCY**: As per [A-4](/docs/requirements.md#a-4-public-cloud-provider-availability)
+our application relies on public cloud provider infrastructure. If public cloud
+providers are unvailable, we are unavailable.
+
 ## 7. Out-of-Scope Architecture
 
 The following architectural concerns are intentionally not addressed here:
@@ -163,7 +166,7 @@ The following architectural concerns are intentionally not addressed here:
 
 These may be introduced in future iterations.
 
-## 8. Relationship to Other Documents
+## 8. Further Reading 
 
 - [requirements.md](/docs/requirements.md) defines the constraints this architecture satisfies
 - [decisions/](/docs/decisions/) contains rationale for key design choices

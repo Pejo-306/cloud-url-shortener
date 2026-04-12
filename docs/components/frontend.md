@@ -1,4 +1,4 @@
-# Component: `frontend` - The Frontend
+# `frontend` - The Frontend
 
 ## Responsibility
 

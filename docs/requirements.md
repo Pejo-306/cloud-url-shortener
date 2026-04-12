@@ -69,8 +69,7 @@ from actual architectural decisions.
 - Eventual consistency is acceptable where it improves scalability or availability.
 
 ### NFR-6: Cost Awareness
-- The system should prioritize serverless workloads to allow on-demand provisioning and cost.
-- Cost optimizations should favor read-heavy workloads.
+- The system should prioritize serverless workloads to allow on-demand provisioning.
 
 ## 4. Capacity Assumptions
 
@@ -79,7 +78,7 @@ These assumptions are used to guide sizing and architectural decisions.
 - Daily Active Users (DAU): ~100 million
 - Maximum links created per user per month: 20
 - Maximum link hits per link per month: 10000
-- Estimated links created per year: ~36 billion (1 link per user per month)
+- Estimated links created per year: ~36 billion (1 link per user per day)
 - Estimated size of each link entry: ~500 bytes
 - Estimated annual storage requirement: ~18 TB
 
@@ -111,6 +110,14 @@ The following are explicitly out of scope unless stated otherwise:
 
 ## 7. Assumptions and Risks
 
+### A-1: Traffic Patterns
 - Traffic patterns are assumed highly skewed towards reads.
+
+### A-2: Data Retention
 - Redis eviction and TTL-based expiration are assumed to be sufficient for retention.
+
+### A-3: Best-Effort Quota Enforcement
 - Quota enforcement is best-effort and may allow brief overruns under race conditions.
+
+### A-4: Public Cloud Provider Availability
+- Public cloud provider services are available at all times in our deployed region
