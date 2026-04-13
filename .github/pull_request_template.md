@@ -12,14 +12,6 @@
 - [ ] Project dependencies update
 - [ ] Other (please describe):
 
-## Environment(s) affected
-
-- [ ] local
-- [ ] dev
-- [ ] staging
-- [ ] prod
-- [ ] N/A (no infra changes)
-
 ## Checklist
 
 - [ ] The PR/commit(s) indicates a related JIRA ticket.
