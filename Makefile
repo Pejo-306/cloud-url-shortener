@@ -114,8 +114,11 @@ down:
 
 dev:
 	$(MAKE) -C infra local-api \
-		APP_NAME="$(APP_NAME)" APP_ENV="$(APP_ENV)" LOG_LEVEL="$(LOG_LEVEL)" \
-		AWS_REGION="$(AWS_REGION)" AWS_PROFILE="$(AWS_PROFILE)" & \
+		APP_NAME="$(APP_NAME)" \
+		APP_ENV="local" \
+		LOG_LEVEL="$(LOG_LEVEL)" \
+		AWS_REGION="$(AWS_REGION)" \
+		AWS_PROFILE="$(AWS_PROFILE)" & \
 	$(MAKE) -C frontend dev & \
 	wait
 
