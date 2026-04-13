@@ -16,13 +16,16 @@ in code.
 
 If you are new to the system, read in this order:
 
-1. **requirements.md**
+1. **[system-design.md](/docs/system-design.md)**
+   Original design narrative: capacity estimates, API shape, Redis key schema, diagram, and deep dives (shortcodes, quotas, retention).
+
+2. **[requirements.md](/docs/requirements.md)**
    Defines functional and non functional requrements and constraints to the system.
 
-2. **architecture.md**
+3. **[architecture.md](/docs/architecture.md)**
    Describes the high-level system components and their responsibilities.
 
-3. **decisions/**
+4. **[decisions/](/docs/decisions/)**
    Contains Architectural Decision Records (ADRs) documenting important design decisions.
 
 ## What belongs here (and what does not)
