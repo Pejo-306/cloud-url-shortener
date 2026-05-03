@@ -1,0 +1,192 @@
+# CORS: Browser preflight (OPTIONS) and per-response Access-Control-* headers are implemented
+# in the Cloud Function Python handlers. Cloud API Gateway forwards OPTIONS to the same
+# backends in POST/GET. Reference: https://cloud.google.com/api-gateway/docs/configure-cors
+swagger: '2.0'
+info:
+  title: ${api_title}
+  description: CloudShortener API (GCP API Gateway)
+  version: '1.0.0'
+schemes:
+  - https
+produces:
+  - application/json
+consumes:
+  - application/json
+definitions:
+  ShortenSuccessResponse:
+    type: object
+    required:
+      - message
+      - targetUrl
+      - shortUrl
+      - shortcode
+      - userQuota
+      - remainingQuota
+    properties:
+      message:
+        type: string
+        description: Human-readable success message.
+      targetUrl:
+        type: string
+        description: Original URL from the request (camelCase in JSON).
+      shortUrl:
+        type: string
+        description: Full shortened URL returned to the client.
+      shortcode:
+        type: string
+        description: Generated shortcode segment.
+      userQuota:
+        type: integer
+        description: Link generations used this period after incrementing.
+      remainingQuota:
+        type: integer
+        description: Remaining link generations before hitting quota.
+  ShortenErrorResponse:
+    type: object
+    required:
+      - message
+    properties:
+      message:
+        type: string
+      errorCode:
+        type: string
+        description: |
+          Machine-readable code when present. Values from shorten_url handler:
+          MISSING_USER_ID, LINK_QUOTA_EXCEEDED, INVALID_JSON, MISSING_TARGET_URL,
+          SHORT_URL_ALREADY_EXISTS.
+  RedirectErrorResponse:
+    type: object
+    required:
+      - message
+    properties:
+      message:
+        type: string
+      errorCode:
+        type: string
+        description: |
+          Machine-readable code when present. Values from redirect_url handler:
+          MISSING_SHORTCODE, SHORT_URL_NOT_FOUND, LINK_QUOTA_EXCEEDED.
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: key
+    in: query
+  firebase:
+    authorizationUrl: ""
+    flow: implicit
+    type: oauth2
+    x-google-issuer: "${jwt_issuer}"
+    x-google-jwks_uri: "${jwt_jwks_uri}"
+    x-google-audiences: "${jwt_audiences}"
+paths:
+  /v1/shorten:
+    options:
+      summary: CORS preflight for shorten
+      operationId: shortenOptions
+      security: []
+      x-google-backend:
+        address: ${shorten_backend_url}
+        jwt_audience: ${shorten_backend_url}
+        protocol: h2
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: Preflight — CORS headers set by the shorten Cloud Function.
+    post:
+      summary: Shorten URL
+      operationId: shortenUrl
+      security:
+        - firebase: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            description: URL to shorten 
+            properties:
+              targetUrl:
+                type: string
+                format: uri
+      x-google-backend:
+        address: ${shorten_backend_url}
+        jwt_audience: ${shorten_backend_url}
+        protocol: h2
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '200':
+          description: URL shortened successfully.
+          schema:
+            $ref: '#/definitions/ShortenSuccessResponse'
+        '400':
+          description: Invalid JSON body or missing target URL field.
+          schema:
+            $ref: '#/definitions/ShortenErrorResponse'
+        '401':
+          description: Missing or invalid authentication (e.g. no sub in JWT).
+          schema:
+            $ref: '#/definitions/ShortenErrorResponse'
+        '409':
+          description: Short URL already exists (e.g. race on shortcode).
+          schema:
+            $ref: '#/definitions/ShortenErrorResponse'
+        '429':
+          description: Monthly link generation quota exceeded.
+          schema:
+            $ref: '#/definitions/ShortenErrorResponse'
+        '500':
+          description: Internal server error (e.g. config load failure or unexpected error).
+          schema:
+            $ref: '#/definitions/ShortenErrorResponse'
+  /{shortcode}:
+    parameters:
+      - name: shortcode
+        in: path
+        required: true
+        type: string
+    options:
+      summary: CORS preflight for redirect
+      operationId: redirectOptions
+      security: []
+      x-google-backend:
+        address: ${redirect_backend_url}
+        jwt_audience: ${redirect_backend_url}
+        protocol: h2
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '204':
+          description: Preflight — CORS headers set by the redirect Cloud Function.
+    get:
+      summary: Redirect by short code
+      operationId: redirectUrl
+      security: []
+      x-google-backend:
+        address: ${redirect_backend_url}
+        jwt_audience: ${redirect_backend_url}
+        protocol: h2
+        path_translation: APPEND_PATH_TO_ADDRESS
+      responses:
+        '302':
+          description: Redirect to the stored target URL (Location header).
+          headers:
+            Location:
+              type: string
+              description: Absolute URL of the original long link.
+        '400':
+          description: |
+            Bad request — missing shortcode in path, or short URL not found in Redis.
+            (Handler currently uses 400 for unknown shortcode; not HTTP 404.)
+          schema:
+            $ref: '#/definitions/RedirectErrorResponse'
+        '429':
+          description: Monthly hit quota exceeded for this short link.
+          headers:
+            Retry-After:
+              type: string
+              description: Seconds until monthly hit quota resets.
+          schema:
+            $ref: '#/definitions/RedirectErrorResponse'
+        '500':
+          description: Internal server error (e.g. config load failure or unexpected error).
+          schema:
+            $ref: '#/definitions/RedirectErrorResponse'

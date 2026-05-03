@@ -2,11 +2,29 @@
 
 ## Status
 
-Accepted
+Updated
 
 ## Date
 
-2026-04-19
+2026-04-25
+
+---
+
+## Updates
+
+### 2026-04-25: Manage GCP Terraform and AWS CloudFormation separately
+
+We originally wanted to place each Terraform template right next to each AWS stack template (e.g. networking would be defined in `infra/stacks/network/gcp/ ` and `infra/stacks/network/aws/`). During implementation of Terraform templates we dropped that layout.
+
+**Reasons:**
+
+1. AWS & GCP are structurally different. Our AWS infrastructure doesn't map cleanly to GCP.
+2. If we wanted to support additional / adjacent infra specifically for one provider, it would be messier.
+3. Terraform would require independent roots per stack, i.e. many `terraform init`. Instead the `infra/gcp/` layout requires only one Terraform root for our application stack + one per adjacent infra stack. 
+
+**Decision:**
+
+We accept `infra/gcp/` as the self-contained module for GCP infra, managed via Terraform. In the future, we'll move our AWS infrastructure to `infra/aws/` for a top-level per-provider split.
 
 ---
 
@@ -159,9 +177,9 @@ AWS IAM roles with inline/managed policies translate to *GCP service accounts wi
 
 AWS continues to use *SAM/CloudFormation*. GCP uses *Terraform*.
 
-Terraform templates are placed alongside AWS templates at the most granular level
+~~Terraform templates are placed alongside AWS templates at the most granular level
 (e.g. `infra/stacks/network/gcp/`, `infra/stacks/backend/gcp/`). AWS templates
-move to `aws/` subdirectories.
+move to `aws/` subdirectories.~~ (see [update from 2025-04-16](#2026-04-25-manage-gcp-terraform-and-aws-cloudformation-separately))
 
 GCP projects are created if non-existent by Terraform. We explicitly prevent Terraform from destroying GCP projects.
 
