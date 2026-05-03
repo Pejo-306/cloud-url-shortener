@@ -13,9 +13,10 @@ module "network" {
 module "identity_platform" {
   source = "./stacks/identity-platform"
 
-  project_id = var.project_id
-  app_name   = var.app_name
-  app_env    = var.app_env
+  project_id                 = var.project_id
+  app_name                   = var.app_name
+  app_env                    = var.app_env
+  browser_api_key_generation = var.browser_api_key_generation
 
   depends_on = [google_project_service.apis]
 }

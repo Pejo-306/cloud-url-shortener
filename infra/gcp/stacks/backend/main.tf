@@ -107,6 +107,7 @@ resource "google_cloudfunctions2_function" "shorten" {
   depends_on = [
     google_storage_bucket_iam_member.gcf_agent_artifacts_reader,
     google_storage_bucket_iam_member.cloudbuild_agent_artifacts_reader,
+    google_project_iam_member.default_compute_sa_builder,
   ]
 }
 
@@ -144,6 +145,7 @@ resource "google_cloudfunctions2_function" "redirect" {
   depends_on = [
     google_storage_bucket_iam_member.gcf_agent_artifacts_reader,
     google_storage_bucket_iam_member.cloudbuild_agent_artifacts_reader,
+    google_project_iam_member.default_compute_sa_builder,
   ]
 }
 
@@ -181,6 +183,7 @@ resource "google_cloudfunctions2_function" "warm" {
   depends_on = [
     google_storage_bucket_iam_member.gcf_agent_artifacts_reader,
     google_storage_bucket_iam_member.cloudbuild_agent_artifacts_reader,
+    google_project_iam_member.default_compute_sa_builder,
   ]
 }
 

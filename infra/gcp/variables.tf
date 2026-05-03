@@ -141,6 +141,12 @@ variable "artifacts_bucket" {
   default     = ""
 }
 
+variable "browser_api_key_generation" {
+  type        = string
+  description = "Passed to identity-platform stack. Bump to rotate the browser API key name suffix after GCP soft-delete collisions."
+  default     = "v1"
+}
+
 variable "labels" {
   type        = map(string)
   description = "Optional extra resource labels merged with app/env defaults."
