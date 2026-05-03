@@ -25,9 +25,21 @@ resource "google_identity_platform_config" "default" {
   }
 }
 
-# Browser API key for client SDK.
+resource "random_id" "browser_api_key_suffix" {
+  byte_length = 4
+
+  keepers = {
+    project_id = var.project_id
+    app_name   = var.app_name
+    app_env    = var.app_env
+    generation = var.browser_api_key_generation
+  }
+}
+
+# Browser API key for client SDK. Name includes a stable random suffix so new keys
+# do not collide with soft-deleted API key names in the same project.
 resource "google_apikeys_key" "browser" {
-  name         = "${var.app_name}-${var.app_env}-browser-key"
+  name         = "${var.app_name}-${var.app_env}-browser-key-${random_id.browser_api_key_suffix.hex}"
   display_name = "CloudShortener client SDK API key (${var.app_env})"
   project      = var.project_id
 
