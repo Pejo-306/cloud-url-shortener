@@ -1,0 +1,30 @@
+# Central OIDC / WIF pool lives in `admin_project_id`.
+# Env-specific SAs live in each env project.
+admin_project_id     = "your-bootstrap-or-admin-project-id"
+admin_project_number = "123456789012"
+
+app_name    = "cloudshortener"
+github_org  = "YourOrg"
+github_repo = "cloud-url-shortener"
+
+# Optional explicit pool id (4–32 chars). If empty, a hash of app_name is used.
+# pool_id = "github-oidc-provider"
+
+# Optional: CEL to restrict branches/refs, e.g.:
+# attribute_condition = "assertion.ref.startsWith('refs/heads/main') || assertion.ref.startsWith('refs/heads/release-')"
+
+env_projects = {
+  dev = {
+    project_id = "cloudshortener-dev"
+  }
+  # prod = {
+  #   project_id = "cloudshortener-prod"
+  # }
+}
+
+# Enable IAM-related APIs on the admin project (default true).
+# Requires `serviceusage` API already enabled on the admin project.
+# enable_admin_project_apis = false
+
+# Usually false: app env projects already get APIs from infra/gcp root project.tf.
+# enable_env_project_apis = true

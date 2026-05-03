@@ -1,0 +1,19 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+*.tfvars
+!terraform.tfvars.example
+
+# Built from artifacts-bucket/placeholders/functions/ when packaging Cloud Function zips locally
+artifacts-bucket/placeholders/*.zip
+
+# GCP creds
+gcp_creds.json

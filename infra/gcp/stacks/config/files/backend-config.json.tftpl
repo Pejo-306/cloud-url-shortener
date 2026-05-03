@@ -1,0 +1,24 @@
+{
+  "build": 1,
+  "active_backend": "redis",
+  "configs": {
+    "shorten_url": {
+      "redis": {
+        "host": "${redis_host}",
+        "port": ${redis_port},
+        "db": ${redis_db},
+        "username": ${redis_username},
+        "password": ${redis_password}
+      }
+    },
+    "redirect_url": {
+      "redis": {
+        "host": "${redis_host}",
+        "port": ${redis_port},
+        "db": ${redis_db},
+        "username": ${redis_username},
+        "password": ${redis_password}
+      }
+    }
+  }
+}

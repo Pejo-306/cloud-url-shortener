@@ -1,0 +1,40 @@
+# Copy to terraform.tfvars and adjust.
+
+app_name  = "cloudshortener"
+app_env   = "dev"
+region    = "europe-west1"
+project_id     = "your-gcp-project-id"
+project_number = "123456789012" # gcloud projects describe $PROJECT_ID --format='value(projectNumber)'
+log_level      = "INFO"
+
+# Optional extra labels merged with defaults (app, env).
+# labels = { team = "platform" }
+
+# Optional subnet CIDR for the regional subnet (must not overlap the VPC connector range in the network stack).
+# subnet_cidr = "10.0.1.0/24"
+
+# Set true only if Terraform should create the project (needs org_id or folder_id + billing).
+create_project  = true 
+billing_account = "" # e.g. "012345-ABCDEF-678901"
+org_id          = "" # numeric org id
+folder_id       = ""
+
+memorystore_port           = 6379
+memorystore_memory_size_gb = 1
+
+# Redis Cloud (primary datastore) configuration
+# Values are baked into config stack's `backend-config.json`.
+# Seed Secret Manager first with secret id being {app_name}-{app_env}-secret-redis-credentials
+# and with JSON body {"username":"...","password":"..."}.
+redis_cloud_host                 = "your-redis-cloud-endpoint.example.com"
+redis_cloud_port                 = 6379
+redis_cloud_db                   = 0
+# redis_cloud_credentials_secret = "" # omit or empty to use cloudshortener-dev-secret-redis-credentials
+
+# Leave empty for HTTP-only dev frontend; set FQDN for managed certificate + HTTPS.
+frontend_domain = ""
+
+# Created by `infra/gcp/artifacts-bucket/` bootstrap module.
+# The actual name is `{bucket_name base}-{GCP project number}` of the admin/bootstrap project.
+# Artifacts are stored under {app_env}/cloud-functions/{artifact}.zip.
+artifacts_bucket = "cloudshortener-artifacts-123456789012"

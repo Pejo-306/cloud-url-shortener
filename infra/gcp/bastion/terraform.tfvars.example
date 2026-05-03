@@ -1,0 +1,11 @@
+project_id       = "your-project-id"
+app_name         = "cloudshortener"
+app_env          = "dev"
+region           = "europe-west1"
+subnet_self_link = "https://www.googleapis.com/compute/v1/projects/your-project-id/regions/europe-west1/subnetworks/cloudshortener-dev-subnet"
+
+# Optional bastion boot image. For e2-* machines, use the amd64 family.
+# image = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
+
+# Optional labels on the bastion VM (merge with your org conventions).
+# labels = { team = "platform" }
