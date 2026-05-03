@@ -1,0 +1,4 @@
+project_id     = "your-bootstrap-project-id"
+project_number = "123456789012"  # admin project
+bucket_name    = "cloudshortener-tf-state" # final name: cloudshortener-tf-state-<project_number>
+region         = "europe-west1"
