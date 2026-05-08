@@ -13,15 +13,6 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   reserved_peering_ranges = [google_compute_global_address.memorystore_peering.name]
 }
 
-resource "google_secret_manager_secret" "memorystore_auth" {
-  project   = var.project_id
-  secret_id = "${var.app_name}-${var.app_env}-secret-memorystore-auth"
-
-  replication {
-    auto {}
-  }
-}
-
 resource "google_redis_instance" "cache" {
   project        = var.project_id
   name           = "${var.app_name}-${var.app_env}-memorystore"
@@ -48,7 +39,7 @@ resource "google_redis_instance" "cache" {
 }
 
 resource "google_secret_manager_secret_version" "memorystore_auth_version" {
-  secret      = google_secret_manager_secret.memorystore_auth.id
+  secret      = "projects/${var.project_id}/secrets/${var.memorystore_auth_secret_id}"
   secret_data = google_redis_instance.cache.auth_string
 
   depends_on = [google_redis_instance.cache]

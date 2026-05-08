@@ -19,6 +19,11 @@ variable "vpc_network_id" {
   description = "VPC network id or self link for Memorystore authorized_network."
 }
 
+variable "memorystore_auth_secret_id" {
+  type        = string
+  description = "Secret Manager secret ID created by project root. Memorystore auth value is written here."
+}
+
 variable "memory_size_gb" {
   type    = number
   default = 1

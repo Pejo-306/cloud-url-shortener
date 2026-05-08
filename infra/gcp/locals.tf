@@ -5,27 +5,6 @@ locals {
   }
   resource_labels = merge(local.default_labels, var.labels)
 
-  project_services = toset([
-    "apikeys.googleapis.com",
-    "apigateway.googleapis.com",
-    "artifactregistry.googleapis.com",
-    "cloudbuild.googleapis.com",
-    "cloudfunctions.googleapis.com",
-    "cloudresourcemanager.googleapis.com",
-    "compute.googleapis.com",
-    "eventarc.googleapis.com",
-    "iam.googleapis.com",
-    "iamcredentials.googleapis.com",
-    "iap.googleapis.com",
-    "identitytoolkit.googleapis.com",
-    "redis.googleapis.com",
-    "run.googleapis.com",
-    "secretmanager.googleapis.com",
-    "servicecontrol.googleapis.com",
-    "servicemanagement.googleapis.com",
-    "servicenetworking.googleapis.com",
-    "storage.googleapis.com",
-    "sts.googleapis.com",
-    "vpcaccess.googleapis.com",
-  ])
+  identity_platform_jwt_issuer   = "https://securetoken.google.com/${var.project_id}"
+  identity_platform_jwt_jwks_uri = "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
 }
