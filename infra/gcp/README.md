@@ -13,8 +13,7 @@ All first-class GCP infrastructure for CloudShortener lives under `infra/gcp/`. 
 | [`workload/modules/config/`](workload/modules/config/) | Versioned GCS bucket + `backend-config.json` (AppConfig equivalent): **Redis Cloud** datastore connection (host/port/db + credentials from Secret Manager at apply time). |
 | [`workload/modules/frontend/`](workload/modules/frontend/) | Frontend GCS bucket + external HTTPS (or HTTP) load balancer + Cloud CDN. |
 | [`workload/modules/backend/`](workload/modules/backend/) | Cloud Functions (gen 2), API Gateway (OpenAPI), Eventarc trigger for config warm function. |
-| [`state-bucket/`](state-bucket/) | **Bootstrap only**: create the shared remote state bucket (local state in this folder). |
-| [`artifacts-bucket/`](artifacts-bucket/) | **Bootstrap only**: create the shared GCS bucket for Cloud Functions source zips and other artifacts (local state in this folder). Includes [`artifacts-bucket/placeholders/`](artifacts-bucket/placeholders/) — minimal function sources to zip and upload until ADR-017 step 7. |
+| [`admin/`](admin/) | **Bootstrap only** (local Terraform state): creates the **admin** GCP project, enables `storage.googleapis.com` + `serviceusage.googleapis.com`, and two GCS buckets (shared remote state + Cloud Function / artifact zips). Includes [`admin/placeholders/`](admin/placeholders/) — minimal function sources to zip and upload until ADR-017 step 7. Apply before any root using `backend "gcs"`. |
 | [`bastion/`](bastion/) | Optional standalone stack: private Compute Engine bastion (IAP SSH tag `bastion`). |
 | [`oidc/`](oidc/) | Optional standalone stack: **central** GitHub Workload Identity pool/provider in an **admin** project; per-environment `gh-deploy-*` / `gh-tests-*` service accounts and project IAM in each entry of `env_projects`. Use remote state on the shared bucket with prefix `oidc/`. |
 
@@ -22,7 +21,9 @@ Directories under [`workload/modules/`](workload/modules/) are **Terraform modul
 
 ## Project number convention
 
-Every Terraform stack under `infra/gcp/` (workload orchestrator, application modules, and bootstrap folders `state-bucket/` and `artifacts-bucket/`) require **`project_number`** as an input variable. **Do not** read it from `data "google_project"` in those stacks: when `data.google_project.current.number` is evaluated as `(known after apply)` at plan time, IAM `member` strings derived from it become unknown too, and Terraform may schedule no-op replacements for `ForceNew` attributes.
+[`admin/`](admin/) does **not** take `project_number` as input: bucket names use `google_project.this.number` after the project is created.
+
+For [`projects/`](projects/), [`workload/`](workload/), [`bastion/`](bastion/), and [`oidc/`](oidc/) (workload projects + `admin_project_number`), pass **`project_number`** explicitly where required. **Do not** read it from `data "google_project"` in those stacks: when `data.google_project.current.number` is evaluated as `(known after apply)` at plan time, IAM `member` strings derived from it become unknown too, and Terraform may schedule no-op replacements for `ForceNew` attributes.
 
 Set it explicitly (numeric string):
 
@@ -30,43 +31,39 @@ Set it explicitly (numeric string):
 gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)'
 ```
 
-Use that value in **both** your [`projects/`](projects/) var file (see [`projects/terraform.tfvars.example`](projects/terraform.tfvars.example)) and your workload var file (see [`workload/terraform.tfvars.example`](workload/terraform.tfvars.example)).
+Use that value in **both** your [`projects/`](projects/) var file (see [`projects/terraform.tfvars.example`](projects/terraform.tfvars.example)) and your workload var file (see [`workload/terraform.tfvars.example`](workload/terraform.tfvars.example)). For OIDC, set `admin_project_number` the same way for the admin project.
 
 ## Prerequisites
 
-1. **GCP project** (workload project ID; optional project creation via [`projects/`](projects/) `create_project` + org/billing if you use that path).
-2. **Bootstrap state bucket** (once per org / shared project): add `project_number` to `terraform.tfvars` (see `terraform.tfvars.example`), then:
+1. **Workload GCP project** — project ID for [`projects/`](projects/) and [`workload/`](workload/); optional creation via `create_project` + org/billing.
+2. **`admin/` bootstrap stack** — creates the shared **admin** GCP project (`google_project`), enables `storage.googleapis.com` and `serviceusage.googleapis.com`, and two GCS buckets (Terraform remote state + function source zips). Terraform state for this root is **local** under `admin/`. Copy [`admin/terraform.tfvars.example`](admin/terraform.tfvars.example), then run `terraform init && terraform apply`.
 
    ```bash
-   cd infra/gcp/state-bucket
+   cd infra/gcp/admin
    cp terraform.tfvars.example terraform.tfvars
+   # admin_project_id, org_id, billing_account, optional bucket base names + region.
    terraform init && terraform apply
+
+   export STATE_BUCKET="$(terraform output -raw state_bucket_name)"
+   export ARTIFACTS_BUCKET="$(terraform output -raw artifacts_bucket_name)"
    ```
 
-3. **Bootstrap artifacts bucket** (once per org / shared project; actual bucket name is `{base from tfvars}-{project_number}`; add `project_number` to `terraform.tfvars`):
+3. **Project-level Terraform** — APIs, Identity Platform, SAs, project IAM, Memorystore auth secret shell, Redis Cloud credentials secret shell. Init with prefix e.g. `env/dev/project`. See [`projects/README.md`](projects/README.md). **Apply before** the workload root. Copy outputs (`functions_sa_email`, `api_gateway_runtime_sa_email`, `eventarc_trigger_sa_email`, `memorystore_auth_secret_id`) into workload tfvars. Pass `${STATE_BUCKET}` from `admin/` outputs.
 
-   ```bash
-   cd infra/gcp/artifacts-bucket
-   cp terraform.tfvars.example terraform.tfvars
-   terraform init && terraform apply
-   ```
-
-4. **Project-level Terraform** — APIs, Identity Platform, SAs, project IAM, Memorystore auth secret shell, Redis Cloud credentials secret shell. Init with prefix e.g. `env/dev/project`. See [`projects/README.md`](projects/README.md). **Apply before** the workload root. Copy outputs (`functions_sa_email`, `api_gateway_runtime_sa_email`, `eventarc_trigger_sa_email`, `memorystore_auth_secret_id`) into workload tfvars.
-
-5. **Remote state for workload** — pass bucket + workload prefix at init (e.g. `env/dev/workload`):
+4. **Remote state for workload** — pass bucket + workload prefix at init (e.g. `env/dev/workload`):
 
    ```bash
    cd infra/gcp/workload
    terraform init \
-     -backend-config="bucket=YOUR_STATE_BUCKET" \
+     -backend-config="bucket=${STATE_BUCKET}" \
      -backend-config="prefix=env/dev/workload"
    ```
 
-6. **Redis Cloud (primary datastore)** — Before workload `terraform apply`, seed a Secret Manager **version** with credentials into the secret shell created by the project root. See [Manual one-time setup](#manual-one-time-setup) for `gcloud` commands. Set `redis_cloud_host` (and optional port/db) in your workload var file (see `workload/terraform.tfvars.example`).
+5. **Redis Cloud (primary datastore)** — Before workload `terraform apply`, seed a Secret Manager **version** with credentials into the secret shell created by the project root. See [Manual one-time setup](#manual-one-time-setup) for `gcloud` commands. Set `redis_cloud_host` (and optional port/db) in your workload var file (see `workload/terraform.tfvars.example`).
 
-7. **Function source archives** — Zip the placeholder sources under [`artifacts-bucket/placeholders/functions/`](artifacts-bucket/placeholders/functions/) and upload to `gs://{artifacts_bucket}/{app_env}/cloud-functions/` as `shorten.zip`, `redirect.zip`, `warm.zip` (object names must match [`workload/modules/backend/locals.tf`](workload/modules/backend/locals.tf)). Entry points: `shorten_url`, `redirect_url`, `warm_appconfig_cache` (see [`artifacts-bucket/placeholders/README.md`](artifacts-bucket/placeholders/README.md)). These are **wiring stubs** until ADR-017 step 7. Set `artifacts_bucket` in workload tfvars. Upload commands are in [Manual one-time setup](#manual-one-time-setup).
+6. **Function source archives** — Zip the placeholder sources under [`admin/placeholders/functions/`](admin/placeholders/functions/) and upload to `gs://{artifacts_bucket}/{app_env}/cloud-functions/` as `shorten.zip`, `redirect.zip`, `warm.zip` (object names must match [`workload/modules/backend/locals.tf`](workload/modules/backend/locals.tf)). Entry points: `shorten_url`, `redirect_url`, `warm_appconfig_cache` (see [`admin/placeholders/README.md`](admin/placeholders/README.md)). These are **wiring stubs** until ADR-017 step 7. Set `artifacts_bucket` in workload tfvars to the **artifacts_bucket_name** output from `admin/`. Upload commands are in [Manual one-time setup](#manual-one-time-setup).
 
-8. **OIDC / GitHub Actions (optional)** — [`oidc/`](oidc/) provisions Workload Identity Federation in **`admin_project_id`** and deploy/tests service accounts in each **`env_projects`** workload project. Copy [`oidc/terraform.tfvars.example`](oidc/terraform.tfvars.example), set admin + env project IDs and `admin_project_number`. Store state in the bucket from [`state-bucket/`](state-bucket/) using backend prefix **`oidc/`**. By default this stack enables IAM/WIF-related APIs on the admin project only; workload project API enablement is owned by **`infra/gcp/projects/`** unless you set `enable_env_project_apis = true` in OIDC.
+7. **OIDC / GitHub Actions (optional)** — [`oidc/`](oidc/) provisions Workload Identity Federation in **`admin_project_id`** and deploy/tests service accounts in each **`env_projects`** workload project. Copy [`oidc/terraform.tfvars.example`](oidc/terraform.tfvars.example), set admin + env project IDs and `admin_project_number`. Store state in the bucket created by **`admin/`** using backend prefix **`oidc/`**. By default this stack enables IAM/WIF-related APIs on the admin project only; workload project API enablement is owned by **`infra/gcp/projects/`** unless you set `enable_env_project_apis = true` in OIDC.
 
 ## Manual one-time setup
 
@@ -96,7 +93,7 @@ From the repo root (requires `zip` and `gsutil`; zips must match `shorten.zip` /
 export FUNCTION_SOURCE_BUCKET=your-artifacts-bucket
 export APP_ENV=dev
 
-cd infra/gcp/artifacts-bucket/placeholders/functions
+cd infra/gcp/admin/placeholders/functions
 for fn in shorten redirect warm; do
   ( cd "$fn" && zip -r "../${fn}.zip" . )
   gsutil cp "${fn}.zip" "gs://${FUNCTION_SOURCE_BUCKET}/${APP_ENV}/cloud-functions/${fn}.zip"
@@ -125,6 +122,15 @@ terraform plan -var-file=dev.terraform.tfvars
 ```
 
 Terraform automatically loads a file named `terraform.tfvars` if present. If you use `dev.terraform.tfvars`, avoid duplicating keys in `terraform.tfvars` or remove/rename `terraform.tfvars` so variables are not merged unexpectedly.
+
+**Admin bootstrap** ([`admin/`](admin/)):
+
+```bash
+terraform -chdir=infra/gcp/admin fmt
+terraform -chdir=infra/gcp/admin init -backend=false
+terraform -chdir=infra/gcp/admin validate
+terraform -chdir=infra/gcp/admin plan -var-file=terraform.tfvars
+```
 
 ## Known limitations
 

@@ -1,5 +1,5 @@
 locals {
-  # GCS layout: gs://{bucket}/{app_env}/cloud-functions/{name}.zip (see infra/gcp/artifacts-bucket/)
+  # GCS layout: gs://{bucket}/{app_env}/cloud-functions/{name}.zip (see infra/gcp/admin/placeholders/)
   fn_source_prefix          = "${var.app_env}/cloud-functions"
   fn_source_object_shorten  = "${local.fn_source_prefix}/shorten.zip"
   fn_source_object_redirect = "${local.fn_source_prefix}/redirect.zip"

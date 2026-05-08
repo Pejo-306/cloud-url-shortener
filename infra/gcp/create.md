@@ -1,35 +1,24 @@
-1- Create state bucket
+1- Admin stack (GCP admin project + Terraform state bucket + artifacts bucket)
+
+Creates `google_project`, enables `storage.googleapis.com` + `serviceusage.googleapis.com`, and both GCS buckets. Terraform state for this root stays **local** in `infra/gcp/admin/` (not in the state bucket).
 
 ```bash
-cd infra/gcp/state-bucket
+cd infra/gcp/admin
 
 cp terraform.tfvars.example terraform.tfvars
-# Fill project_id, project_number, bucket_name, region.
+# Fill admin_project_id, org_id, billing_account, optional bucket base names + region.
 
 terraform init
 terraform apply -var-file=terraform.tfvars
 
-export STATE_BUCKET="$(terraform output -raw bucket_name)"
-```
-
-2- Create artifacts bucket
-
-```bash
-cd ../artifacts-bucket
-
-cp terraform.tfvars.example terraform.tfvars
-# Fill project_id, project_number, bucket_name, region.
-
-terraform init
-terraform apply -var-file=terraform.tfvars
-
-export ARTIFACTS_BUCKET="$(terraform output -raw bucket_name)"
+export STATE_BUCKET="$(terraform output -raw state_bucket_name)"
+export ARTIFACTS_BUCKET="$(terraform output -raw artifacts_bucket_name)"
 ```
 
 Upload placeholder functions:
 
 ```bash
-cd ../artifacts-bucket/placeholders/functions
+cd infra/gcp/admin/placeholders/functions
 
 for fn in shorten redirect warm; do
   (cd "$fn" && zip -r "../${fn}.zip" .)
@@ -38,7 +27,7 @@ for fn in shorten redirect warm; do
 done
 ```
 
-3- Project-level stack (APIs, Identity Platform, IAM SAs, secret shells)
+2- Project-level stack (APIs, Identity Platform, IAM SAs, secret shells)
 
 Provision **before** the workload orchestrator. State prefix example: `env/${APP_ENV}/project`.
 
@@ -74,7 +63,7 @@ terraform apply -var-file=dev.terraform.tfvars
 
 Copy SA emails and `memorystore_auth_secret_id` from `terraform output` into the workload tfvars (next step). The project root also creates the Redis Cloud credentials secret shell; seed its value in step 5.
 
-4- Create OIDC stack
+3- Create OIDC stack
 
 ```bash
 cd ../oidc
@@ -119,7 +108,7 @@ terraform import \
   'projects/cloudshortener-admin/locations/global/workloadIdentityPools/github-oidc-provider/providers/github'
 ```
 
-5- Seed Redis Cloud secret value
+4- Seed Redis Cloud secret value
 
 ```bash
 export REDIS_USER="default"
@@ -136,7 +125,7 @@ printf '{"username":"%s","password":"%s"}' "$REDIS_USER" "$REDIS_PASS" \
       --data-file=-
 ```
 
-6- Workload stack (network, Memorystore, config, frontend, backend)
+5- Workload stack (network, Memorystore, config, frontend, backend)
 
 State prefix example: `env/${APP_ENV}/workload` (separate from `.../project`).
 
@@ -156,7 +145,7 @@ terraform apply -var-file=dev.terraform.tfvars
 
 **Note:** Terraform auto-loads any file named `terraform.tfvars` in this directory. If you use `dev.terraform.tfvars`, remove or rename a conflicting `terraform.tfvars` here so variables are not merged unexpectedly.
 
-7- Create bastion
+6- Create bastion
 
 ```bash
 # get subnet self link from workload (after apply)
@@ -189,7 +178,7 @@ terraform apply \
   -var="subnet_self_link=${SUBNET_SELF_LINK}"
 ```
 
-8- Verify by invoking cloud functions
+7- Verify by invoking cloud functions
 
 From repo root (or set `-chdir` accordingly). API URL comes from the **workload** state; web API key from the **projects** state.
 
@@ -229,7 +218,7 @@ curl -i -X GET "${API_BASE}/abc123"
 ```
 
 
-9- Verify connectivity to bastion:
+8- Verify connectivity to bastion:
 
 ```bash
 gcloud secrets versions access latest --project=cloudshortener-dev --secret=cloudshortener-dev-secret-memorystore-auth

@@ -89,24 +89,19 @@ terraform init -reconfigure \
 terraform destroy -var-file=terraform.tfvars
 ```
 
-6- Empty & Destroy artifacts bucket
+6- Empty both admin buckets, then destroy admin stack (local state)
+
+Only after every root that used **`${STATE_BUCKET}`** for remote state has been destroyed (`oidc/`, `projects/`, `workload/`, `bastion/` above). **Emptying the state bucket deletes all remote `*.tfstate` objects** for those stacks.
 
 ```bash
 gcloud storage rm --recursive --all-versions "gs://${ARTIFACTS_BUCKET}/**" || true
-
-cd infra/gcp/artifacts-bucket
-terraform init
-terraform destroy -var-file=terraform.tfvars
-```
-
-7- Empty & destroy state bucket
-
-```bash
 gcloud storage rm --recursive --all-versions "gs://${STATE_BUCKET}/**" || true
 
-cd infra/gcp/state-bucket
+cd infra/gcp/admin
 terraform init
 terraform destroy -var-file=terraform.tfvars
 ```
 
-8- Disable APIs / destroy projects manually
+Removing `google_project` (if still managed by this root) or deleting the admin project is a separate manual step in Cloud Console / `gcloud` if you need the org cleaned completely.
+
+7- Disable APIs / destroy projects manually
