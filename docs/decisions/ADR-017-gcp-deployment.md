@@ -20,7 +20,7 @@ We originally wanted to place each Terraform template right next to each AWS sta
 
 1. AWS & GCP are structurally different. Our AWS infrastructure doesn't map cleanly to GCP.
 2. If we wanted to support additional / adjacent infra specifically for one provider, it would be messier.
-3. Terraform would require independent roots per stack, i.e. many `terraform init`. Instead the `infra/gcp/` layout requires only one Terraform root for our application stack + one per adjacent infra stack. 
+3. Terraform would require independent roots per stack, i.e. many `terraform init`. Instead the `infra/gcp/workload/` layout requires only one Terraform root for our application stack + one per adjacent infra stack. 
 
 **Decision:**
 

@@ -41,7 +41,7 @@ terraform destroy -var-file=terraform.tfvars
 2- Destroy workload (network, Memorystore, config, frontend, backend)
 
 ```bash
-cd infra/gcp
+cd infra/gcp/workload
 
 terraform init -reconfigure \
   -backend-config="bucket=${STATE_BUCKET}" \
