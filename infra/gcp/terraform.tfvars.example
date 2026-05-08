@@ -1,4 +1,5 @@
 # Copy to terraform.tfvars and adjust.
+# Apply infra/gcp/projects/ first (project-level APIs, IAM, Identity Platform, secret shells).
 
 app_name  = "cloudshortener"
 app_env   = "dev"
@@ -7,19 +8,18 @@ project_id     = "your-gcp-project-id"
 project_number = "123456789012" # gcloud projects describe $PROJECT_ID --format='value(projectNumber)'
 log_level      = "INFO"
 
+# Values from `terraform output` in infra/gcp/projects/ (must match app_env / project).
+functions_sa_email           = "cf-functions-dev@your-gcp-project-id.iam.gserviceaccount.com"
+api_gateway_runtime_sa_email = "api-gateway-dev@your-gcp-project-id.iam.gserviceaccount.com"
+eventarc_trigger_sa_email    = "cf-eventarc-trigger-dev@your-gcp-project-id.iam.gserviceaccount.com"
+memorystore_auth_secret_id   = "cloudshortener-dev-secret-memorystore-auth"
+
 # Optional extra labels merged with defaults (app, env).
 # labels = { team = "platform" }
 
 # Optional subnet CIDR for the regional subnet (must not overlap the VPC connector range in the network stack).
 # subnet_cidr = "10.0.1.0/24"
 
-# Set true only if Terraform should create the project (needs org_id or folder_id + billing).
-create_project  = true 
-billing_account = "" # e.g. "012345-ABCDEF-678901"
-org_id          = "" # numeric org id
-folder_id       = ""
-
-memorystore_port           = 6379
 memorystore_memory_size_gb = 1
 
 # Redis Cloud (primary datastore) configuration

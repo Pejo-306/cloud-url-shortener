@@ -6,19 +6,6 @@ module "network" {
   app_env     = var.app_env
   region      = var.region
   subnet_cidr = var.subnet_cidr
-
-  depends_on = [google_project_service.apis]
-}
-
-module "identity_platform" {
-  source = "./stacks/identity-platform"
-
-  project_id                 = var.project_id
-  app_name                   = var.app_name
-  app_env                    = var.app_env
-  browser_api_key_generation = var.browser_api_key_generation
-
-  depends_on = [google_project_service.apis]
 }
 
 module "memorystore" {
@@ -32,8 +19,9 @@ module "memorystore" {
   memory_size_gb             = var.memorystore_memory_size_gb
   memorystore_engine_version = var.memorystore_engine_version
   labels                     = local.resource_labels
+  memorystore_auth_secret_id = var.memorystore_auth_secret_id
 
-  depends_on = [module.network, google_project_service.apis]
+  depends_on = [module.network]
 }
 
 module "config" {
@@ -49,8 +37,6 @@ module "config" {
   redis_cloud_db                 = var.redis_cloud_db
   redis_cloud_credentials_secret = var.redis_cloud_credentials_secret
   labels                         = local.resource_labels
-
-  depends_on = [google_project_service.apis]
 }
 
 module "frontend" {
@@ -63,8 +49,6 @@ module "frontend" {
   app_env         = var.app_env
   frontend_domain = var.frontend_domain
   labels          = local.resource_labels
-
-  depends_on = [google_project_service.apis]
 }
 
 module "backend" {
@@ -86,18 +70,19 @@ module "backend" {
   config_object_name           = module.config.config_object_name
   memorystore_primary_host     = module.memorystore.primary_endpoint_host
   memorystore_port             = module.memorystore.memorystore_port
-  memorystore_auth_secret_id   = module.memorystore.memorystore_auth_secret_id
-  identity_platform_project_id = module.identity_platform.project_id
-  jwt_issuer                   = module.identity_platform.jwt_issuer
-  jwt_jwks_uri                 = module.identity_platform.jwks_uri
+  memorystore_auth_secret_id   = var.memorystore_auth_secret_id
+  identity_platform_project_id = var.project_id
+  jwt_issuer                   = local.identity_platform_jwt_issuer
+  jwt_jwks_uri                 = local.identity_platform_jwt_jwks_uri
   artifacts_bucket             = var.artifacts_bucket
   labels                       = local.resource_labels
+  functions_sa_email           = var.functions_sa_email
+  api_gateway_runtime_sa_email = var.api_gateway_runtime_sa_email
+  eventarc_trigger_sa_email    = var.eventarc_trigger_sa_email
 
   depends_on = [
     module.network,
     module.memorystore,
     module.config,
-    module.identity_platform,
-    google_project_service.apis,
   ]
 }

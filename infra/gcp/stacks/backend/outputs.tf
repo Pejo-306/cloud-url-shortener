@@ -18,7 +18,3 @@ output "redirect_function_name" {
 output "warm_function_name" {
   value = google_cloudfunctions2_function.warm.name
 }
-
-output "functions_service_account_email" {
-  value = google_service_account.functions.email
-}

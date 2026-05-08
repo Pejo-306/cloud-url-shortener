@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars and adjust per environment (dev / staging / prod).
+
+app_name       = "cloudshortener"
+app_env        = "dev"
+region         = "europe-west1"
+project_id = "cloudshortener-dev"
+
+create_project  = false  # Set true only if Terraform should create the project
+                         # (needs billing_account and org_id or folder_id).
+project_number = "123456789012"  # Required when create_project is false.
+                                 # Omit or "" when create_project is true (number from google_project).
+billing_account = "" # e.g. "012345-ABCDEF-678901"
+org_id          = "" # numeric org id
+folder_id       = ""
+
+browser_api_key_generation = "v1"
+
+# Optional extra labels merged with defaults (app, env).
+# labels = { team = "platform" }

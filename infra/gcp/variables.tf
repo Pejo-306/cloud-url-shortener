@@ -44,12 +44,12 @@ variable "subnet_cidr" {
 
 variable "project_id" {
   type        = string
-  description = "GCP project ID to deploy into (must exist unless create_project is true)."
+  description = "GCP project ID that hosts the workload infrastructure."
 }
 
 variable "project_number" {
   type        = string
-  description = "Numeric GCP project number."
+  description = "Numeric GCP project number used by service-agent IAM bindings."
 
   validation {
     condition     = can(regex("^[0-9]+$", var.project_number))
@@ -57,40 +57,30 @@ variable "project_number" {
   }
 }
 
-variable "billing_account" {
+variable "functions_sa_email" {
   type        = string
-  description = "Billing account ID (012345-6789AB-CDEF01). Required when create_project is true."
-  default     = ""
+  description = "Service account email used by all Cloud Functions at runtime."
 }
 
-variable "org_id" {
+variable "api_gateway_runtime_sa_email" {
   type        = string
-  description = "Optional organization ID for google_project (numeric). Use org_id or folder_id when create_project is true."
-  default     = ""
+  description = "Service account email API Gateway uses to call the Cloud Functions backends."
 }
 
-variable "folder_id" {
+variable "eventarc_trigger_sa_email" {
   type        = string
-  description = "Optional folder ID for google_project when create_project is true."
-  default     = ""
+  description = "Service account email Eventarc uses to invoke the config warm function."
 }
 
-variable "create_project" {
-  type        = bool
-  description = "If true, create google_project (requires billing_account and org_id/folder_id)."
-  default     = false
+variable "memorystore_auth_secret_id" {
+  type        = string
+  description = "Secret Manager secret ID where the Memorystore auth value is written."
 }
 
 variable "log_level" {
   type        = string
   description = "LOG_LEVEL for Cloud Functions."
   default     = "INFO"
-}
-
-variable "memorystore_port" {
-  type        = number
-  description = "TCP port to open on the VPC firewall for Redis clients. Documentation-only since MemoryStore doesn't allow configuring the Redis port."
-  default     = 6379
 }
 
 variable "memorystore_memory_size_gb" {
@@ -139,12 +129,6 @@ variable "artifacts_bucket" {
   type        = string
   description = "GCS artifacts bucket containing Cloud Functions source zips under {app_env}/cloud-functions/."
   default     = ""
-}
-
-variable "browser_api_key_generation" {
-  type        = string
-  description = "Passed to identity-platform stack. Bump to rotate the browser API key name suffix after GCP soft-delete collisions."
-  default     = "v1"
 }
 
 variable "labels" {

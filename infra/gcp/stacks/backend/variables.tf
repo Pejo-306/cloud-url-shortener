@@ -51,6 +51,21 @@ variable "memorystore_auth_secret_id" {
   type = string
 }
 
+variable "functions_sa_email" {
+  type        = string
+  description = "Service account email used by all Cloud Functions at runtime."
+}
+
+variable "api_gateway_runtime_sa_email" {
+  type        = string
+  description = "Service account email API Gateway uses to call the Cloud Functions backends."
+}
+
+variable "eventarc_trigger_sa_email" {
+  type        = string
+  description = "Service account email Eventarc uses to invoke the config warm function."
+}
+
 variable "identity_platform_project_id" {
   type        = string
   description = "GCP project id used as Firebase/Identity Platform JWT audience."

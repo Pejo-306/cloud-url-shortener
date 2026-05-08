@@ -28,5 +28,5 @@ locals {
     redirect_backend_url = google_cloudfunctions2_function.redirect.service_config[0].uri
   })
 
-  api_config_id = "${var.app_env}-${substr(sha256("${local.openapi_yaml}|${google_service_account.api_gateway_runtime.email}"), 0, 8)}"
+  api_config_id = "${var.app_env}-${substr(sha256("${local.openapi_yaml}|${var.api_gateway_runtime_sa_email}"), 0, 8)}"
 }

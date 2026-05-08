@@ -23,6 +23,8 @@ resource "google_identity_platform_config" "default" {
       test_phone_numbers = {}
     }
   }
+
+  depends_on = [google_project_service.apis]
 }
 
 resource "random_id" "browser_api_key_suffix" {
@@ -48,4 +50,6 @@ resource "google_apikeys_key" "browser" {
       service = "identitytoolkit.googleapis.com"
     }
   }
+
+  depends_on = [google_project_service.apis]
 }

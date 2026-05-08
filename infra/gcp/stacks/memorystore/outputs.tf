@@ -18,11 +18,12 @@ output "reader_endpoint" {
 }
 
 output "memorystore_auth_secret_id" {
-  description = "Secret Manager secret id for Memorystore AUTH (short id)."
-  value       = google_secret_manager_secret.memorystore_auth.secret_id
+  description = "Secret Manager secret ID that stores the Memorystore auth value."
+  value       = var.memorystore_auth_secret_id
 }
 
 output "auth_secret_resource_name" {
-  value     = google_secret_manager_secret.memorystore_auth.id
-  sensitive = true
+  description = "Full Secret Manager resource name for the Memorystore auth secret."
+  value       = "projects/${var.project_id}/secrets/${var.memorystore_auth_secret_id}"
+  sensitive   = true
 }
