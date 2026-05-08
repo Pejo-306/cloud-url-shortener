@@ -12,8 +12,8 @@ terraform.rc
 *.tfvars
 !terraform.tfvars.example
 
-# Built from artifacts-bucket/placeholders/functions/ when packaging Cloud Function zips locally
-artifacts-bucket/placeholders/**/*.zip
+# Built from admin/placeholders/functions/ when packaging Cloud Function zips locally
+admin/placeholders/**/*.zip
 
 # GCP creds
 gcp_creds.json

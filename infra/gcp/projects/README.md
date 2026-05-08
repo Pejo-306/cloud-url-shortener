@@ -1,6 +1,6 @@
 # GCP Project Root
 
-Reusable Terraform root for one CloudShortener environment project (`dev`, `staging`, `prod`). Use a separate tfvars file and a separate backend prefix per environment.
+Reusable Terraform root for one CloudShortener environment project (`dev`, `staging`, `prod`). Use a separate tfvars file and a separate backend prefix per environment. The shared GCS state bucket is created by [`../admin/`](../admin/); set `STATE_BUCKET` from `terraform output -raw state_bucket_name` there before `init` here.
 
 Manages long-lived project prerequisites: service APIs, Identity Platform, browser API key, custom service accounts, project-level IAM, and Secret Manager secret shells. Operators still seed secret values separately.
 

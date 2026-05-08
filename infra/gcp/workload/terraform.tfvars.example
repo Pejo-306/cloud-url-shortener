@@ -34,7 +34,7 @@ redis_cloud_db                   = 0
 # Leave empty for HTTP-only dev frontend; set FQDN for managed certificate + HTTPS.
 frontend_domain = ""
 
-# Created by `infra/gcp/artifacts-bucket/` bootstrap module.
+# Created by `infra/gcp/admin/`
 # The actual name is `{bucket_name base}-{GCP project number}` of the admin/bootstrap project.
 # Artifacts are stored under {app_env}/cloud-functions/{artifact}.zip.
 artifacts_bucket = "cloudshortener-artifacts-123456789012"

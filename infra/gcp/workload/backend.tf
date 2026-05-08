@@ -1,5 +1,5 @@
 # Remote state: shared bucket, per-environment prefix.
-# Bootstrap the bucket first: terraform -chdir=state-bucket init && apply
+# Bootstrap first: terraform -chdir=../admin init && apply
 # Then: terraform init -backend-config="bucket=YOUR_BUCKET" -backend-config="prefix=env/dev/workload"
 terraform {
   backend "gcs" {

@@ -1,4 +1,0 @@
-project_id     = "your-bootstrap-project-id"
-project_number = "123456789012"  # admin project
-bucket_name    = "cloudshortener-artifacts" # final name: cloudshortener-artifacts-<project_number>
-region         = "europe-west1"

@@ -1,0 +1,7 @@
+admin_project_id = "cloudshortener-admin"
+org_id           = "691012376179"
+billing_account  = "01C849-3E085C-149826"
+
+state_bucket_name     = "cloudshortener-tf-state"
+artifacts_bucket_name = "cloudshortener-artifacts"
+region                = "europe-west1"
