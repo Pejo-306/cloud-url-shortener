@@ -141,7 +141,7 @@ printf '{"username":"%s","password":"%s"}' "$REDIS_USER" "$REDIS_PASS" \
 State prefix example: `env/${APP_ENV}/workload` (separate from `.../project`).
 
 ```bash
-cd infra/gcp
+cd infra/gcp/workload
 
 cp terraform.tfvars.example dev.terraform.tfvars
 # Fill project_id, project_number, redis_cloud_*, artifacts_bucket,
@@ -159,7 +159,7 @@ terraform apply -var-file=dev.terraform.tfvars
 7- Create bastion
 
 ```bash
-# get subnet self link from infra/gcp/
+# get subnet self link from workload (after apply)
 export APP_NAME="cloudshortener"
 export APP_ENV="dev"
 export REGION="europe-west1"
@@ -174,7 +174,7 @@ gcloud compute networks subnets describe "${APP_NAME}-${APP_ENV}-subnet" \
 
 ```bash
 # apply bastion stack
-cd bastion
+cd infra/gcp/bastion
 
 cp terraform.tfvars.example terraform.tfvars
 # Fill project_id, app_name, app_env, region.
@@ -194,7 +194,7 @@ terraform apply \
 From repo root (or set `-chdir` accordingly). API URL comes from the **workload** state; web API key from the **projects** state.
 
 ```bash
-export API_BASE="$(terraform -chdir=infra/gcp output -raw api_url)"
+export API_BASE="$(terraform -chdir=infra/gcp/workload output -raw api_url)"
 export WEB_API_KEY="$(
   terraform -chdir=infra/gcp/projects output -raw identity_web_api_key
 )"
@@ -224,11 +224,8 @@ curl -i \
     \"targetUrl\": \"${TARGET_URL}\"
   }"
 
-export SHORTCODE="..."
-
 # invoke GET /{shortcode}
-curl -i \
-  -X GET "${API_BASE}/${SHORTCODE}"
+curl -i -X GET "${API_BASE}/abc123"
 ```
 
 

@@ -1,5 +1,5 @@
 module "network" {
-  source = "./stacks/network"
+  source = "./modules/network"
 
   project_id  = var.project_id
   app_name    = var.app_name
@@ -9,7 +9,7 @@ module "network" {
 }
 
 module "memorystore" {
-  source = "./stacks/memorystore"
+  source = "./modules/memorystore"
 
   project_id                 = var.project_id
   app_name                   = var.app_name
@@ -25,7 +25,7 @@ module "memorystore" {
 }
 
 module "config" {
-  source = "./stacks/config"
+  source = "./modules/config"
 
   project_id                     = var.project_id
   project_number                 = var.project_number
@@ -40,7 +40,7 @@ module "config" {
 }
 
 module "frontend" {
-  source = "./stacks/frontend"
+  source = "./modules/frontend"
 
   project_id      = var.project_id
   project_number  = var.project_number
@@ -52,7 +52,7 @@ module "frontend" {
 }
 
 module "backend" {
-  source = "./stacks/backend"
+  source = "./modules/backend"
 
   providers = {
     google      = google
