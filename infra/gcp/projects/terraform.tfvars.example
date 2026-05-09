@@ -3,7 +3,7 @@
 app_name       = "cloudshortener"
 app_env        = "dev"
 region         = "europe-west1"
-project_id = "cloudshortener-dev"
+project_id     = "cloudshortener-dev"
 
 create_project  = false  # Set true only if Terraform should create the project
                          # (needs billing_account and org_id or folder_id).
