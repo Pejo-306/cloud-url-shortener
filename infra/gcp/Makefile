@@ -120,6 +120,7 @@ build: _require_deployed_project
 
 deploy-project: _deploy_requirements
 	@$(MAKE) _generate_projects_tfvars
+	$(MAKE) _import_project_if_exists
 	$(MAKE) _create_project
 	$(MAKE) _enable_bootstrap_apis
 	$(MAKE) _poll_cloud_billing
@@ -127,6 +128,7 @@ deploy-project: _deploy_requirements
 
 	$(MAKE) _import_identity_platform_if_exists
 	$(MAKE) _deploy_project_resources
+	$(MAKE) _configure_identity_platform_password_policy
 	$(MAKE) _seed_redis_cloud_secret
 	$(MAKE) _poll_iam_bindings
 
@@ -201,6 +203,10 @@ _create_project:
 		TF_USE_PLAN_FILE= \
 		TF_EXTRA_ARGS='$(APPLY_EXTRA_ARGS) -target="google_project.this[0]"'
 
+.PHONY: _import_project_if_exists
+_import_project_if_exists:
+	./scripts/import-project-if-exists.sh projects ../$(PROJECTS_VAR_FILE) $(PROJECT_ID)
+
 .PHONY: _enable_service_apis
 _enable_service_apis:
 	$(MAKE) -C projects deploy \
@@ -272,6 +278,10 @@ _enable_bootstrap_apis:
 .PHONY: _poll_cloud_billing
 _poll_cloud_billing:
 	./scripts/poll-cloud-billing.sh $(PROJECT_ID)
+
+.PHONY: _configure_identity_platform_password_policy
+_configure_identity_platform_password_policy:
+	./scripts/configure-identity-platform-password-policy.sh $(PROJECT_ID)
 
 .PHONY: _seed_redis_cloud_secret
 _seed_redis_cloud_secret:

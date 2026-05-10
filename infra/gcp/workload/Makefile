@@ -54,7 +54,7 @@ build: _check_var_file
 
 deploy: _check_var_file
 ifeq ($(TF_USE_PLAN_FILE),true)
-	terraform apply $(TF_PLAN_FILE) $(TF_EXTRA_ARGS)
+	terraform apply $(TF_PLAN_FILE)
 else
 	terraform apply -var-file=$(TF_VAR_FILE) $(TF_EXTRA_ARGS)
 endif
