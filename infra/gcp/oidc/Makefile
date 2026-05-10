@@ -16,7 +16,7 @@ help:
 	@echo "GitHub OIDC root for CloudShortener GCP deploy identity."
 	@echo ""
 	@echo "Provisions shared Workload Identity Federation pool/provider in admin project"
-	@echo "and environment-scoped ervice accounts for GitHub Actions access."
+	@echo "and environment-scoped service accounts for GitHub Actions access."
 	@echo ""
 	@echo "\033[1mTargets:\033[0m"
 	@echo "  make help                                 - Show this message"

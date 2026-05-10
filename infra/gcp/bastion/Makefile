@@ -1,6 +1,6 @@
-ENV              ?= dev
-TF_VAR_FILE      ?= $(ENV).terraform.tfvars
-TF_PLAN_FILE     ?= $(ENV).tfplan
+APP_ENV          ?= dev
+TF_VAR_FILE      ?= $(APP_ENV).terraform.tfvars
+TF_PLAN_FILE     ?= $(APP_ENV).tfplan
 TF_USE_PLAN_FILE ?=
 TF_EXTRA_ARGS    ?=
 
@@ -16,8 +16,8 @@ RESET       := \033[0m
 help:
 	@echo "CloudShortener bastion infrastructure for one GCP environment."
 	@echo ""
-	@echo "Deploys the SSH jump host used to reach private resources. Defaults to ENV=dev"
-	@echo "and reads $(ENV).terraform.tfvars unless TF_VAR_FILE is overridden."
+	@echo "Deploys the SSH jump host used to reach private resources. Defaults to APP_ENV=dev"
+	@echo "and reads $(APP_ENV).terraform.tfvars unless TF_VAR_FILE is overridden."
 	@echo ""
 	@echo "\033[1mTargets:\033[0m"
 	@echo "  make help                                 - Show this message"
@@ -29,10 +29,10 @@ help:
 	@echo "  make validate                             - Check formatting and validate Terraform configuration"
 	@echo "  make format                               - Format Terraform files"
 	@echo ""
-	@echo "\033[1mConfigurable variables:\033[0m (override via: make deploy ENV=staging)"
-	@echo "  ENV                                       - Environment to operate on (default: dev)"
-	@echo "  TF_VAR_FILE                               - Variables file to load (default: $(ENV).terraform.tfvars)"
-	@echo "  TF_PLAN_FILE                              - Saved plan file path (default: $(ENV).tfplan)"
+	@echo "\033[1mConfigurable variables:\033[0m (override via: make deploy APP_ENV=staging)"
+	@echo "  APP_ENV                                   - Environment to operate on (default: dev)"
+	@echo "  TF_VAR_FILE                               - Variables file to load (default: $(APP_ENV).terraform.tfvars)"
+	@echo "  TF_PLAN_FILE                              - Saved plan file path (default: $(APP_ENV).tfplan)"
 	@echo "  TF_USE_PLAN_FILE                          - Set to \"true\" to apply the saved plan"
 	@echo "  TF_EXTRA_ARGS                             - Extra flags appended to every Terraform command"
 	@echo ""

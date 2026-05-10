@@ -18,5 +18,11 @@ terraform.rc
 # Built from admin/placeholders/functions/ when packaging Cloud Function zips locally
 admin/placeholders/**/*.zip
 
+# Orchestrator Makefile build output (Cloud Function ZIPs prior to GCS upload)
+.artifacts/
+
+# Orchestrator-generated Terraform variables
+.make/
+
 # GCP creds
 gcp_creds.json
