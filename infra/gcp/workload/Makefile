@@ -1,6 +1,6 @@
-ENV              ?= dev
-TF_VAR_FILE      ?= $(ENV).terraform.tfvars
-TF_PLAN_FILE     ?= $(ENV).tfplan
+APP_ENV          ?= dev
+TF_VAR_FILE      ?= $(APP_ENV).terraform.tfvars
+TF_PLAN_FILE     ?= $(APP_ENV).tfplan
 TF_USE_PLAN_FILE ?=
 TF_EXTRA_ARGS    ?=
 
@@ -16,7 +16,7 @@ RESET       := \033[0m
 help:
 	@echo "CloudShortener workload infrastructure for one GCP environment."
 	@echo ""
-	@echo "Deploys the runtime pieces for ENV=dev by default: networking, Memorystore,"
+	@echo "Deploys the runtime pieces for APP_ENV=dev by default: networking, Memorystore,"
 	@echo "backend services, frontend hosting, and runtime configuration."
 	@echo ""
 	@echo "\033[1mTargets:\033[0m"
@@ -29,10 +29,10 @@ help:
 	@echo "  make validate                             - Check formatting and validate Terraform configuration"
 	@echo "  make format                               - Format Terraform files"
 	@echo ""
-	@echo "\033[1mConfigurable variables:\033[0m (override via: make deploy ENV=staging)"
-	@echo "  ENV                                       - Environment to operate on (default: dev)"
-	@echo "  TF_VAR_FILE                               - Variables file to load (default: $(ENV).terraform.tfvars)"
-	@echo "  TF_PLAN_FILE                              - Saved plan file path (default: $(ENV).tfplan)"
+	@echo "\033[1mConfigurable variables:\033[0m (override via: make deploy APP_ENV=staging)"
+	@echo "  APP_ENV                                   - Environment to operate on (default: dev)"
+	@echo "  TF_VAR_FILE                               - Variables file to load (default: $(APP_ENV).terraform.tfvars)"
+	@echo "  TF_PLAN_FILE                              - Saved plan file path (default: $(APP_ENV).tfplan)"
 	@echo "  TF_USE_PLAN_FILE                          - Set to \"true\" to apply the saved plan"
 	@echo "  TF_EXTRA_ARGS                             - Extra flags appended to every Terraform command"
 	@echo ""

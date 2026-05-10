@@ -52,6 +52,16 @@ resource "google_project_iam_member" "default_compute_sa_builder" {
   depends_on = [google_project_service.apis]
 }
 
+# Eventarc creates its Google-managed service agent lazily. This resource
+# provisions it before Terraform grants it the serviceAgent role.
+resource "google_project_service_identity" "eventarc" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "eventarc.googleapis.com"
+
+  depends_on = [google_project_service.apis]
+}
+
 # Ensure Eventarc's Google-managed service account has roles/eventarc.serviceAgent on this
 # project before creating triggers. Otherwise the first apply can race API enable vs. IAM
 # propagation and fail with "Permission denied while using the Eventarc Service Agent".
@@ -59,7 +69,15 @@ resource "google_project_iam_member" "default_compute_sa_builder" {
 resource "google_project_iam_member" "eventarc_service_agent" {
   project = var.project_id
   role    = "roles/eventarc.serviceAgent"
-  member  = "serviceAccount:${local.eventarc_agent_email}"
+  member  = google_project_service_identity.eventarc.member
+
+  depends_on = [google_project_service.apis]
+}
+
+# Cloud Storage creates this Google-managed service agent lazily. Reading this
+# data source provisions it before Terraform grants it Pub/Sub publish rights.
+data "google_storage_project_service_account" "gcs" {
+  project = var.project_id
 
   depends_on = [google_project_service.apis]
 }
@@ -70,7 +88,7 @@ resource "google_project_iam_member" "eventarc_service_agent" {
 resource "google_project_iam_member" "gcs_pubsub_publisher" {
   project = var.project_id
   role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${local.gcs_agent_email}"
+  member  = "serviceAccount:${data.google_storage_project_service_account.gcs.email_address}"
 
   depends_on = [google_project_service.apis]
 }

@@ -78,6 +78,17 @@ variable "create_project" {
   default     = false
 }
 
+variable "deletion_policy" {
+  type        = string
+  description = "How Terraform handles google_project on destroy: PREVENT, ABANDON, or DELETE."
+  default     = "PREVENT"
+
+  validation {
+    condition     = contains(["PREVENT", "ABANDON", "DELETE"], var.deletion_policy)
+    error_message = "deletion_policy must be one of: PREVENT, ABANDON, DELETE."
+  }
+}
+
 variable "browser_api_key_generation" {
   type        = string
   description = "Bump to rotate the browser API key name suffix after GCP soft-delete collisions."

@@ -1,6 +1,6 @@
-ENV              ?= dev
-TF_VAR_FILE      ?= $(ENV).terraform.tfvars
-TF_PLAN_FILE     ?= $(ENV).tfplan
+APP_ENV          ?= dev
+TF_VAR_FILE      ?= $(APP_ENV).terraform.tfvars
+TF_PLAN_FILE     ?= $(APP_ENV).tfplan
 TF_USE_PLAN_FILE ?=
 TF_EXTRA_ARGS    ?=
 
@@ -17,7 +17,7 @@ help:
 	@echo "Environment project root for CloudShortener GCP prerequisites."
 	@echo ""
 	@echo "Provisions service APIs, Identity Platform, IAM, browser API key, and secret"
-	@echo "shells for one environment. Defaults to ENV=dev."
+	@echo "shells for one environment. Defaults to APP_ENV=dev."
 	@echo ""
 	@echo "\033[1mTargets:\033[0m"
 	@echo "  make help                                 - Show this message"
@@ -29,10 +29,10 @@ help:
 	@echo "  make validate                             - Check formatting and validate configuration"
 	@echo "  make format                               - Auto-format Terraform files"
 	@echo ""
-	@echo "\033[1mConfigurable variables:\033[0m (override via: make deploy ENV=staging)"
-	@echo "  ENV                                       - Environment name (default: dev)"
-	@echo "  TF_VAR_FILE                               - Terraform variables file (default: $(ENV).terraform.tfvars)"
-	@echo "  TF_PLAN_FILE                              - Plan file path for build/deploy (default: $(ENV).tfplan)"
+	@echo "\033[1mConfigurable variables:\033[0m (override via: make deploy APP_ENV=staging)"
+	@echo "  APP_ENV                                   - Environment name (default: dev)"
+	@echo "  TF_VAR_FILE                               - Terraform variables file (default: $(APP_ENV).terraform.tfvars)"
+	@echo "  TF_PLAN_FILE                              - Plan file path for build/deploy (default: $(APP_ENV).tfplan)"
 	@echo "  TF_USE_PLAN_FILE                          - Must be \"true\" to deploy using the saved plan file"
 	@echo "  TF_EXTRA_ARGS                             - Appended to every terraform command"
 	@echo ""

@@ -6,6 +6,7 @@ resource "google_project" "this" {
   org_id          = var.org_id != "" ? var.org_id : null
   folder_id       = var.folder_id != "" ? var.folder_id : null
   billing_account = var.billing_account
+  deletion_policy = var.deletion_policy
 }
 
 # We can't split this list of APIs into per-stack groups because Terraform doesn't

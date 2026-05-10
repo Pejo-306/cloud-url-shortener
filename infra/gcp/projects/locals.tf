@@ -9,6 +9,7 @@ locals {
     "apikeys.googleapis.com",
     "apigateway.googleapis.com",
     "artifactregistry.googleapis.com",
+    "cloudbilling.googleapis.com",
     "cloudbuild.googleapis.com",
     "cloudfunctions.googleapis.com",
     "cloudresourcemanager.googleapis.com",
@@ -32,7 +33,5 @@ locals {
 
   effective_project_number = length(google_project.this) > 0 ? tostring(google_project.this[0].number) : var.project_number
 
-  eventarc_agent_email  = "service-${local.effective_project_number}@gcp-sa-eventarc.iam.gserviceaccount.com"
-  gcs_agent_email       = "service-${local.effective_project_number}@gs-project-accounts.iam.gserviceaccount.com"
   default_compute_email = "${local.effective_project_number}-compute@developer.gserviceaccount.com"
 }
