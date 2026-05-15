@@ -3,11 +3,11 @@ TF_PLAN_FILE     ?= tfplan
 TF_USE_PLAN_FILE ?=
 TF_EXTRA_ARGS    ?=
 
-YELLOW := \033[33m
-RED    := \033[31m
+YELLOW      := \033[33m
+RED         := \033[31m
 BOLD_YELLOW := \033[1;33m
 BOLD_RED    := \033[1;31m
-RESET  := \033[0m
+RESET       := \033[0m
 
 .PHONY: help init build deploy destroy output validate format
 .PHONY: _check_var_file

@@ -1,187 +1,219 @@
 # GCP infrastructure (Terraform)
 
-All first-class GCP infrastructure for CloudShortener lives under `infra/gcp/`. AWS/SAM templates remain under `infra/stacks/`.
+Contains Terraform templates to provision and bootstrap GCP infrastructure + deploy
+`cloudshortener` application on it end-to-end.
 
-## Layout
+## Components
 
-| Path | Purpose |
-|------|---------|
-| [`workload/main.tf`](workload/main.tf) | **Workload** root: wires stack modules (network, Memorystore, config, frontend, backend). Project creation, API enablement, Identity Platform, shared SAs, and long-lived **secret shells** live in [`projects/`](projects/README.md). |
-| [`projects/`](projects/README.md) | **Project** root (per env): GCP APIs, Identity Platform + browser API key, custom service accounts, project-level IAM, Memorystore auth secret shell, Redis Cloud credentials secret shell. Apply before the workload root; state prefix e.g. `env/<env>/project`. |
-| [`workload/modules/network/`](workload/modules/network/) | VPC, subnet, Cloud NAT, firewall rules, Serverless VPC Access connector. |
-| [`workload/modules/memorystore/`](workload/modules/memorystore/) | Memorystore for Redis (Standard HA): **cache** for config warming (ElastiCache equivalent), not the primary datastore. Writes the auth **secret version** into a shell created by `projects/`. |
-| [`workload/modules/config/`](workload/modules/config/) | Versioned GCS bucket + `backend-config.json` (AppConfig equivalent): **Redis Cloud** datastore connection (host/port/db + credentials from Secret Manager at apply time). |
-| [`workload/modules/frontend/`](workload/modules/frontend/) | Frontend GCS bucket + external HTTPS (or HTTP) load balancer + Cloud CDN. |
-| [`workload/modules/backend/`](workload/modules/backend/) | Cloud Functions (gen 2), API Gateway (OpenAPI), Eventarc trigger for config warm function. |
-| [`admin/`](admin/) | **Bootstrap only** (local Terraform state): creates the **admin** GCP project, enables `storage.googleapis.com` + `serviceusage.googleapis.com`, and two GCS buckets (shared remote state + Cloud Function / artifact zips). Includes [`admin/placeholders/`](admin/placeholders/) — minimal function sources to zip and upload until ADR-017 step 7. Apply before any root using `backend "gcs"`. |
-| [`bastion/`](bastion/) | Optional standalone stack: private Compute Engine bastion (IAP SSH tag `bastion`). |
-| [`oidc/`](oidc/) | Optional standalone stack: **central** GitHub Workload Identity pool/provider in an **admin** project; per-environment `gh-deploy-*` / `gh-tests-*` service accounts and project IAM in each entry of `env_projects`. Use remote state on the shared bucket with prefix `oidc/`. |
+```mermaid
+flowchart LR
+  users(("End users<br/>Browser traffic"))
+  ci{{"GitHub Actions<br/>Automated delivery"}}
+  operators(("Operators<br/>Private debugging"))
+  redis_cloud[("Redis Cloud<br/>Primary datastore")]
 
-Directories under [`workload/modules/`](workload/modules/) are **Terraform modules** consumed by the workload root. Each of **workload** (`infra/gcp/workload/`) and **project** (`infra/gcp/projects/`) defines its own `backend` block; use a **different GCS state prefix** per root (e.g. `env/dev/workload` vs `env/dev/project`).
+  subgraph admin["Admin GCP project"]
+    direction LR
+    ci_identity["CI identity<br/>OIDC federation"]
+    artifacts["Artifact storage<br/>Function packages"]
+    state["State storage<br/>Terraform backend"]
+  end
 
-## Project number convention
+  subgraph env["Environment workload GCP project"]
+    direction LR
+    frontend["Frontend delivery<br/>CDN assets"]
+    auth["User auth<br/>Identity Platform"]
+    api["API edge<br/>Gateway routing"]
+    functions["Serverless backend<br/>Business logic"]
+    config["Runtime config<br/>Backend settings"]
+    secrets["Secret storage<br/>Managed credentials"]
+    cache["Redis cache<br/>Hot configuration"]
+    network["Private network<br/>VPC connectivity"]
+    bastion["Bastion access<br/>Debug tunnel"]
+  end
 
-[`admin/`](admin/) does **not** take `project_number` as input: bucket names use `google_project.this.number` after the project is created.
+  users --> frontend
+  frontend --> auth
+  frontend --> api
+  api --> functions
+  functions --> config
+  functions --> cache
+  functions --> redis_cloud
 
-For [`projects/`](projects/), [`workload/`](workload/), [`bastion/`](bastion/), and [`oidc/`](oidc/) (workload projects + `admin_project_number`), pass **`project_number`** explicitly where required. **Do not** read it from `data "google_project"` in those stacks: when `data.google_project.current.number` is evaluated as `(known after apply)` at plan time, IAM `member` strings derived from it become unknown too, and Terraform may schedule no-op replacements for `ForceNew` attributes.
+  config --> secrets
+  config --> redis_cloud
+  cache --> network
+  bastion --> network
+  bastion --> cache
 
-Set it explicitly (numeric string):
-
-```bash
-gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)'
+  ci --> ci_identity
+  ci_identity --> state
+  ci_identity --> artifacts
+  artifacts --> functions
+  operators --> bastion
 ```
 
-Use that value in **both** your [`projects/`](projects/) var file (see [`projects/terraform.tfvars.example`](projects/terraform.tfvars.example)) and your workload var file (see [`workload/terraform.tfvars.example`](workload/terraform.tfvars.example)). For OIDC, set `admin_project_number` the same way for the admin project.
+## Terraform layout
 
-## Prerequisites
+There are multiple separate Terraform roots, most of which (except `workload`) provision supporting infrastructure. These roots must be deployed in a very particular order with Make targets to orchestrate full E2E deployment. The roots are:
 
-1. **Workload GCP project** — project ID for [`projects/`](projects/) and [`workload/`](workload/); optional creation via `create_project` + org/billing.
-2. **`admin/` bootstrap stack** — creates the shared **admin** GCP project (`google_project`), enables `storage.googleapis.com` and `serviceusage.googleapis.com`, and two GCS buckets (Terraform remote state + function source zips). Terraform state for this root is **local** under `admin/`. Copy [`admin/terraform.tfvars.example`](admin/terraform.tfvars.example), then run `terraform init && terraform apply`.
+| Terraform root | Path | Purpose |
+|---|---|---|
+| `admin` | [`admin/`](./admin/) | Provisions long-lived admin project + Terraform state bucket + bucket for artifacts. Needed only one time before provisioning any other root. State is stored locally under this directory. |
+| `projects` | [`projects/`](./projects/) | Provisions environment-scoped GCP project, enables needed APIs for workload, creates secrets containers, provisions Identity Platform, and creates project-scoped IAM bindings. Split from workload infrastructure to avoid race conditions and allow managing workload infrastructure separately. |
+| `workload` | [`workload/`](./workload/) | Provisions environment-scoped workload infrastructure + creates service-scoped IAM bindings. |
+| `bastion` | [`bastion/`](./bastion/) | Provisions a separate VM inside the workload's VPC. Mainly used in integration tests to connect to MemoryStore. |
+| `oidc` | [`oidc/`](./oidc/) | Provisions infrastructure used by GitHub Actions in our CI/CD to deploy changes. |
 
-   ```bash
-   cd infra/gcp/admin
-   cp terraform.tfvars.example terraform.tfvars
-   # admin_project_id, org_id, billing_account, optional bucket base names + region.
-   terraform init && terraform apply
+## Workload infrastructure
 
-   export STATE_BUCKET="$(terraform output -raw state_bucket_name)"
-   export ARTIFACTS_BUCKET="$(terraform output -raw artifacts_bucket_name)"
-   ```
+The `workload` Terraform root itself is split by modules for each big infrastructure component. These modules are **NOT** guaranteed to be modularly deployable. We only guarantee that the full workload stack can be deployed/destroyed as a whole. The modules are:
 
-3. **Project-level Terraform** — APIs, Identity Platform, SAs, project IAM, Memorystore auth secret shell, Redis Cloud credentials secret shell. Init with prefix e.g. `env/dev/project`. See [`projects/README.md`](projects/README.md). **Apply before** the workload root. Copy outputs (`functions_sa_email`, `api_gateway_runtime_sa_email`, `eventarc_trigger_sa_email`, `memorystore_auth_secret_id`) into workload tfvars. Pass `${STATE_BUCKET}` from `admin/` outputs.
+| Terraform module | Path | Purpose |
+|---|---|---|
+| `network` | [`workload/modules/network/`](./workload/modules/network/) | VPC and intranet networking where all workload components live and work together. |
+| `memorystore` | [`workload/modules/memorystore/`](./workload/modules/memorystore/) | GCP-managed Redis cache, used to store active configuration and HOT values. |
+| `backend` | [`workload/modules/backend/`](./workload/modules/backend/) | Cloud Functions with business logic and API Gateway to expose them to the Internet. |
+| `config` | [`workload/modules/config/`](./workload/modules/config/) | GCS bucket storing the active application configuration. |
+| `frontend` | [`workload/modules/frontend/`](./workload/modules/frontend/) | GCS bucket with compiled frontend and CDN to serve UI application. |
 
-4. **Remote state for workload** — pass bucket + workload prefix at init (e.g. `env/dev/workload`):
+[`main.tf`](./workload/main.tf) wires together all modules.
 
-   ```bash
-   cd infra/gcp/workload
-   terraform init \
-     -backend-config="bucket=${STATE_BUCKET}" \
-     -backend-config="prefix=env/dev/workload"
-   ```
+## Deployment
 
-5. **Redis Cloud (primary datastore)** — Before workload `terraform apply`, seed a Secret Manager **version** with credentials into the secret shell created by the project root. See [Manual one-time setup](#manual-one-time-setup) for `gcloud` commands. Set `redis_cloud_host` (and optional port/db) in your workload var file (see `workload/terraform.tfvars.example`).
+### Prerequisites
 
-6. **Function source archives** — Zip the placeholder sources under [`admin/placeholders/functions/`](admin/placeholders/functions/) and upload to `gs://{artifacts_bucket}/{app_env}/cloud-functions/` as `shorten.zip`, `redirect.zip`, `warm.zip` (object names must match [`workload/modules/backend/locals.tf`](workload/modules/backend/locals.tf)). Entry points: `shorten_url`, `redirect_url`, `warm_appconfig_cache` (see [`admin/placeholders/README.md`](admin/placeholders/README.md)). These are **wiring stubs** until ADR-017 step 7. Set `artifacts_bucket` in workload tfvars to the **artifacts_bucket_name** output from `admin/`. Upload commands are in [Manual one-time setup](#manual-one-time-setup).
+- [Terraform](https://developer.hashicorp.com/terraform)
+- [Google Cloud CLI](https://cloud.google.com/sdk/docs/install) authenticated with `gcloud auth login` and `gcloud auth application-default login`
+- `make`, `bash`, `curl`, and `zip`
+- [GCP](https://cloud.google.com/?hl=en) organization or folder where the deployer can create projects and attach billing
+- [Redis Cloud](https://redis.io/) database for the primary datastore
+- `roles/identitytoolkit.admin` on the workload project for the local deployer, required by the Identity Platform password policy setup step
 
-7. **OIDC / GitHub Actions (optional)** — [`oidc/`](oidc/) provisions Workload Identity Federation in **`admin_project_id`** and deploy/tests service accounts in each **`env_projects`** workload project. Copy [`oidc/terraform.tfvars.example`](oidc/terraform.tfvars.example), set admin + env project IDs and `admin_project_number`. Store state in the bucket created by **`admin/`** using backend prefix **`oidc/`**. By default this stack enables IAM/WIF-related APIs on the admin project only; workload project API enablement is owned by **`infra/gcp/projects/`** unless you set `enable_env_project_apis = true` in OIDC.
+### Deploy administrative stack
 
-## Manual one-time setup
-
-Run these only when you choose to (they use `gcloud` / `gsutil` and affect cloud resources). They are **not** required for local `terraform validate`.
-
-### Redis Cloud credentials in Secret Manager
-
-The project root creates the secret shell. Seed the secret value before applying the workload root:
-
-```bash
-export PROJECT_ID=your-gcp-project-id
-export APP_NAME=cloudshortener
-export APP_ENV=dev
-export SECRET_NAME="${APP_NAME}-${APP_ENV}-secret-redis-credentials"
-
-printf '{"username":"%s","password":"%s"}' "$REDIS_USER" "$REDIS_PASS" \
-  | gcloud secrets versions add "$SECRET_NAME" \
-      --project="$PROJECT_ID" \
-      --data-file=-
-```
-
-### Upload placeholder Cloud Function zips
-
-From the repo root (requires `zip` and `gsutil`; zips must match `shorten.zip` / `redirect.zip` / `warm.zip`):
+The first root which must be deployed is `admin`, whose state is managed locally. It creates the admin GCP project plus the shared Terraform state and function artifact buckets:
 
 ```bash
-export FUNCTION_SOURCE_BUCKET=your-artifacts-bucket
-export APP_ENV=dev
+cd infra/gcp/admin
 
-cd infra/gcp/admin/placeholders/functions
-for fn in shorten redirect warm; do
-  ( cd "$fn" && zip -r "../${fn}.zip" . )
-  gsutil cp "${fn}.zip" "gs://${FUNCTION_SOURCE_BUCKET}/${APP_ENV}/cloud-functions/${fn}.zip"
-done
+export ADMIN_PROJECT_ID="cloudshortener-admin"
+export BILLING_ACCOUNT="your-billing-account-id"
+export ORG_ID="your-org-id"
+export REGION="europe-west1"
+export STATE_BUCKET_BASE="cloudshortener-tf-state"
+export ARTIFACTS_BUCKET_BASE="cloudshortener-artifacts"
+
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with the exported values above before running Terraform.
+
+make init
+make build
+make deploy TF_USE_PLAN_FILE=true
+make output
 ```
 
-## Commands
+### Deploy workload project and infrastructure
 
-**Project root** ([`projects/`](projects/)):
-
-```bash
-terraform -chdir=infra/gcp/projects fmt -recursive
-terraform -chdir=infra/gcp/projects init -backend=false    # local validate only
-terraform -chdir=infra/gcp/projects validate
-terraform -chdir=infra/gcp/projects plan -var-file=dev.terraform.tfvars
-```
-
-**Workload root** (`infra/gcp/workload/`):
-
-```bash
-cd infra/gcp/workload
-terraform fmt -recursive
-terraform init -backend=false    # local testing without GCS backend
-terraform validate
-terraform plan -var-file=dev.terraform.tfvars
-```
-
-Terraform automatically loads a file named `terraform.tfvars` if present. If you use `dev.terraform.tfvars`, avoid duplicating keys in `terraform.tfvars` or remove/rename `terraform.tfvars` so variables are not merged unexpectedly.
-
-**Admin bootstrap** ([`admin/`](admin/)):
-
-```bash
-terraform -chdir=infra/gcp/admin fmt
-terraform -chdir=infra/gcp/admin init -backend=false
-terraform -chdir=infra/gcp/admin validate
-terraform -chdir=infra/gcp/admin plan -var-file=terraform.tfvars
-```
-
-## Known limitations
-
-- **Frontend without `frontend_domain`**: the load balancer serves **HTTP only** on the reserved global IP (no managed cert on bare IP). With `frontend_domain` set, managed SSL + HTTPS (and HTTP→HTTPS redirect) are provisioned. This differs from AWS CloudFront, which always offers HTTPS on `*.cloudfront.net`.
-- **Optional resource labels**: root variable `labels` (map) is merged into default labels `app` and `env` and applied to supported resources (GCS buckets, Memorystore, Cloud Functions, Eventarc). Subnets/VPC do not set `labels` in Terraform for this provider version. The standalone [`bastion/`](bastion/) module accepts optional `labels` in its own `terraform.tfvars`.
-
-## Notes
-
-- **Managed SSL / custom domain**: set `frontend_domain` to enable managed certificate + HTTPS. Leave empty for HTTP-on-IP (dev/lab).
-- **SPA routing**: the frontend URL map uses `default_custom_error_response_policy` on [`workload/modules/frontend/main.tf`](workload/modules/frontend/main.tf) so 403/404 from the GCS backend are served as `index.html` with HTTP 200, matching AWS CloudFront `CustomErrorResponses` and Vue Router deep links. The GCS bucket also sets `website { main_page_suffix = "index.html" }` for direct bucket semantics parity with S3 website hosting.
-- **OpenAPI / API Gateway**: [`workload/modules/backend/gateway/openapi.yaml.tftpl`](workload/modules/backend/gateway/openapi.yaml.tftpl) is rendered with function URLs and JWT issuer settings (Identity Platform / securetoken). **CORS** response headers are set in Cloud Function Python code; OPTIONS is routed to the same backends as other methods.
-- **Bastion**: requires the **network** stack applied first; pass `subnet_self_link` from `module.network.subnet_self_link`. Network stack opens IAP TCP forwarding to VMs tagged `bastion`. **Operators** who run `gcloud compute ssh --tunnel-through-iap` need **`roles/iap.tunnelResourceAccessor`** on the project or instance (the bastion VM service account does not grant this to humans).
-- **OIDC / GitHub Actions**: [`oidc/main.tf`](oidc/main.tf) creates one shared WIF pool/provider in the **admin** project and **one deploy + one tests service account per environment key** in `env_projects`. Deploy SAs get roles aligned with Terraform resources (including Cloud Functions Gen2 / Run IAM and API Gateway). Tests SAs get least-privilege roles for IAP bastion SSH, Memorystore/Secret Manager, GCS config object CRUD, Identity Platform user lifecycle, API Gateway visibility, and API keys read—not project-wide `roles/viewer`. Restrict GitHub tokens with `attribute_condition` in [`oidc/terraform.tfvars`](oidc/terraform.tfvars.example). Ensure `serviceusage.googleapis.com` is usable on the admin project before OIDC Terraform manages other API enablements there.
-
-## CI
-
-Use `terraform fmt -check` and `terraform validate` in pipelines (with `-backend=false` or a test backend config as appropriate).
-
-## Migrating workload remote state to `env/<env>/workload`
-
-If you previously used the GCS prefix `env/dev/` (without a `workload/` segment) for the workload root **when that root lived at `infra/gcp/`**, copy the state to `env/dev/workload` before using this layout. **`terraform apply` and `terraform destroy` are not required for migration**; use `terraform init` and `terraform plan` only.
-
-From a checkout **before** this restructure (workload at `infra/gcp/`):
+Terraform roots can be managed individually with their directories' Makefiles. Alternatively, you can deploy all needed workload resources via the orchestrator [Makefile](./Makefile):
 
 ```bash
 cd infra/gcp
 
-terraform init -reconfigure \
-  -backend-config="bucket=${STATE_BUCKET}" \
-  -backend-config="prefix=env/dev/"
+export APP_ENV="dev"
+export APP_NAME="cloudshortener"
+export PROJECT_ID="${APP_NAME}-${APP_ENV}"
+export REGION="europe-west1"
+export STATE_BUCKET="cloudshortener-tf-state-<your admin project number>"
+export ARTIFACTS_BUCKET="cloudshortener-artifacts-<your admin project number>"
+export BILLING_ACCOUNT="your-billing-account-id"
+export ORG_ID="your-org-id"
+export FOLDER_ID=""
+export BROWSER_API_KEY_GENERATION="v1"
+export REDIS_CLOUD_HOST="your-redis-cloud-host"
+export REDIS_CLOUD_PORT="your-redis-cloud-port"
+export REDIS_CLOUD_DB="0"
+export REDIS_CLOUD_USER="your-redis-cloud-user"
+export REDIS_CLOUD_PASS="your-redis-cloud-password"
+export DEPLOYER_MEMBER="user:your-email@example.com"
 
-terraform init -migrate-state \
-  -backend-config="bucket=${STATE_BUCKET}" \
-  -backend-config="prefix=env/dev/workload"
+# Initialize Terraform roots.
+make init
 
-terraform plan -var-file=dev.terraform.tfvars
-# Expect: no changes.
+# One-time grant after the workload project exists. If this is a brand-new
+# project, run this after the project is created and rerun deploy.
+gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
+  --member="${DEPLOYER_MEMBER}" \
+  --role="roles/identitytoolkit.admin"
 
-# Optional: remove old object after plan is clean:
-# gcloud storage rm "gs://${STATE_BUCKET}/env/dev/default.tfstate"
+# Full E2E deploy from scratch.
+make deploy TF_AUTO_APPROVE=true
 ```
 
-Then switch to this repo layout, move local `dev.terraform.tfvars` (and `.terraform/` if you rely on it) into `infra/gcp/workload/`, and re-init:
+### Deploy supporting infrastructure
+
+OIDC stack can be deployed like:
 
 ```bash
-cd infra/gcp/workload
+cd infra/gcp/oidc
 
-terraform init -reconfigure \
-  -backend-config="bucket=${STATE_BUCKET}" \
-  -backend-config="prefix=env/dev/workload"
+export APP_ENV="dev"
+export APP_NAME="cloudshortener"
+export ADMIN_PROJECT_ID="cloudshortener-admin"
+export ADMIN_PROJECT_NUMBER="your-admin-project-number"
+export GITHUB_ORG="your-github-org"
+export GITHUB_REPO="cloud-url-shortener"
+export ENV_PROJECT_ID="${APP_NAME}-${APP_ENV}"
+export STATE_BUCKET="cloudshortener-tf-state-<your admin project number>"
 
-terraform plan -var-file=dev.terraform.tfvars
-# Expect: no changes again.
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars with the exported values above before running Terraform.
+
+make init TF_EXTRA_ARGS="-reconfigure -backend-config=bucket=${STATE_BUCKET} -backend-config=prefix=oidc"
+make build
+make deploy TF_USE_PLAN_FILE=true
+```
+
+Bastion can be deployed like:
+
+```bash
+cd infra/gcp/bastion
+
+export APP_ENV="dev"
+export STATE_BUCKET="cloudshortener-tf-state-<your admin project number>"
+export PROJECT_ID="cloudshortener-dev"
+export REGION="europe-west1"
+export SUBNET_SELF_LINK="https://www.googleapis.com/compute/v1/projects/${PROJECT_ID}/regions/${REGION}/subnetworks/cloudshortener-${APP_ENV}-subnet"
+
+cp terraform.tfvars.example "${APP_ENV}.terraform.tfvars"
+# Edit "${APP_ENV}.terraform.tfvars" with the exported values above before running Terraform.
+
+make init TF_EXTRA_ARGS="-reconfigure -backend-config=bucket=${STATE_BUCKET} -backend-config=prefix=env/${APP_ENV}/bastion"
+make build APP_ENV="${APP_ENV}"
+make deploy APP_ENV="${APP_ENV}" TF_USE_PLAN_FILE=true
+```
+
+### Destroy workload infrastructure
+
+```bash
+export APP_ENV="dev"
+export APP_NAME="cloudshortener"
+export PROJECT_ID="${APP_NAME}-${APP_ENV}"
+export REGION="europe-west1"
+export STATE_BUCKET="cloudshortener-tf-state-<your admin project number>"
+export ARTIFACTS_BUCKET="cloudshortener-artifacts-<your admin project number>"
+export REDIS_CLOUD_HOST="your-redis-cloud-host"
+export BILLING_ACCOUNT="your-billing-account-id"
+export ORG_ID="your-org-id"
+export FOLDER_ID=""
+export BROWSER_API_KEY_GENERATION="v1"
+
+# Tear down the optional bastion host first.
+cd infra/gcp/bastion
+make init TF_EXTRA_ARGS="-reconfigure -backend-config=bucket=${STATE_BUCKET} -backend-config=prefix=env/${APP_ENV}/bastion"
+make destroy APP_ENV="${APP_ENV}" TF_EXTRA_ARGS="-auto-approve"
+
+# Tear down workload and project-level resources.
+cd infra/gcp
+make destroy TF_AUTO_APPROVE=true
 ```
