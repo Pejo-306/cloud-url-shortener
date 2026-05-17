@@ -12,12 +12,13 @@ from cloudshortener.cloud.functions.redirect.constants import (
 from cloudshortener.cloud.functions.types import HttpResponse, RedirectConfig, RedirectRequest
 from cloudshortener.dao.exceptions import ShortURLNotFoundError
 from cloudshortener.dao.redis import ShortURLRedisDAO
+from cloudshortener.types import HttpHeaders
 from cloudshortener.utils.helpers import beginning_of_next_month
 
 logger = logging.getLogger(__name__)
 
 
-def cors_headers() -> dict[str, str]:
+def cors_headers() -> HttpHeaders:
     """CORS headers to allow frontend on another domain to process the response."""
     return {
         'Access-Control-Allow-Origin': '*',  # TODO: this should be a specific frontend domain only

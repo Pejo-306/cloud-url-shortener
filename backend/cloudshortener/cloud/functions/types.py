@@ -24,6 +24,16 @@ class RedirectConfig(FunctionConfig):
 
 
 @dataclass(frozen=True)
+class ShortenConfig(FunctionConfig):
+    redis_host: str
+    redis_port: int
+    redis_db: int
+    redis_username: str | None = None
+    redis_password: str | None = None
+    app_prefix: str | None = None
+
+
+@dataclass(frozen=True)
 class FunctionRequest:
     pass
 
@@ -32,3 +42,10 @@ class FunctionRequest:
 class RedirectRequest(FunctionRequest):
     shortcode: str | None
     short_url: str
+
+
+@dataclass(frozen=True)
+class ShortenRequest(FunctionRequest):
+    user_id: str | None
+    body: str | None
+    base_url: str

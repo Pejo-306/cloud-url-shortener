@@ -32,10 +32,7 @@ def guarantee_500_response[RequestT: FunctionRequest, ConfigT: FunctionConfig](
         try:
             return handler(request, config)
         except Exception as e:
-            logger.exception(
-                'Unhandled error in redirect handler.',
-                extra={'error': e.__class__.__name__, 'reason': str(e)}
-            )
+            logger.exception('Unhandled error in redirect handler.', extra={'error': e.__class__.__name__, 'reason': str(e)})
             return _response_500()
 
     return wrapper
