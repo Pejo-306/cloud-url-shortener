@@ -84,6 +84,21 @@ variable "artifacts_bucket" {
   description = "GCS artifacts bucket with uploaded function source archives (.zip) under {app_env}/cloud-functions/."
 }
 
+variable "fn_source_hash_shorten" {
+  type    = string
+  default = "placeholder"
+}
+
+variable "fn_source_hash_redirect" {
+  type    = string
+  default = "placeholder"
+}
+
+variable "fn_source_hash_warm" {
+  type    = string
+  default = "placeholder"
+}
+
 # Cloud Functions entry point is a top-level Python callable which we define in main.py
 # when we zip functions and upload to artifacts bucket.
 variable "shorten_runtime_entry_point" {

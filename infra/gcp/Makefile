@@ -10,8 +10,9 @@ WORKLOAD_STATE_PREFIX := env/$(APP_ENV)/workload
 
 # --- Cloud Function artifacts ---
 ARTIFACTS_BUCKET              ?=
-CLOUD_FUNCTIONS_SOURCE_DIR    ?= admin/placeholders/functions
+CLOUD_FUNCTIONS_SOURCE_DIR    ?= .artifacts/cloud-functions-source
 CLOUD_FUNCTIONS_ARTIFACTS_DIR ?= .artifacts/cloud-functions
+CLOUD_FUNCTIONS_HASHES_FILE   := $(CLOUD_FUNCTIONS_ARTIFACTS_DIR)/hashes.env
 
 # --- GCP project configuration ---
 REGION                        ?= europe-west1
@@ -267,8 +268,12 @@ _deploy_workload_resources:
 		TF_USE_PLAN_FILE=$(TF_USE_PLAN_FILE) \
 		TF_EXTRA_ARGS='$(APPLY_EXTRA_ARGS)'
 
+.PHONY: _assemble_function_source
+_assemble_function_source:
+	./scripts/assemble-function-source.sh "$(CLOUD_FUNCTIONS_SOURCE_DIR)"
+
 .PHONY: _build_function_zips
-_build_function_zips:
+_build_function_zips: _assemble_function_source
 	./scripts/build-function-zips.sh "$(CLOUD_FUNCTIONS_SOURCE_DIR)" "$(CLOUD_FUNCTIONS_ARTIFACTS_DIR)"
 
 .PHONY: _enable_bootstrap_apis
@@ -330,4 +335,5 @@ _generate_workload_tfvars:
 		REDIS_CLOUD_DB="$(REDIS_CLOUD_DB)" \
 		FRONTEND_DOMAIN="$(FRONTEND_DOMAIN)" \
 		ARTIFACTS_BUCKET="$(ARTIFACTS_BUCKET)" \
+		CLOUD_FUNCTIONS_HASHES_FILE="$(CLOUD_FUNCTIONS_HASHES_FILE)" \
 		./scripts/generate-workload-tfvars.sh projects "$(WORKLOAD_VAR_FILE)"
