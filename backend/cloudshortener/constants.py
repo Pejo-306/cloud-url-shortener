@@ -48,6 +48,10 @@ class ENV:
         AWS_PROFILE = 'AWS_PROFILE'
         ORCHESTRATOR_STACK = 'ORCHESTRATOR_STACK'
 
+    class GCP(StrEnum):
+        CONFIG_GCS_BUCKET = 'CONFIG_GCS_BUCKET'
+        CONFIG_GCS_OBJECT = 'CONFIG_GCS_OBJECT'
+
     class AppConfig(StrEnum):
         APP_ID = 'APPCONFIG_APP_ID'
         ENV_ID = 'APPCONFIG_ENV_ID'
@@ -70,6 +74,13 @@ class ENV:
     class PortForwarding(StrEnum):
         HOST = 'PORT_FORWARDING_HOST'
         PORT = 'PORT_FORWARDING_PORT'
+
+
+class FunctionName(StrEnum):
+    """Function names. Make sure they match the config keys in `backend-config.json` `configs`."""
+
+    REDIRECT_URL = 'redirect_url'
+    SHORTEN_URL = 'shorten_url'
 
 
 # Error codes
