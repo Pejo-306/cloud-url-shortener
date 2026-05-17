@@ -4,7 +4,8 @@
 # Usage: generate-workload-tfvars.sh PROJECTS_DIR OUTPUT_FILE
 # Env: APP_NAME, APP_ENV, PROJECT_ID, REGION, LOG_LEVEL, SUBNET_CIDR,
 #      MEMORYSTORE_MEMORY_SIZE_GB, REDIS_CLOUD_HOST, REDIS_CLOUD_PORT,
-#      REDIS_CLOUD_DB, FRONTEND_DOMAIN, ARTIFACTS_BUCKET
+#      REDIS_CLOUD_DB, FRONTEND_DOMAIN, ARTIFACTS_BUCKET,
+#      CLOUD_FUNCTIONS_HASHES_FILE
 
 set -euo pipefail
 
@@ -46,12 +47,39 @@ require_tf_output() {
   printf '%s' "${value}"
 }
 
+function_hash() {
+  local name="$1"
+  local hashes_file="$2"
+  local value
+
+  value="$(awk -F= -v name="${name}" '$1 == name { print $2 }' "${hashes_file}")"
+  if [[ -z "${value}" ]]; then
+    echo "generate-workload-tfvars: missing hash for ${name} in ${hashes_file}" >&2
+    exit 1
+  fi
+
+  printf '%s' "${value}"
+}
+
 PROJECT_NUMBER="$(require_tf_output project_number)"
 FUNCTIONS_SA_EMAIL="$(require_tf_output functions_sa_email)"
 API_GATEWAY_RUNTIME_SA_EMAIL="$(require_tf_output api_gateway_runtime_sa_email)"
 EVENTARC_TRIGGER_SA_EMAIL="$(require_tf_output eventarc_trigger_sa_email)"
 MEMORYSTORE_AUTH_SECRET_ID="$(require_tf_output memorystore_auth_secret_id)"
 REDIS_CLOUD_CREDENTIALS_SECRET_ID="$(require_tf_output redis_cloud_credentials_secret_id)"
+FN_SOURCE_HASH_SHORTEN=""
+FN_SOURCE_HASH_REDIRECT=""
+FN_SOURCE_HASH_WARM=""
+
+if [[ -n "${CLOUD_FUNCTIONS_HASHES_FILE:-}" ]]; then
+  if [[ -f "${CLOUD_FUNCTIONS_HASHES_FILE}" ]]; then
+    FN_SOURCE_HASH_SHORTEN="$(function_hash shorten "${CLOUD_FUNCTIONS_HASHES_FILE}")"
+    FN_SOURCE_HASH_REDIRECT="$(function_hash redirect "${CLOUD_FUNCTIONS_HASHES_FILE}")"
+    FN_SOURCE_HASH_WARM="$(function_hash warm "${CLOUD_FUNCTIONS_HASHES_FILE}")"
+  else
+    echo "generate-workload-tfvars: hashes file not found, using Terraform defaults: ${CLOUD_FUNCTIONS_HASHES_FILE}" >&2
+  fi
+fi
 
 mkdir -p "$(dirname "${OUTPUT_FILE}")"
 
@@ -82,6 +110,18 @@ mkdir -p "$(dirname "${OUTPUT_FILE}")"
 
   if [[ -n "${ARTIFACTS_BUCKET:-}" ]]; then
     printf 'artifacts_bucket = %s\n' "$(hcl_string "${ARTIFACTS_BUCKET}")"
+  fi
+
+  if [[ -n "${FN_SOURCE_HASH_SHORTEN}" ]]; then
+    printf 'fn_source_hash_shorten = %s\n' "$(hcl_string "${FN_SOURCE_HASH_SHORTEN}")"
+  fi
+
+  if [[ -n "${FN_SOURCE_HASH_REDIRECT}" ]]; then
+    printf 'fn_source_hash_redirect = %s\n' "$(hcl_string "${FN_SOURCE_HASH_REDIRECT}")"
+  fi
+
+  if [[ -n "${FN_SOURCE_HASH_WARM}" ]]; then
+    printf 'fn_source_hash_warm = %s\n' "$(hcl_string "${FN_SOURCE_HASH_WARM}")"
   fi
 } >"${OUTPUT_FILE}"
 

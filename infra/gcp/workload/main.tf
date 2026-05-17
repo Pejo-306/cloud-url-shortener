@@ -75,6 +75,9 @@ module "backend" {
   jwt_issuer                   = local.identity_platform_jwt_issuer
   jwt_jwks_uri                 = local.identity_platform_jwt_jwks_uri
   artifacts_bucket             = var.artifacts_bucket
+  fn_source_hash_shorten       = var.fn_source_hash_shorten
+  fn_source_hash_redirect      = var.fn_source_hash_redirect
+  fn_source_hash_warm          = var.fn_source_hash_warm
   labels                       = local.resource_labels
   functions_sa_email           = var.functions_sa_email
   api_gateway_runtime_sa_email = var.api_gateway_runtime_sa_email

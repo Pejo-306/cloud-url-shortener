@@ -131,6 +131,27 @@ variable "artifacts_bucket" {
   default     = ""
 }
 
+# Keep source changes visible to Terraform by embedding these hashes in function zip object names.
+# This triggers an in-place update of the function when a new source zip is uploaded.
+# Without this, we'd need to manually delete and recreate the function, API gateway and config to see changes.
+variable "fn_source_hash_shorten" {
+  type        = string
+  description = "Content hash suffix for the shorten Cloud Function source zip."
+  default     = "placeholder"
+}
+
+variable "fn_source_hash_redirect" {
+  type        = string
+  description = "Content hash suffix for the redirect Cloud Function source zip."
+  default     = "placeholder"
+}
+
+variable "fn_source_hash_warm" {
+  type        = string
+  description = "Content hash suffix for the warm-config Cloud Function source zip."
+  default     = "placeholder"
+}
+
 variable "labels" {
   type        = map(string)
   description = "Optional extra resource labels merged with app/env defaults."
