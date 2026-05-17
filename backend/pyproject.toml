@@ -26,6 +26,10 @@ dev = [
     "types-boto3-cognito-idp>=1.42.59",
     "types-boto3-elasticache>=1.42.3",
 ]
+gcp = [
+    "functions-framework>=3.8.0,<4",
+    "google-cloud-storage>=2.18.0,<3",
+]
 
 [tool.ruff]
 src = ["cloudshortener", "tests"]

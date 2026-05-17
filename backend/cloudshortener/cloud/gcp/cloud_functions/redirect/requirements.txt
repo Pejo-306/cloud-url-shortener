@@ -1,0 +1,10 @@
+functions-framework>=3.8.0,<4
+google-cloud-storage>=2.18.0,<3
+google-cloud-secret-manager>=2.22.0,<3
+redis>=7.0.0,<8.0.0
+xxhash>=3.6.0,<4.0.0
+
+# Temporary deploy unblock: the bundled shared cloudshortener package still has
+# AWS-specific imports that execute at module load time, even for GCP functions.
+# TODO: split the GCP package/import graph so Cloud Functions do not install boto3.
+boto3<2
