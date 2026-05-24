@@ -11,12 +11,10 @@ from freezegun import freeze_time
 from cloudshortener.types import AppConfig, AppConfigMetadata, AppConfigDataClient, AppConfigClient
 from cloudshortener.dao.cache.cache_key_schema import CacheKeySchema
 from cloudshortener.dao.cache.appconfig_cache_dao import AppConfigCacheDAO
+from cloudshortener.dao.cache.constants import CacheTTL
 from cloudshortener.dao.exceptions import CacheMissError, CachePutError
 from cloudshortener.exceptions import MissingEnvironmentVariableError
 from cloudshortener.constants import ENV
-
-
-from cloudshortener.dao.cache.constants import CacheTTL
 
 
 class TestAppConfigCacheDAO:

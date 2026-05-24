@@ -116,7 +116,7 @@ variable "redirect_runtime_entry_point" {
 variable "warm_runtime_entry_point" {
   type        = string
   description = "Python entry point for warm-config Cloud Function."
-  default     = "warm_appconfig_cache"
+  default     = "warm_config_cache"
 }
 
 variable "function_runtime" {

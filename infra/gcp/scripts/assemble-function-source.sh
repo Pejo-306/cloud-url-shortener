@@ -72,4 +72,4 @@ mkdir -p "${CLOUD_FUNCTIONS_SOURCE_DIR}"
 
 copy_python_function "redirect"
 copy_python_function "shorten"
-copy_placeholder_function "warm"
+copy_python_function "warm"

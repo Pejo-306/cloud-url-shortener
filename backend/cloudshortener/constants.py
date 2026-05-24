@@ -49,8 +49,12 @@ class ENV:
         ORCHESTRATOR_STACK = 'ORCHESTRATOR_STACK'
 
     class GCP(StrEnum):
+        GCP_PROJECT_ID = 'GCP_PROJECT_ID'
         CONFIG_GCS_BUCKET = 'CONFIG_GCS_BUCKET'
         CONFIG_GCS_OBJECT = 'CONFIG_GCS_OBJECT'
+        MEMORYSTORE_HOST = 'MEMORYSTORE_HOST'
+        MEMORYSTORE_PORT = 'MEMORYSTORE_PORT'
+        MEMORYSTORE_AUTH_SECRET = 'MEMORYSTORE_AUTH_SECRET'  # noqa: S105 - this is not a hardcoded secret
 
     class AppConfig(StrEnum):
         APP_ID = 'APPCONFIG_APP_ID'
@@ -81,6 +85,13 @@ class FunctionName(StrEnum):
 
     REDIRECT_URL = 'redirect_url'
     SHORTEN_URL = 'shorten_url'
+
+
+class GCP:
+    """GCP-specific constants."""
+
+    class MemoryStore:
+        DEFAULT_PORT = 6378
 
 
 # Error codes

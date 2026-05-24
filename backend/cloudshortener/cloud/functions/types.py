@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 
+from cloudshortener.cloud.dao.base import BackendConfigCacheBaseDAO
+
 
 @dataclass(frozen=True)
 class HttpResponse:
@@ -49,3 +51,13 @@ class ShortenRequest(FunctionRequest):
     user_id: str | None
     body: str | None
     base_url: str
+
+
+@dataclass(frozen=True)
+class WarmConfigCacheRequest(FunctionRequest):
+    pass
+
+
+@dataclass(frozen=True)
+class WarmConfigCacheConfig(FunctionConfig):
+    dao: BackendConfigCacheBaseDAO

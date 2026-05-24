@@ -11,6 +11,8 @@ type LambdaDiagnosticResponse = str
 type LambdaConfiguration = dict[str, Any]
 type AppConfig = dict[str, Any]
 type AppConfigMetadata = dict[str, Any]
+type BackendConfig = dict[str, Any]
+type BackendConfigMetadata = dict[str, Any]
 
 # Type aliases for boto3 clients
 type AppConfigDataClient = BaseClient
