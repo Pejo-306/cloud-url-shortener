@@ -36,6 +36,11 @@ class ShortenConfig(FunctionConfig):
 
 
 @dataclass(frozen=True)
+class WarmConfigCacheConfig(FunctionConfig):
+    dao: BackendConfigCacheBaseDAO
+
+
+@dataclass(frozen=True)
 class FunctionRequest:
     pass
 
@@ -56,8 +61,3 @@ class ShortenRequest(FunctionRequest):
 @dataclass(frozen=True)
 class WarmConfigCacheRequest(FunctionRequest):
     pass
-
-
-@dataclass(frozen=True)
-class WarmConfigCacheConfig(FunctionConfig):
-    dao: BackendConfigCacheBaseDAO
