@@ -53,7 +53,7 @@ help:
 	@echo "  make build                               # build requirements.txt"
 
 install:
-	uv sync
+	uv sync --group gcp
 
 clean:
 	@echo "This will remove .venv, .ruff_cache, __pycache__, .pytest_cache, .coverage, htmlcov. Continue? [y/N]"
