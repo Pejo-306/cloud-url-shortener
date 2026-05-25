@@ -13,6 +13,7 @@ type AppConfig = dict[str, Any]
 type AppConfigMetadata = dict[str, Any]
 type BackendConfig = dict[str, Any]
 type BackendConfigMetadata = dict[str, Any]
+type FunctionConfiguration = dict[str, Any]  # subset of BackendConfig
 
 # Type aliases for boto3 clients
 type AppConfigDataClient = BaseClient
