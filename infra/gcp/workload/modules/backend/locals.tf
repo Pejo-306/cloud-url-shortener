@@ -10,6 +10,7 @@ locals {
     APP_NAME                = var.app_name
     LOG_LEVEL               = var.log_level
     GCP_PROJECT_ID          = var.project_id
+    GCP_REGION              = var.region
     CONFIG_GCS_BUCKET       = var.config_bucket_name
     CONFIG_GCS_OBJECT       = var.config_object_name
     MEMORYSTORE_HOST        = var.memorystore_primary_host

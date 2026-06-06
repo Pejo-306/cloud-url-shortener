@@ -34,6 +34,14 @@ resource "google_project_iam_member" "functions_log_writer" {
   depends_on = [google_service_account.functions]
 }
 
+resource "google_project_iam_member" "functions_api_gateway_viewer" {
+  project = var.project_id
+  role    = "roles/apigateway.viewer"
+  member  = "serviceAccount:${google_service_account.functions.email}"
+
+  depends_on = [google_service_account.functions]
+}
+
 resource "google_project_iam_member" "eventarc_trigger_receiver" {
   project = var.project_id
   role    = "roles/eventarc.eventReceiver"
