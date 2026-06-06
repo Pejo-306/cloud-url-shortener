@@ -85,7 +85,7 @@ class TestGCPBackendConfigCacheDAO:
         secrets_client: secretmanager.SecretManagerServiceClient,
         redis_client: redis.Redis,
     ) -> None:
-        monkeypatch.setenv(ENV.GCP.GCP_PROJECT_ID, 'my-project')
+        monkeypatch.setenv(ENV.GCP.PROJECT_ID, 'my-project')
         monkeypatch.setenv(ENV.GCP.CONFIG_GCS_BUCKET, 'config-bucket')
         monkeypatch.setenv(ENV.GCP.CONFIG_GCS_OBJECT, 'backend-config.json')
         monkeypatch.setenv(ENV.GCP.MEMORYSTORE_HOST, '10.0.0.5')

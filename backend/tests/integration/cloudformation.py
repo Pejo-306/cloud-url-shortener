@@ -336,7 +336,7 @@ class ElastiCacheStack(CloudFormationStack):
     def __init__(self, name: str, session: Optional[boto3.Session] = None):
         super().__init__(name, session)
         self._client = self.session.client('elasticache')
-        self._redis_client = None
+        self._redis_client = None  # TODO: this might be unused, remove
 
     @property
     def client(self) -> ElastiCacheClient:

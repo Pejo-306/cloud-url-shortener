@@ -19,7 +19,7 @@ class MemoryStoreClientMixin(RedisClientMixin):
     Secret Manager and constructs a Redis client for use within the DAO.
 
     Environment variables (paths/names to resolve at runtime):
-        - `GCP_PROJECT_ID`          : GCP project ID
+        - `PROJECT_ID`              : GCP project ID
         - `MEMORYSTORE_HOST`        : MemoryStore Redis host
         - `MEMORYSTORE_PORT`        : MemoryStore Redis port (defaults to 6379)
         - `MEMORYSTORE_AUTH_SECRET` : Secret Manager secret ID
@@ -65,9 +65,9 @@ class MemoryStoreClientMixin(RedisClientMixin):
         return host, port
 
     @staticmethod
-    @require_environment(ENV.GCP.GCP_PROJECT_ID, ENV.GCP.MEMORYSTORE_AUTH_SECRET)
+    @require_environment(ENV.GCP.PROJECT_ID, ENV.GCP.MEMORYSTORE_AUTH_SECRET)
     def _resolve_auth_secret(secrets_client: secretmanager.SecretManagerServiceClient | None = None) -> MemoryStoreAuthSecret:
-        project_id = os.environ[ENV.GCP.GCP_PROJECT_ID]
+        project_id = os.environ[ENV.GCP.PROJECT_ID]
         secret_id = os.environ[ENV.GCP.MEMORYSTORE_AUTH_SECRET]
         secret_name = f'projects/{project_id}/secrets/{secret_id}/versions/latest'
         client = secrets_client or secretmanager.SecretManagerServiceClient()
