@@ -1,0 +1,12 @@
+SHORTEN_ENDPOINT = '/v1/shorten'
+
+BACKEND_CONFIG_WARMING_WAIT_TIME = 60  # seconds
+CONFIG_OBJECT_NAME = 'backend-config.json'
+
+TEMPORARY_PASSWORD = '123456'
+
+IDENTITY_TOOLKIT_BASE_URL = 'https://identitytoolkit.googleapis.com/v1'
+IDENTITY_TOOLKIT_SIGN_UP_PATH = f'{IDENTITY_TOOLKIT_BASE_URL}/accounts:signUp'
+IDENTITY_TOOLKIT_DELETE_USER_PATH = f'{IDENTITY_TOOLKIT_BASE_URL}/accounts:delete'
+
+DEFAULT_REGION = 'europe-west1'

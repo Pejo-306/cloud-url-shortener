@@ -18,7 +18,7 @@ class ConcreteMemoryStoreMixin(MemoryStoreClientMixin):
 class TestMemoryStoreClientMixin:
     @pytest.fixture(autouse=True)
     def env(self, monkeypatch: MonkeyPatch) -> None:
-        monkeypatch.setenv(ENV.GCP.GCP_PROJECT_ID, 'my-project')
+        monkeypatch.setenv(ENV.GCP.PROJECT_ID, 'my-project')
         monkeypatch.setenv(ENV.GCP.MEMORYSTORE_HOST, '10.0.0.5')
         monkeypatch.setenv(ENV.GCP.MEMORYSTORE_PORT, '6379')
         monkeypatch.setenv(ENV.GCP.MEMORYSTORE_AUTH_SECRET, 'my-secret-id')

@@ -216,6 +216,8 @@ dev = [
 ]
 gcp = [
     { name = "functions-framework" },
+    { name = "google-cloud-api-gateway" },
+    { name = "google-cloud-redis" },
     { name = "google-cloud-secret-manager" },
     { name = "google-cloud-storage" },
 ]
@@ -243,6 +245,8 @@ dev = [
 ]
 gcp = [
     { name = "functions-framework", specifier = ">=3.8.0,<4" },
+    { name = "google-cloud-api-gateway", specifier = ">=1.15.0" },
+    { name = "google-cloud-redis", specifier = ">=2.21.0" },
     { name = "google-cloud-secret-manager", specifier = ">=2.22.0,<3" },
     { name = "google-cloud-storage", specifier = ">=2.18.0,<3" },
 ]
@@ -475,6 +479,22 @@ wheels = [
 ]
 
 [[package]]
+name = "google-cloud-api-gateway"
+version = "1.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "grpcio" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/78/9d/5405410749497d86a3dc4e077977dc81261f6639f32c0cb52f658462bb0b/google_cloud_api_gateway-1.15.0.tar.gz", hash = "sha256:c815340ebec74570031090be5eca5c3a76d8f52811fd55601cd4113d04844b8d", size = 95786, upload-time = "2026-03-30T22:50:53.716Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5e/41/e10d3025c3fa7e146e563bc05544d5602638e7b09970b70534f605bae668/google_cloud_api_gateway-1.15.0-py3-none-any.whl", hash = "sha256:18d27d8df7eb58151bbad3eadbe447a9c633fc6e90fb6813c1136c920182d01b", size = 73964, upload-time = "2026-03-30T20:02:32.847Z" },
+]
+
+[[package]]
 name = "google-cloud-core"
 version = "2.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -485,6 +505,22 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a8/dd/1eef226e470369b26824a505c34482c0b493bc35fe8e0c6b003b5feca21a/google_cloud_core-2.6.0.tar.gz", hash = "sha256:e76149739f90fac1fc6757c09f47eaccb3145b54adbd7759b0f7c4b235f46c83", size = 36001, upload-time = "2026-05-07T08:04:04.124Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/4a/98da8930ab109c73d9a5d13782a9ebb81ea8c111f6d534a567b71d23e52b/google_cloud_core-2.6.0-py3-none-any.whl", hash = "sha256:6d63ac8e5eca6d9e4319d0a1e2265fadcd7f1049904378caecfa01cf52dd869e", size = 29390, upload-time = "2026-05-07T08:02:34.672Z" },
+]
+
+[[package]]
+name = "google-cloud-redis"
+version = "2.21.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", extra = ["grpc"] },
+    { name = "google-auth" },
+    { name = "grpcio" },
+    { name = "proto-plus" },
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/28/c4/68638421711673c3d0e23846dc34ab7f7cea75ebdea4d2cb7929ceebe598/google_cloud_redis-2.21.0.tar.gz", hash = "sha256:eae9547fecd1e702d6a1ce701c6819d51a7e6c48cd526759948457c7e1241142", size = 186063, upload-time = "2026-03-26T22:18:50.068Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3a/48/33b1be0ed0277787f44420793676501c13784af971d0a68d15bc57fd5e12/google_cloud_redis-2.21.0-py3-none-any.whl", hash = "sha256:b46e7afb10475ea4c7d3caec898790e36dc383a5373e02353a5ba97284bac738", size = 150757, upload-time = "2026-03-26T22:14:16.809Z" },
 ]
 
 [[package]]
