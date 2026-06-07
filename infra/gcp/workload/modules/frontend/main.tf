@@ -20,7 +20,7 @@ resource "google_storage_bucket" "frontend" {
 resource "google_storage_bucket_iam_member" "lb_object_viewer" {
   bucket = google_storage_bucket.frontend.name
   role   = "roles/storage.objectViewer"
-  member = local.lb_data_plane_sa
+  member = local.bucket_viewer_member
 }
 
 resource "google_compute_backend_bucket" "cdn_lb_backend" {
