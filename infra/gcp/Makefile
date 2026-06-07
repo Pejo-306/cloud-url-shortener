@@ -130,6 +130,7 @@ deploy-project: _deploy_requirements
 	$(MAKE) _import_identity_platform_if_exists
 	$(MAKE) _deploy_project_resources
 	$(MAKE) _configure_identity_platform_password_policy
+	$(MAKE) _authorize_localhost_action_url
 	$(MAKE) _seed_redis_cloud_secret
 	$(MAKE) _poll_iam_bindings
 
@@ -287,6 +288,10 @@ _poll_cloud_billing:
 .PHONY: _configure_identity_platform_password_policy
 _configure_identity_platform_password_policy:
 	./scripts/configure-identity-platform-password-policy.sh $(PROJECT_ID)
+
+.PHONY: _authorize_localhost_action_url
+_authorize_localhost_action_url:
+	./scripts/authorize-localhost-action-url.sh $(PROJECT_ID)
 
 .PHONY: _seed_redis_cloud_secret
 _seed_redis_cloud_secret:
