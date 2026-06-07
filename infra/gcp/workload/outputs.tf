@@ -13,6 +13,11 @@ output "frontend_bucket_name" {
   value       = module.frontend.frontend_bucket_name
 }
 
+output "frontend_url_map_name" {
+  description = "URL map name for CDN cache invalidation."
+  value       = module.frontend.url_map_name
+}
+
 output "load_balancer_ip" {
   description = "External IP address of the frontend load balancer."
   value       = module.frontend.load_balancer_ip

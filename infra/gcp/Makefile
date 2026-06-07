@@ -142,6 +142,7 @@ deploy: init
 	$(MAKE) build
 	$(MAKE) _upload_function_zips
 	$(MAKE) _deploy_workload_resources TF_USE_PLAN_FILE=true
+	$(MAKE) _sync
 
 destroy: init
 	$(MAKE) _destroy_workload
@@ -267,6 +268,13 @@ _deploy_workload_resources:
 		TF_VAR_FILE=../$(WORKLOAD_VAR_FILE) \
 		TF_PLAN_FILE=../$(WORKLOAD_PLAN_FILE) \
 		TF_USE_PLAN_FILE=$(TF_USE_PLAN_FILE) \
+		TF_EXTRA_ARGS='$(APPLY_EXTRA_ARGS)'
+
+.PHONY: _sync
+_sync:
+	$(MAKE) -C workload sync \
+		APP_ENV=$(APP_ENV) \
+		PROJECT_ID=$(PROJECT_ID) \
 		TF_EXTRA_ARGS='$(APPLY_EXTRA_ARGS)'
 
 .PHONY: _assemble_function_source

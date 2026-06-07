@@ -17,3 +17,8 @@ output "cdn_backend_bucket_name" {
   description = "CDN-enabled backend to the GCS bucket."
   value       = google_compute_backend_bucket.cdn_lb_backend.name
 }
+
+output "url_map_name" {
+  description = "URL map resource name (used for CDN cache invalidation)."
+  value       = google_compute_url_map.route_table.name
+}
