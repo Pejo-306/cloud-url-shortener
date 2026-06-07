@@ -8,7 +8,7 @@ import config from '@/config'
 import { formatMessage } from '@/helpers/htmlUtils'
 import { validateUrl } from '@/helpers/validations'
 import shorten from '@/composables/shortenUrl'
-import { isAuthenticated } from '@/helpers/auth'
+import { isAuthenticated } from '@/helpers/authProvider'
 
 const router = useRouter()
 const showStatus = ref(false)

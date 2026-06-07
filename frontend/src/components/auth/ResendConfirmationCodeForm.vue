@@ -5,7 +5,7 @@ import { useRouter, useRoute } from 'vue-router'
 import Modal from '@/components/Modal.vue'
 
 import config from '@/config'
-import { resendConfirmationCode } from '@/helpers/auth'
+import { isGcpAuthProvider, resendConfirmationCode } from '@/helpers/authProvider'
 import { validateEmail } from '@/helpers/validations'
 
 const email = ref('')
@@ -26,6 +26,7 @@ const handleResendConfirmationCode = (event) => {
   event.preventDefault()
 
   const email = event.target.email.value
+  const password = event.target.password?.value
 
   const emailValidation = validateEmail(email)
   if (!emailValidation.valid) {
@@ -36,7 +37,7 @@ const handleResendConfirmationCode = (event) => {
   }
 
   isLoading.value = true
-  resendConfirmationCode(email)
+  resendConfirmationCode(email, password)
     .then(() => {
       router.push({ name: 'confirm-registration', query: { email: encodeURIComponent(email) } })
     })
@@ -53,7 +54,7 @@ const handleResendConfirmationCode = (event) => {
 <template>
   <Modal :is-loading="isLoading">
     <div class="auth-modal">
-      <h3>Resend confirmation code</h3>
+      <h3>{{ isGcpAuthProvider ? 'Resend verification email' : 'Resend confirmation code' }}</h3>
       <transition name="auth-slide" mode="out-in">
         <div v-if="errorMessage" class="auth-error-box">
           <p>{{ errorMessage }}</p>
@@ -65,12 +66,16 @@ const handleResendConfirmationCode = (event) => {
             <label for="email">Email</label>
             <input type="email" id="email" name="email" :value="email" required />
           </div>
+          <div v-if="isGcpAuthProvider">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required />
+          </div>
           <div class="auth-form-actions">
             <router-link
               class="auth-link"
               :to="{ name: 'confirm-registration', query: { email: encodeURIComponent(email) } }"
             >
-              Back to confirmation
+              {{ isGcpAuthProvider ? 'Back to verification' : 'Back to confirmation' }}
             </router-link>
             <button type="submit">Resend</button>
           </div>
