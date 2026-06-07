@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import config from '@/config'
 import { BackendError } from '@/errors'
 import { isUsingJsonServer, disableCaching } from '@/flags'
-import { getSession } from '@/helpers/auth'
+import { getSession } from '@/helpers/authProvider'
 
 const configureOptions = (targetUrl, idToken) => {
   let method = null

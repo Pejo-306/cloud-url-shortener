@@ -1,5 +1,6 @@
 {
   "backend": {
+    "cloudProvider": "aws",
     "endpoints": {
       "shorten": "/v1/shorten"
     },

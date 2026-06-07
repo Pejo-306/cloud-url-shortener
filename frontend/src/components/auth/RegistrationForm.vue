@@ -5,7 +5,7 @@ import { useRouter, useRoute } from 'vue-router'
 import Modal from '@/components/Modal.vue'
 
 import config from '@/config'
-import { register } from '@/helpers/auth'
+import { isGcpAuthProvider, register } from '@/helpers/authProvider'
 import {
   validateEmail,
   validatePassword,
@@ -104,7 +104,9 @@ const handleRegister = (event) => {
             <button type="submit">Register</button>
           </div>
           <p class="auth-secondary-link">
-            Got a confirmation code?
+            <span v-if="isGcpAuthProvider">Need a new verification email?</span>
+            <span v-else>Got a confirmation code?</span>
+            <br />
             <router-link :to="{ name: 'confirm-registration' }">Confirm registration</router-link>
           </p>
         </fieldset>

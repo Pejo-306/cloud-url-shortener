@@ -5,7 +5,7 @@ import { useRouter, useRoute } from 'vue-router'
 import Modal from '@/components/Modal.vue'
 
 import config from '@/config'
-import { confirmRegistration } from '@/helpers/auth'
+import { confirmRegistration, isGcpAuthProvider } from '@/helpers/authProvider'
 import { validateEmail } from '@/helpers/validations'
 
 const email = ref('')
@@ -64,7 +64,23 @@ const handleConfirmRegistration = (event) => {
           <p>{{ errorMessage }}</p>
         </div>
       </transition>
-      <form class="auth-form" @submit="handleConfirmRegistration">
+      <div v-if="isGcpAuthProvider" class="auth-form">
+        <p class="auth-info-text">
+          Check your email and click the verification link to finish creating your account.
+        </p>
+        <div class="auth-form-actions">
+          <router-link class="auth-link" :to="{ name: 'register' }"
+            >Back to registration</router-link
+          >
+          <router-link
+            class="auth-link"
+            :to="{ name: 'resend-confirmation-code', query: { email: encodeURIComponent(email) } }"
+          >
+            Resend verification email
+          </router-link>
+        </div>
+      </div>
+      <form v-else class="auth-form" @submit="handleConfirmRegistration">
         <fieldset :disabled="isLoading">
           <div>
             <label for="email">Email</label>

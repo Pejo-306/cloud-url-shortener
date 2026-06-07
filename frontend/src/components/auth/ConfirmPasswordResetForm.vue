@@ -5,7 +5,7 @@ import { useRouter, useRoute } from 'vue-router'
 import Modal from '@/components/Modal.vue'
 
 import config from '@/config'
-import { confirmPasswordReset } from '@/helpers/auth'
+import { confirmPasswordReset, isGcpAuthProvider } from '@/helpers/authProvider'
 import {
   validateEmail,
   validatePassword,
@@ -76,7 +76,19 @@ const handleConfirmPasswordReset = (event) => {
           <p>{{ errorMessage }}</p>
         </div>
       </transition>
-      <form class="auth-form" @submit="handleConfirmPasswordReset">
+      <div v-if="isGcpAuthProvider" class="auth-form">
+        <p class="auth-info-text">
+          Password reset links are handled from your email. Request a new reset link if the previous
+          one expired.
+        </p>
+        <div class="auth-form-actions">
+          <router-link class="auth-link" :to="{ name: 'login' }">Back to login</router-link>
+          <router-link class="auth-link" :to="{ name: 'password-reset' }">
+            Request reset link
+          </router-link>
+        </div>
+      </div>
+      <form v-else class="auth-form" @submit="handleConfirmPasswordReset">
         <fieldset :disabled="isLoading">
           <div>
             <label for="email">Email</label>

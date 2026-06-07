@@ -5,13 +5,14 @@ import { useRouter, useRoute } from 'vue-router'
 import Modal from '@/components/Modal.vue'
 
 import config from '@/config'
-import { requestPasswordReset } from '@/helpers/auth'
+import { isGcpAuthProvider, requestPasswordReset } from '@/helpers/authProvider'
 import { validateEmail } from '@/helpers/validations'
 
 const email = ref('')
 const router = useRouter()
 const route = useRoute()
 const errorMessage = ref('')
+const successMessage = ref('')
 const isLoading = ref(false)
 
 // Populate email field from query parameter
@@ -33,12 +34,17 @@ const handleRequestPasswordReset = (event) => {
     return
   } else {
     errorMessage.value = ''
+    successMessage.value = ''
   }
 
   isLoading.value = true
   requestPasswordReset(email)
     .then(() => {
-      router.push({ name: 'confirm-password-reset', query: { email: encodeURIComponent(email) } })
+      if (isGcpAuthProvider) {
+        successMessage.value = 'Check your email and click the password reset link.'
+      } else {
+        router.push({ name: 'confirm-password-reset', query: { email: encodeURIComponent(email) } })
+      }
     })
     .catch((err) => {
       errorMessage.value = err?.message ?? config.auth.errorMessages.resetPasswordFailed
@@ -58,6 +64,9 @@ const handleRequestPasswordReset = (event) => {
         <div v-if="errorMessage" class="auth-error-box">
           <p>{{ errorMessage }}</p>
         </div>
+        <div v-else-if="successMessage" class="auth-info-text">
+          <p>{{ successMessage }}</p>
+        </div>
       </transition>
       <form class="auth-form" @submit="handleRequestPasswordReset">
         <fieldset :disabled="isLoading">
@@ -69,9 +78,11 @@ const handleRequestPasswordReset = (event) => {
             <router-link class="auth-link" :to="`/login?email=${encodeURIComponent(email)}`">
               Back to login
             </router-link>
-            <button type="submit">Send Reset Code</button>
+            <button type="submit">
+              {{ isGcpAuthProvider ? 'Send Reset Link' : 'Send Reset Code' }}
+            </button>
           </div>
-          <p class="auth-secondary-link">
+          <p v-if="!isGcpAuthProvider" class="auth-secondary-link">
             Already have a reset code?<br />
             <router-link
               :to="{ name: 'confirm-password-reset', query: { email: encodeURIComponent(email) } }"

@@ -6,7 +6,7 @@ import Modal from '@/components/Modal.vue'
 
 import config from '@/config'
 import { validateEmail, validatePassword } from '@/helpers/validations'
-import { login, persistSession } from '@/helpers/auth'
+import { login, persistSession } from '@/helpers/authProvider'
 
 const email = ref('')
 const router = useRouter()

@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { isAuthenticated, logout } from '@/helpers/auth'
+import { isAuthenticated, isGcpAuthProvider, logout } from '@/helpers/authProvider'
 
 import Home from '@/views/Home.vue'
 import LoginForm from '@/components/auth/LoginForm.vue'
@@ -9,6 +9,7 @@ import ConfirmRegistrationForm from '@/components/auth/ConfirmRegistrationForm.v
 import ResendConfirmationCodeForm from '@/components/auth/ResendConfirmationCodeForm.vue'
 import PasswordResetForm from '@/components/auth/PasswordResetForm.vue'
 import ConfirmPasswordResetForm from '@/components/auth/ConfirmPasswordResetForm.vue'
+import AuthActionHandler from '@/components/auth/AuthActionHandler.vue'
 
 const routes = [
   {
@@ -55,6 +56,14 @@ const routes = [
     name: 'resend-confirmation-code',
   },
 ]
+
+if (isGcpAuthProvider) {
+  routes.push({
+    path: '/auth/action',
+    components: { default: Home, modal: AuthActionHandler },
+    name: 'auth-action',
+  })
+}
 
 const router = createRouter({
   history: createWebHistory(),
